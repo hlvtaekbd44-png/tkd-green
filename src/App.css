@@ -1,0 +1,131 @@
+#root { min-height: 100vh; }
+* { box-sizing: border-box; }
+.app-shell { min-height: 100vh; background: #f4f7f5; }
+.MuiDrawer-paper { border-right: 1px solid #e8eee9 !important; background: #fff !important; }
+.sidebar-inner { display: flex; flex-direction: column; height: 100%; padding: 25px 17px 16px; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 2px 10px 32px; }
+.brand-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: #176b45; color: #fff; box-shadow: 0 7px 16px #176b4526; }
+.brand-mark svg { font-size: 27px; }
+.brand-title { font-size: 16px !important; line-height: 1.3 !important; font-weight: 900 !important; letter-spacing: 1px !important; color: #174b34; }
+.brand-subtitle { font-size: 9px !important; font-weight: 800 !important; letter-spacing: 1.35px !important; color: #87958c; margin-top: 3px !important; }
+.sidebar-section-label { padding: 0 12px 10px; color: #9aa69e; font-size: 10px; font-weight: 800; letter-spacing: 1.2px; }
+.nav-list { padding: 0 !important; }
+.nav-item { border-radius: 10px !important; margin-bottom: 5px !important; min-height: 47px !important; padding: 0 12px !important; color: #65746a !important; }
+.nav-item .MuiListItemIcon { min-width: 38px; color: inherit; }
+.nav-item .MuiListItemIcon svg { font-size: 21px; }
+.nav-item .MuiListItemText-primary { font-size: 13px; font-weight: 650; }
+.nav-item.Mui-selected { background: #eaf5ee !important; color: #176b45 !important; }
+.nav-item.Mui-selected:before { content: ''; position: absolute; left: 0; width: 3px; height: 26px; border-radius: 0 5px 5px 0; background: #176b45; }
+.nav-item.Mui-selected .MuiListItemText-primary { font-weight: 800; }
+.nav-count { margin-left: auto; font-size: 10px !important; font-weight: 800 !important; color: #176b45; background: #d9eddf; border-radius: 6px; padding: 3px 5px; }
+.settings-label { margin-top: 28px; }
+.sidebar-bottom { margin-top: auto; }
+.coach-card { display: flex; align-items: center; gap: 9px; padding: 12px 8px; border-top: 1px solid #edf1ee; border-bottom: 1px solid #edf1ee; }
+.coach-avatar { width: 34px !important; height: 34px !important; font-size: 12px !important; font-weight: 800 !important; background: #dceee3 !important; color: #176b45 !important; }
+.coach-name { font-size: 11px !important; font-weight: 800 !important; white-space: nowrap; }
+.coach-role { font-size: 10px !important; color: #829087; margin-top: 3px !important; }
+.admin-chip { height: 19px !important; font-size: 8px !important; font-weight: 900 !important; color: #176b45 !important; background: #edf7f0 !important; margin-left: auto; }
+.sidebar-version { font-size: 8px !important; text-align: center; color: #a0aaa3; letter-spacing: .5px; margin-top: 14px !important; }
+.main-area { min-width: 0; min-height: 100vh; margin-left: 258px; }
+.topbar { background: rgba(255,255,255,.92) !important; color: #172b21 !important; border-bottom: 1px solid #e8eee9; backdrop-filter: blur(12px); }
+.topbar-toolbar { min-height: 76px !important; padding: 0 34px !important; }
+.topbar-eyebrow { font-size: 9px !important; color: #8a978f; font-weight: 800 !important; letter-spacing: 1.2px; }
+.topbar-title { font-size: 18px !important; font-weight: 850 !important; margin-top: 3px !important; }
+.notification-button { color: #68776e !important; margin-right: 13px !important; }
+.topbar-avatar { width: 36px !important; height: 36px !important; background: #176b45 !important; font-size: 12px !important; font-weight: 800 !important; }
+.page-content { max-width: 1600px; margin: 0 auto; padding: 29px 34px 18px; }
+.welcome-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 24px; }
+.welcome-kicker { color: #176b45; font-size: 9px !important; font-weight: 900 !important; letter-spacing: 1.25px; margin-bottom: 7px !important; }
+.welcome-title { font-size: clamp(20px, 2vw, 26px) !important; font-weight: 850 !important; letter-spacing: -.6px !important; }
+.welcome-description { color: #758279; font-size: 12px !important; margin-top: 7px !important; }
+.add-student-button { min-height: 42px !important; padding: 0 17px !important; white-space: nowrap; box-shadow: 0 6px 14px #176b4520 !important; }
+.filter-bar { padding: 14px 18px; border: 1px solid #e9efeb; margin-bottom: 18px; }
+.filter-icon { color: #176b45; font-size: 20px !important; }
+.filter-label { color: #6c7a71; font-size: 12px !important; font-weight: 650 !important; }
+.period-chip { height: 27px !important; background: #f0f5f1 !important; color: #344b3c !important; font-size: 11px !important; font-weight: 750 !important; }
+.location-select { min-width: 185px; }
+.location-select .MuiInputBase-root { font-size: 12px; background: #fff; }
+.location-select select { padding-top: 9px; padding-bottom: 9px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; margin-bottom: 18px; }
+.stat-card { padding: 20px 19px; border: 1px solid #e9efeb; min-width: 0; }
+.stat-card-accent { background: linear-gradient(135deg, #176b45, #104b31); color: #fff; border-color: #176b45; }
+.stat-title { font-size: 11px !important; color: #748178; font-weight: 700 !important; }
+.stat-card-accent .stat-title { color: #d2e9da; }
+.stat-value { font-size: clamp(23px, 2.2vw, 30px) !important; font-weight: 850 !important; letter-spacing: -.8px !important; margin-top: 8px !important; line-height: 1.1 !important; }
+.stat-note { font-size: 9px !important; color: #728077; }
+.stat-card-accent .stat-note { color: #d2e9da; }
+.stat-icon { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; background: #eaf5ee; color: #176b45; }
+.stat-icon svg { font-size: 21px; }
+.stat-icon-accent { background: #ffffff20; color: #fff; }
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr); gap: 18px; margin-bottom: 18px; }
+.panel { border: 1px solid #e9efeb; padding: 21px; min-width: 0; }
+.panel-title { font-size: 14px !important; font-weight: 850 !important; color: #1d3327; }
+.panel-subtitle { color: #8a968e; font-size: 10px !important; margin-top: 5px !important; }
+.chart-year-chip { height: 25px !important; background: #f0f5f1 !important; color: #526257 !important; font-size: 10px !important; font-weight: 800 !important; }
+.chart-wrap { height: 242px; margin-top: 17px; }
+.quick-panel { padding-bottom: 12px; }
+.quick-link { display: flex !important; justify-content: flex-start !important; gap: 11px !important; padding: 12px 4px !important; border-bottom: 1px solid #eef2ef !important; border-radius: 0 !important; text-align: left !important; color: inherit !important; }
+.quick-link:last-child { border-bottom: 0 !important; }
+.quick-link-icon { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex-shrink: 0; background: #edf6f0; color: #176b45; }
+.quick-link-icon svg { font-size: 20px; }
+.quick-link-copy { flex-grow: 1; min-width: 0; }
+.quick-link-title { font-size: 11px !important; font-weight: 800 !important; color: #25392d; }
+.quick-link-desc { font-size: 9px !important; color: #89958d; margin-top: 4px !important; }
+.quick-arrow { color: #9aa79f; font-size: 17px !important; }
+.students-panel { padding: 0; overflow: hidden; }
+.students-header { padding: 21px; }
+.student-search { width: 245px; }
+.student-search .MuiInputBase-root { font-size: 11px; background: #fbfcfb; }
+.student-search input { padding-top: 9px; padding-bottom: 9px; }
+.student-table-wrap { overflow-x: auto; }
+.student-table-head, .student-table-row { display: grid; grid-template-columns: minmax(210px, 1.5fr) minmax(110px, 1fr) minmax(90px, .8fr) minmax(100px, .85fr) minmax(100px, .85fr); align-items: center; gap: 13px; min-width: 720px; padding: 12px 21px; }
+.student-table-head { background: #f8faf8; border-top: 1px solid #eef2ef; border-bottom: 1px solid #eef2ef; }
+.student-table-head p, .student-table-head .MuiTypography-root { color: #89958d; font-size: 8px !important; font-weight: 900 !important; letter-spacing: .55px; }
+.student-table-row { min-height: 69px; border-bottom: 1px solid #f0f3f1; }
+.student-table-row:last-child { border-bottom: 0; }
+.student-name-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.student-avatar { width: 34px !important; height: 34px !important; background: #e5f2e9 !important; color: #176b45 !important; font-size: 12px !important; font-weight: 800 !important; }
+.student-name { font-size: 11px !important; font-weight: 800 !important; color: #2a3c31; }
+.student-id { font-size: 9px !important; color: #9aa59e; margin-top: 3px !important; }
+.table-cell { font-size: 10px !important; color: #5e6e63; }
+.status-active, .fee-paid { background: #e8f6ed !important; color: #207346 !important; }
+.status-paused { background: #f0f1f0 !important; color: #68736b !important; }
+.fee-due { background: #fff4db !important; color: #946710 !important; }
+.fee-debt { background: #ffebea !important; color: #b83d36 !important; }
+.status-active, .status-paused, .fee-paid, .fee-due, .fee-debt { font-size: 9px !important; font-weight: 750 !important; height: 23px !important; }
+.empty-state { padding: 25px; color: #7d8b82; font-size: 12px !important; }
+.view-all-button { margin: 11px 21px 17px !important; color: #176b45 !important; font-size: 11px !important; font-weight: 800 !important; }
+.module-placeholder { min-height: 390px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 35px; border: 1px solid #e9efeb; }
+.module-placeholder-icon { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 18px; color: #176b45; background: #e7f4eb; margin-bottom: 18px; }
+.module-placeholder-icon svg { font-size: 32px; }
+.module-placeholder-text { max-width: 460px; color: #77847b; font-size: 12px !important; line-height: 1.8 !important; margin: 12px 0 22px !important; }
+.footer { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 22px 3px 4px; color: #9aa69e; }
+.footer .MuiTypography-root { font-size: 8px !important; letter-spacing: .35px; }
+@media (max-width: 1200px) {
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-grid { grid-template-columns: minmax(0, 1.3fr) minmax(270px, 1fr); }
+  .page-content { padding-left: 24px; padding-right: 24px; }
+}
+@media (max-width: 900px) {
+  .main-area { margin-left: 0; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .topbar-toolbar { padding: 0 20px !important; }
+}
+@media (max-width: 600px) {
+  .page-content { padding: 21px 14px 14px; }
+  .topbar-toolbar { min-height: 67px !important; padding: 0 13px !important; }
+  .welcome-row { align-items: flex-start; flex-direction: column; }
+  .add-student-button { width: 100%; }
+  .stats-grid { gap: 10px; }
+  .stat-card { padding: 15px 13px; }
+  .stat-icon { width: 31px; height: 31px; border-radius: 9px; }
+  .stat-icon svg { font-size: 18px; }
+  .stat-note { font-size: 8px !important; }
+  .filter-bar { padding: 13px; }
+  .location-select { width: 100%; }
+  .panel { padding: 16px; }
+  .students-panel { padding: 0; }
+  .students-header { padding: 16px; }
+  .student-search { width: 100%; }
+  .footer { padding-top: 17px; }
+}
