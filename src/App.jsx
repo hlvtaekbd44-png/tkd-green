@@ -1,5 +1,12 @@
 import GoogleLogin from "./GoogleLogin";
-import { useMemo, useState } from 'react'
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
+import { db } from './firebase';
+import { useEffect, useMemo, useState } from "react";
 import useUserRole from "./useUserRole";
 import {
   AppBar, Avatar, Badge, Box, Button, Chip, CssBaseline, Divider,
@@ -14,6 +21,7 @@ import {
   CalendarMonthRounded, ArrowForwardRounded, ShieldRounded,
 } from '@mui/icons-material'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import AddMember from "./AddMember";
 import './App.css'
 
 const drawerWidth = 258
@@ -46,10 +54,6 @@ const navItems = [
 const locations = ['Tất cả điểm tập', 'Lê Văn Tám', 'Nghĩa Trung', 'Đồng Tâm', 'T6', 'Phước Sơn', 'Minh Hưng']
 
 const students = [
-  { id: 'HV_00128', name: 'Nguyễn Minh Anh', location: 'Lê Văn Tám', belt: 'Đai xanh', status: 'Đang học', fee: 'Đã đóng' },
-  { id: 'HV_00127', name: 'Trần Gia Bảo', location: 'Đồng Tâm', belt: 'Đai vàng', status: 'Đang học', fee: 'Sắp đến hạn' },
-  { id: 'HV_00126', name: 'Lê Hoàng Phúc', location: 'Nghĩa Trung', belt: 'Đai đỏ', status: 'Đang học', fee: 'Còn nợ' },
-  { id: 'HV_00125', name: 'Phạm Ngọc Hà', location: 'Minh Hưng', belt: 'Đai trắng', status: 'Tạm nghỉ', fee: 'Đã đóng' },
 ]
 
 const chartData = [
@@ -84,7 +88,71 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location, setLocation] = useState('Tất cả điểm tập');
   const [search, setSearch] = useState('');
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+const [students, setStudents] = useState([]);
+const [membersLoading, setMembersLoading] = useState(true);
+const [membersError, setMembersError] = useState('');
+
+const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+useEffect(() => {
+  if (!profile) return;
+
+  setMembersLoading(true);
+  setMembersError('');
+
+  // HLV chưa được phân công điểm tập thì không truy vấn hội viên.
+  if (
+    profile.role === 'hlv' &&
+    (!profile.diemTap || profile.diemTap.length === 0)
+  ) {
+    setStudents([]);
+    setMembersLoading(false);
+    return;
+  }
+
+  const membersRef = collection(db, 'members');
+
+  // HLV chỉ truy vấn những điểm tập được phân công.
+  const membersQuery =
+    profile.role === 'admin'
+      ? membersRef
+      : query(
+          membersRef,
+          where('diemTap', 'in', profile.diemTap)
+        );
+
+  const unsubscribe = onSnapshot(
+    membersQuery,
+    (snapshot) => {
+      const data = snapshot.docs.map((item) => {
+        const member = item.data();
+
+        return {
+          id: member.maHV || item.id,
+          name: member.hoTen || '',
+          location: member.diemTap || '',
+          belt: member.capDaiDang || 'Chưa cập nhật',
+          status: member.trangThai || 'Chưa cập nhật',
+          fee: member.tinhTrangHocPhi || 'Chưa cập nhật',
+        };
+      });
+
+      setStudents(data);
+      setMembersLoading(false);
+      setMembersError('');
+    },
+    (err) => {
+      console.error('Lỗi đọc danh sách hội viên:', err);
+      setMembersError(
+        'Không tải được hội viên. Vui lòng kiểm tra quyền Firestore.'
+      );
+      setMembersLoading(false);
+    }
+  );
+
+  return () => unsubscribe();
+}, [profile]);
+
 
   const filteredStudents = useMemo(() => students.filter((student) => {
     const matchesLocation =
@@ -313,7 +381,13 @@ function App() {
                   <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={2} className="students-header">
                     <Box>
                       <Typography className="panel-title">Hội viên gần đây</Typography>
-                      <Typography className="panel-subtitle">Dữ liệu minh họa giao diện — chưa kết nối Firebase</Typography>
+                      <Typography className="panel-subtitle">
+  {membersLoading
+    ? 'Đang tải dữ liệu hội viên...'
+    : membersError
+      ? membersError
+      : `Có ${students.length.toLocaleString('vi-VN')} hội viên`}
+</Typography>
                     </Box>
                     <TextField size="small" placeholder="Tìm tên, mã hội viên..." value={search} onChange={(e) => setSearch(e.target.value)}
                       className="student-search" InputProps={{ startAdornment: <InputAdornment position="start"><SearchRounded fontSize="small" /></InputAdornment> }} />
@@ -352,7 +426,7 @@ function App() {
 
             <Box className="footer">
               <Typography>© 2026 TKD GREEN CLUB · HLV NGUYỄN HỮU TÀI</Typography>
-              <Typography>HỆ THỐNG QUẢN LÝ CLB TAEKWONDO · FULL STYLE (FINAL)</Typography>
+              <Typography>HỆ THỐNG QUẢN LÝ CLB TAEKWONDO GREEN · AD-PuKwon </Typography>
             </Box>
           </Box>
         </Box>
