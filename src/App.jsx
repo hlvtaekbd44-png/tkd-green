@@ -1,4 +1,6 @@
+import GoogleLogin from "./GoogleLogin";
 import { useMemo, useState } from 'react'
+import useUserRole from "./useUserRole";
 import {
   AppBar, Avatar, Badge, Box, Button, Chip, CssBaseline, Divider,
   Drawer, IconButton, InputAdornment, List, ListItemButton, ListItemIcon,
@@ -74,19 +76,58 @@ function StatCard({ title, value, note, icon, accent = false }) {
   )
 }
 
+  
 function App() {
-  const [selected, setSelected] = useState('Tổng quan')
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [location, setLocation] = useState('Tất cả điểm tập')
-  const [search, setSearch] = useState('')
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const { user, profile, loading, error } = useUserRole();
+
+  const [selected, setSelected] = useState('Tổng quan');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [location, setLocation] = useState('Tất cả điểm tập');
+  const [search, setSearch] = useState('');
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const filteredStudents = useMemo(() => students.filter((student) => {
-    const matchesLocation = location === 'Tất cả điểm tập' || student.location === location
-    const query = search.trim().toLocaleLowerCase('vi')
-    const matchesSearch = !query || `${student.name} ${student.id} ${student.location}`.toLocaleLowerCase('vi').includes(query)
-    return matchesLocation && matchesSearch
-  }), [location, search])
+    const matchesLocation =
+      location === 'Tất cả điểm tập' || student.location === location;
+    const query = search.trim().toLocaleLowerCase('vi');
+    const matchesSearch =
+      !query ||
+      `${student.name} ${student.id} ${student.location}`
+        .toLocaleLowerCase('vi')
+        .includes(query);
+
+    return matchesLocation && matchesSearch;
+  }), [location, search]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 32 }}>
+        Đang kiểm tra quyền truy cập...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div style={{ padding: 32 }}>
+        <h2>CLB Taekwondo Green</h2>
+        <p>Vui lòng đăng nhập bằng tài khoản Google.</p>
+        <GoogleLogin />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div style={{ padding: 32 }}>
+        <h2>Không có quyền truy cập</h2>
+        <p>{error || 'Tài khoản chưa được cấp quyền.'}</p>
+        <GoogleLogin />
+      </div>
+    );
+  }
+
+  // Giữ phần return giao diện Dashboard hiện tại ở phía dưới.
 
   const drawerContent = (
     <Box className="sidebar-inner">
@@ -120,14 +161,35 @@ function App() {
         </ListItemButton>
       </List>
       <Box className="sidebar-bottom">
-        <Box className="coach-card">
-          <Avatar className="coach-avatar">HT</Avatar>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography className="coach-name">HLV Nguyễn Hữu Tài</Typography>
-            <Typography className="coach-role">Quản trị hệ thống</Typography>
-          </Box>
-          <Chip label="ADMIN" size="small" className="admin-chip" />
-        </Box>
+        
+<Box className="coach-card">
+  <Avatar className="coach-avatar">
+    {(profile.email || user.email || "U").charAt(0).toUpperCase()}
+  </Avatar>
+
+  <Box sx={{ minWidth: 0, flex: 1 }}>
+    <Typography className="coach-name" noWrap>
+      {user.displayName || user.email}
+    </Typography>
+
+    <Typography className="coach-role">
+      {profile.role === "admin" ? "Quản trị hệ thống" : "Huấn luyện viên"}
+    </Typography>
+
+    {profile.role === "hlv" && (
+      <Typography variant="caption" display="block">
+        {profile.diemTap.join(", ") || "Chưa được phân công"}
+      </Typography>
+    )}
+  </Box>
+
+  <Chip
+    label={profile.role === "admin" ? "ADMIN" : "HLV"}
+    size="small"
+    className="admin-chip"
+  />
+</Box>
+
         <Typography className="sidebar-version">TKD GREEN CLUB · FULL STYLE</Typography>
       </Box>
     </Box>
@@ -158,10 +220,15 @@ function App() {
                 <Typography className="topbar-eyebrow">TKD GREEN CLUB / QUẢN LÝ</Typography>
                 <Typography className="topbar-title">{selected}</Typography>
               </Box>
-              <IconButton className="notification-button" aria-label="Thông báo">
-                <Badge variant="dot" color="error"><NotificationsNoneRounded /></Badge>
-              </IconButton>
-              <Avatar className="topbar-avatar">HT</Avatar>
+              
+<IconButton className="notification-button" aria-label="Thông báo">
+  <Badge variant="dot" color="error">
+    <NotificationsNoneRounded />
+  </Badge>
+</IconButton>
+
+<GoogleLogin />
+
             </Toolbar>
           </AppBar>
 
