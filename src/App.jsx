@@ -88,6 +88,7 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location, setLocation] = useState('Tất cả điểm tập');
   const [search, setSearch] = useState('');
+  const [showAddMember, setShowAddMember] = useState(false);
 const [students, setStudents] = useState([]);
 const [membersLoading, setMembersLoading] = useState(true);
 const [membersError, setMembersError] = useState('');
@@ -307,7 +308,10 @@ useEffect(() => {
                 <Typography variant="h5" className="welcome-title">Xin chào, HLV Nguyễn Hữu Tài 👋</Typography>
                 <Typography className="welcome-description">Theo dõi hoạt động và tình hình câu lạc bộ tại một nơi.</Typography>
               </Box>
-              <Button variant="contained" startIcon={<AddRounded />} className="add-student-button" onClick={() => setSelected('Hội viên')}>
+              <Button variant="contained" startIcon={<AddRounded />} className="add-student-button" onClick={() => {
+  setSelected('Hội viên');
+  setShowAddMember(true);
+}}>
                 Thêm hội viên
               </Button>
             </Box>
@@ -413,6 +417,14 @@ useEffect(() => {
                   <Button className="view-all-button" endIcon={<ArrowForwardRounded />} onClick={() => setSelected('Hội viên')}>Xem danh sách hội viên</Button>
                 </Paper>
               </>
+                          ) : selected === 'Hội viên' && showAddMember ? (
+              <AddMember
+                profile={profile}
+                onSaved={() => {
+                  setShowAddMember(false);
+                  setSelected('Hội viên');
+                }}
+              />
             ) : (
               <Paper className="module-placeholder" elevation={0}>
                 <Box className="module-placeholder-icon"><ShieldRounded /></Box>
