@@ -1,0 +1,197 @@
+
+import { useMemo, useState } from "react";
+import {
+  Box,
+  Button,
+  Chip,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import AddRounded from "@mui/icons-material/AddRounded";
+
+export default function MemberList({
+  students = [],
+  loading = false,
+  error = "",
+  location,
+  onLocationChange,
+  locations = [],
+  onAdd,
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredStudents = useMemo(() => {
+    const keyword = search.trim().toLocaleLowerCase("vi");
+
+    return students.filter((student) => {
+      const matchesLocation =
+        location === "Tất cả điểm tập" ||
+        student.location === location;
+
+      const content = [
+        student.maHV,
+        student.name,
+        student.location,
+      ]
+        .join(" ")
+        .toLocaleLowerCase("vi");
+
+      return matchesLocation && content.includes(keyword);
+    });
+  }, [students, search, location]);
+
+  return (
+    <Box sx={{ display: "grid", gap: 2, mt: 2 }}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ sm: "center" }}
+        spacing={2}
+      >
+        <Box>
+          <Typography variant="h5" fontWeight={800}>
+            Danh sách hội viên
+          </Typography>
+          <Typography color="text.secondary">
+            {loading
+              ? "Đang tải dữ liệu..."
+              : error
+                ? error
+                : `Tìm thấy ${filteredStudents.length} hội viên`}
+          </Typography>
+        </Box>
+
+        <Button
+          variant="contained"
+          startIcon={<AddRounded />}
+          onClick={onAdd}
+        >
+          Thêm hội viên
+        </Button>
+      </Stack>
+
+      <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+        >
+          <TextField
+            fullWidth
+            size="small"
+            label="Tìm mã hội viên hoặc họ tên"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+
+          <TextField
+            select
+            size="small"
+            label="Điểm tập"
+            value={location}
+            onChange={(event) =>
+              onLocationChange(event.target.value)
+            }
+            sx={{ minWidth: { sm: 200 } }}
+            slotProps={{ select: { native: true } }}
+          >
+            {locations.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </TextField>
+        </Stack>
+      </Paper>
+
+      <Paper
+        elevation={0}
+        sx={{ borderRadius: 3, overflowX: "auto" }}
+      >
+        <Box sx={{ minWidth: 760 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "1.1fr 1.7fr 1.2fr 1fr 1fr",
+              gap: 2,
+              p: 2,
+              bgcolor: "action.hover",
+              fontWeight: 700,
+            }}
+          >
+            <Typography variant="body2" fontWeight={700}>
+              Mã hội viên
+            </Typography>
+            <Typography variant="body2" fontWeight={700}>
+              Họ và tên
+            </Typography>
+            <Typography variant="body2" fontWeight={700}>
+              Điểm tập
+            </Typography>
+            <Typography variant="body2" fontWeight={700}>
+              Cấp đai
+            </Typography>
+            <Typography variant="body2" fontWeight={700}>
+              Trạng thái
+            </Typography>
+          </Box>
+
+          {loading ? (
+            <Typography sx={{ p: 3 }}>
+              Đang tải hội viên từ Firebase...
+            </Typography>
+          ) : error ? (
+            <Typography color="error" sx={{ p: 3 }}>
+              {error}
+            </Typography>
+          ) : filteredStudents.length === 0 ? (
+            <Typography sx={{ p: 3 }} color="text.secondary">
+              Chưa có hội viên phù hợp.
+            </Typography>
+          ) : (
+            filteredStudents.map((student) => (
+              <Box
+                key={student.id}
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "1.1fr 1.7fr 1.2fr 1fr 1fr",
+                  gap: 2,
+                  p: 2,
+                  borderTop: "1px solid",
+                  borderColor: "divider",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="body2">
+                  {student.maHV}
+                </Typography>
+                <Typography fontWeight={600}>
+                  {student.name}
+                </Typography>
+                <Typography variant="body2">
+                  {student.location}
+                </Typography>
+                <Typography variant="body2">
+                  {student.belt}
+                </Typography>
+                <Box>
+                  <Chip
+                    size="small"
+                    label={student.status}
+                    color={
+                      student.status === "Đang học"
+                        ? "success"
+                        : "default"
+                    }
+                  />
+                </Box>
+              </Box>
+            ))
+          )}
+        </Box>
+      </Paper>
+    </Box>
+  );
+}

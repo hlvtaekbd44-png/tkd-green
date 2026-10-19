@@ -56,43 +56,49 @@ export default function AddMember({ profile, onSaved }) {
     });
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setMessage("");
+  
+async function handleSubmit(event) {
+  event.preventDefault();
+  console.log("Đã nhấn Lưu hội viên", form);
 
-    if (!form.maHV.trim() || !form.hoTen.trim()) {
-      setMessage("Vui lòng nhập mã hội viên và họ tên.");
-      return;
-    }
+  setMessage("");
 
-    if (!allowedLocations.includes(form.diemTap)) {
-      setMessage("Bạn không có quyền thêm hội viên tại điểm tập này.");
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      await addDoc(collection(db, "members"), {
-        ...form,
-        maHV: form.maHV.trim(),
-        hoTen: form.hoTen.trim(),
-        trangThai: "Đang học",
-        capDaiDang: "Chưa cập nhật",
-        createdAt: serverTimestamp(),
-      });
-
-      setMessage("Đã lưu hồ sơ hội viên vào Firebase.");
-      onSaved?.();
-    } catch (error) {
-      console.error("Lỗi lưu hội viên:", error);
-      setMessage(
-        "Không lưu được. Hãy kiểm tra quyền ghi của Firestore."
-      );
-    } finally {
-      setSaving(false);
-    }
+  if (!form.maHV.trim() || !form.hoTen.trim()) {
+    setMessage("Vui lòng nhập mã hội viên và họ tên.");
+    return;
   }
+
+  if (!allowedLocations.includes(form.diemTap)) {
+    setMessage("Bạn không có quyền thêm hội viên tại điểm tập này.");
+    return;
+  }
+
+  setSaving(true);
+  setMessage("Đang lưu hồ sơ hội viên...");
+
+  try {
+    const docRef = await addDoc(collection(db, "members"), {
+      ...form,
+      maHV: form.maHV.trim(),
+      hoTen: form.hoTen.trim(),
+      trangThai: "Đang học",
+      capDaiDang: "Chưa cập nhật",
+      createdAt: serverTimestamp(),
+    });
+
+    console.log("Đã lưu hội viên, ID:", docRef.id);
+    setMessage(`Đã lưu thành công! Mã tài liệu: ${docRef.id}`);
+
+    // Tạm thời không đóng biểu mẫu để bạn nhìn thấy kết quả.
+    // onSaved?.();
+  } catch (error) {
+    console.error("Lỗi lưu hội viên:", error);
+    setMessage(`Lỗi ${error.code || ""}: ${error.message || "Không xác định"}`);
+  } finally {
+    setSaving(false);
+  }
+}
+
 
   return (
     <Box

@@ -22,6 +22,7 @@ import {
 } from '@mui/icons-material'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import AddMember from "./AddMember";
+import MemberList from "./MemberList";
 import './App.css'
 
 const drawerWidth = 258
@@ -52,9 +53,6 @@ const navItems = [
 ]
 
 const locations = ['Tất cả điểm tập', 'Lê Văn Tám', 'Nghĩa Trung', 'Đồng Tâm', 'T6', 'Phước Sơn', 'Minh Hưng']
-
-const students = [
-]
 
 const chartData = [
   { month: 'T5', members: 720 }, { month: 'T6', members: 765 },
@@ -128,13 +126,15 @@ useEffect(() => {
       const data = snapshot.docs.map((item) => {
         const member = item.data();
 
+        
         return {
-          id: member.maHV || item.id,
-          name: member.hoTen || '',
-          location: member.diemTap || '',
-          belt: member.capDaiDang || 'Chưa cập nhật',
-          status: member.trangThai || 'Chưa cập nhật',
-          fee: member.tinhTrangHocPhi || 'Chưa cập nhật',
+        id: item.id,
+        maHV: member.maHV || item.id,
+        name: member.hoTen || '',
+        location: member.diemTap || '',
+        belt: member.capDaiDang || 'Chưa cập nhật',
+        status: member.trangThai || 'Chưa cập nhật',
+        fee: member.tinhTrangHocPhi || 'Chưa cập nhật',
         };
       });
 
@@ -161,7 +161,7 @@ useEffect(() => {
     const query = search.trim().toLocaleLowerCase('vi');
     const matchesSearch =
       !query ||
-      `${student.name} ${student.id} ${student.location}`
+      `${student.name} ${student.maHV} ${student.location}`
         .toLocaleLowerCase('vi')
         .includes(query);
 
@@ -405,7 +405,7 @@ useEffect(() => {
                       <Box className="student-table-row" key={student.id}>
                         <Box className="student-name-cell">
                           <Avatar className="student-avatar">{student.name.split(' ').slice(-1)[0].charAt(0)}</Avatar>
-                          <Box><Typography className="student-name">{student.name}</Typography><Typography className="student-id">{student.id}</Typography></Box>
+                          <Box><Typography className="student-name">{student.name}</Typography><Typography className="student-id">{student.maHV}</Typography></Box>
                         </Box>
                         <Typography className="table-cell">{student.location}</Typography>
                         <Typography className="table-cell">{student.belt}</Typography>
@@ -417,24 +417,45 @@ useEffect(() => {
                   <Button className="view-all-button" endIcon={<ArrowForwardRounded />} onClick={() => setSelected('Hội viên')}>Xem danh sách hội viên</Button>
                 </Paper>
               </>
-                          ) : selected === 'Hội viên' && showAddMember ? (
-              <AddMember
-                profile={profile}
-                onSaved={() => {
-                  setShowAddMember(false);
-                  setSelected('Hội viên');
-                }}
-              />
-            ) : (
-              <Paper className="module-placeholder" elevation={0}>
-                <Box className="module-placeholder-icon"><ShieldRounded /></Box>
-                <Typography variant="h5">{selected}</Typography>
-                <Typography className="module-placeholder-text">
-                  Khu vực {selected.toLocaleLowerCase('vi')} đã có mục điều hướng. Bước tiếp theo sẽ xây dựng chức năng và kết nối dữ liệu Firebase cho phân hệ này.
-                </Typography>
-                <Button variant="contained" onClick={() => setSelected('Tổng quan')}>Quay về tổng quan</Button>
-              </Paper>
-            )}
+                          
+) : selected === 'Hội viên' && showAddMember ? (
+  <AddMember
+    profile={profile}
+    onSaved={() => {
+      setShowAddMember(false);
+      setSelected('Hội viên');
+    }}
+  />
+) : selected === 'Hội viên' ? (
+  <MemberList
+    students={students}
+    loading={membersLoading}
+    error={membersError}
+    location={location}
+    onLocationChange={setLocation}
+    locations={locations}
+    onAdd={() => setShowAddMember(true)}
+  />
+) : (
+  <Paper className="module-placeholder" elevation={0}>
+    <Box className="module-placeholder-icon">
+      <ShieldRounded />
+    </Box>
+    <Typography variant="h5">{selected}</Typography>
+    <Typography className="module-placeholder-text">
+      Khu vực {selected.toLocaleLowerCase('vi')} đã có mục điều hướng.
+      Bước tiếp theo sẽ xây dựng chức năng và kết nối dữ liệu Firebase
+      cho phân hệ này.
+    </Typography>
+    <Button
+      variant="contained"
+      onClick={() => setSelected('Tổng quan')}
+    >
+      Quay về tổng quan
+    </Button>
+  </Paper>
+)}
+
 
             <Box className="footer">
               <Typography>© 2026 TKD GREEN CLUB · HLV NGUYỄN HỮU TÀI</Typography>
