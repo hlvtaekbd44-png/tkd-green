@@ -100,12 +100,22 @@ async function handleSubmit(event) {
 }
 
 
-  return (
+  
+     return (
     <Box
       component="form"
       onSubmit={handleSubmit}
       sx={{ maxWidth: 800, display: "grid", gap: 2, mt: 2 }}
     >
+      <Button
+        type="button"
+        variant="outlined"
+        onClick={() => onSaved?.()}
+        sx={{ justifySelf: "start" }}
+      >
+        ← Quay lại danh sách hội viên
+      </Button>
+
       <Typography variant="h5" fontWeight={700}>
         Thêm hội viên mới
       </Typography>

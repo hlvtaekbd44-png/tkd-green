@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import AddRounded from "@mui/icons-material/AddRounded";
+import EditRounded from "@mui/icons-material/EditRounded";
 
 export default function MemberList({
   students = [],
@@ -19,6 +20,7 @@ export default function MemberList({
   onLocationChange,
   locations = [],
   onAdd,
+  onEdit,
 }) {
   const [search, setSearch] = useState("");
 
@@ -113,7 +115,7 @@ export default function MemberList({
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "1.1fr 1.7fr 1.2fr 1fr 1fr",
+              gridTemplateColumns: "1.1fr 1.7fr 1.2fr 1fr 1fr auto",
               gap: 2,
               p: 2,
               bgcolor: "action.hover",
@@ -135,6 +137,9 @@ export default function MemberList({
             <Typography variant="body2" fontWeight={700}>
               Trạng thái
             </Typography>
+            <Typography variant="body2" fontWeight={700}>
+  Thao tác
+</Typography>
           </Box>
 
           {loading ? (
@@ -177,15 +182,14 @@ export default function MemberList({
                   {student.belt}
                 </Typography>
                 <Box>
-                  <Chip
-                    size="small"
-                    label={student.status}
-                    color={
-                      student.status === "Đang học"
-                        ? "success"
-                        : "default"
-                    }
-                  />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditRounded />}
+                  onClick={() => onEdit?.(student)}
+                  >
+                  Sửa hồ sơ
+                  </Button>
                 </Box>
               </Box>
             ))

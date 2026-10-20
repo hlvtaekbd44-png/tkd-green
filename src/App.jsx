@@ -23,6 +23,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import AddMember from "./AddMember";
 import MemberList from "./MemberList";
+import EditMember from "./EditMember";
 import './App.css'
 
 const drawerWidth = 258
@@ -87,6 +88,7 @@ function App() {
   const [location, setLocation] = useState('Tất cả điểm tập');
   const [search, setSearch] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
 const [students, setStudents] = useState([]);
 const [membersLoading, setMembersLoading] = useState(true);
 const [membersError, setMembersError] = useState('');
@@ -418,6 +420,20 @@ useEffect(() => {
                 </Paper>
               </>
                           
+
+) : selected === 'Hội viên' && editingMember ? (
+  <EditMember
+    member={editingMember}
+    profile={profile}
+    onSaved={() => {
+      setEditingMember(null);
+      setShowAddMember(false);
+      setSelected('Hội viên');
+    }}
+    onCancel={() => {
+      setEditingMember(null);
+    }}
+  />
 ) : selected === 'Hội viên' && showAddMember ? (
   <AddMember
     profile={profile}
@@ -434,8 +450,16 @@ useEffect(() => {
     location={location}
     onLocationChange={setLocation}
     locations={locations}
-    onAdd={() => setShowAddMember(true)}
+    onAdd={() => {
+      setEditingMember(null);
+      setShowAddMember(true);
+    }}
+    onEdit={(member) => {
+      setShowAddMember(false);
+      setEditingMember(member);
+    }}
   />
+
 ) : (
   <Paper className="module-placeholder" elevation={0}>
     <Box className="module-placeholder-icon">
