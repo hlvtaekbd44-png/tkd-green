@@ -19,7 +19,7 @@ const locations = [
   "Lê Văn Tám",
   "Nghĩa Trung",
   "Đồng Tâm",
-  "T6",
+  "Thôn 6",
   "Phước Sơn",
   "Minh Hưng",
 ];

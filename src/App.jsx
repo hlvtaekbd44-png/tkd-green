@@ -24,6 +24,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import AddMember from "./AddMember";
 import MemberList from "./MemberList";
 import EditMember from "./EditMember";
+import TuitionManagement from "./TuitionManagement";
 import './App.css'
 
 const drawerWidth = 258
@@ -53,7 +54,7 @@ const navItems = [
   { label: 'Báo cáo', icon: <AssessmentRounded /> },
 ]
 
-const locations = ['Tất cả điểm tập', 'Lê Văn Tám', 'Nghĩa Trung', 'Đồng Tâm', 'T6', 'Phước Sơn', 'Minh Hưng']
+const locations = ['Tất cả điểm tập', 'Lê Văn Tám', 'Nghĩa Trung', 'Đồng Tâm', 'Thôn 6', 'Phước Sơn', 'Minh Hưng']
 
 const chartData = [
   { month: 'T5', members: 720 }, { month: 'T6', members: 765 },
@@ -130,13 +131,18 @@ useEffect(() => {
 
         
         return {
-        id: item.id,
-        maHV: member.maHV || item.id,
-        name: member.hoTen || '',
-        location: member.diemTap || '',
-        belt: member.capDaiDang || 'Chưa cập nhật',
-        status: member.trangThai || 'Chưa cập nhật',
-        fee: member.tinhTrangHocPhi || 'Chưa cập nhật',
+          id: item.id,
+          maHV: member.maHV || item.id,
+          name: member.hoTen || '',
+          ngaySinh: member.ngaySinh || '',
+          gioiTinh: member.gioiTinh || 'Nam',
+          soDienThoaiPhuHuynh: member.soDienThoaiPhuHuynh || '',
+          loaiHocPhi: member.loaiHocPhi || 'Tháng',
+          ngayBatDau: member.ngayBatDau || '',
+          location: member.diemTap || '',
+          belt: member.capDaiDang || 'Chưa cập nhật',
+          status: member.trangThai || 'Chưa cập nhật',
+          fee: member.tinhTrangHocPhi || 'Chưa cập nhật',
         };
       });
 
@@ -460,6 +466,16 @@ useEffect(() => {
     }}
   />
 
+) : selected === 'Học phí' ? (
+  <TuitionManagement
+    students={students}
+    profile={profile}
+    loading={membersLoading}
+    error={membersError}
+    location={location}
+    onLocationChange={setLocation}
+    locations={locations}
+  />
 ) : (
   <Paper className="module-placeholder" elevation={0}>
     <Box className="module-placeholder-icon">

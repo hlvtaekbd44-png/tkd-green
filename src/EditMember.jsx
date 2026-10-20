@@ -1,6 +1,11 @@
 
 import { useState } from "react";
 import {
+  doc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import {
   Alert,
   Box,
   Button,
@@ -10,18 +15,13 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import {
-  doc,
-  updateDoc,
-  serverTimestamp,
-} from "firebase/firestore";
 import { db } from "./firebase";
 
 const locations = [
   "Lê Văn Tám",
   "Nghĩa Trung",
   "Đồng Tâm",
-  "T6",
+  "Thôn 6",
   "Phước Sơn",
   "Minh Hưng",
 ];
@@ -35,7 +35,12 @@ export default function EditMember({
   const [form, setForm] = useState({
     maHV: member?.maHV || "",
     hoTen: member?.name || "",
+    ngaySinh: member?.ngaySinh || "",
+    gioiTinh: member?.gioiTinh || "Nam",
     diemTap: member?.location || "",
+    soDienThoaiPhuHuynh: member?.soDienThoaiPhuHuynh || "",
+    loaiHocPhi: member?.loaiHocPhi || "Tháng",
+    ngayBatDau: member?.ngayBatDau || "",
     capDaiDang: member?.belt || "Chưa cập nhật",
     trangThai: member?.status || "Đang học",
   });
@@ -46,27 +51,37 @@ export default function EditMember({
 
   const isAdmin = profile?.role === "admin";
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
+  const allowedLocations =
+    isAdmin
+      ? locations
+      : locations.filter((item) =>
+          profile?.diemTap?.includes(item)
+        );
 
+  function handleChange(event) {
     setForm((previous) => ({
       ...previous,
-      [name]: value,
+      [event.target.name]: event.target.value,
     }));
-  };
+  }
 
-  const handleSubmit = async (event) => {
+  async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
     setError("");
 
     if (!member?.id) {
-      setError("Không tìm thấy mã hồ sơ Firebase của hội viên.");
+      setError("Không tìm thấy ID hồ sơ trong Firebase.");
       return;
     }
 
     if (!form.maHV.trim() || !form.hoTen.trim()) {
       setError("Vui lòng nhập mã hội viên và họ tên.");
+      return;
+    }
+
+    if (!allowedLocations.includes(form.diemTap)) {
+      setError("Bạn không có quyền cập nhật tại điểm tập này.");
       return;
     }
 
@@ -76,12 +91,17 @@ export default function EditMember({
       const updateData = {
         maHV: form.maHV.trim(),
         hoTen: form.hoTen.trim(),
-        capDaiDang: form.capDaiDang,
+        ngaySinh: form.ngaySinh,
+        gioiTinh: form.gioiTinh,
+        soDienThoaiPhuHuynh: form.soDienThoaiPhuHuynh.trim(),
+        loaiHocPhi: form.loaiHocPhi,
+        ngayBatDau: form.ngayBatDau,
+        capDaiDang: form.capDaiDang.trim(),
         trangThai: form.trangThai,
         updatedAt: serverTimestamp(),
       };
 
-      // Chỉ quản trị viên được chuyển hội viên sang điểm tập khác.
+      // Chỉ admin được đổi điểm tập.
       if (isAdmin) {
         updateData.diemTap = form.diemTap;
       }
@@ -91,7 +111,7 @@ export default function EditMember({
         updateData
       );
 
-      setMessage("Đã cập nhật hồ sơ hội viên lên Firebase.");
+      setMessage("Đã cập nhật hồ sơ hội viên thành công.");
 
       if (onSaved) {
         onSaved();
@@ -99,12 +119,12 @@ export default function EditMember({
     } catch (err) {
       console.error("Lỗi cập nhật hội viên:", err);
       setError(
-        "Không thể cập nhật hồ sơ. Vui lòng kiểm tra quyền truy cập Firebase."
+        `Không thể cập nhật: ${err.code || ""} ${err.message || ""}`
       );
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   return (
     <Box sx={{ mt: 2, maxWidth: 900, mx: "auto", width: "100%" }}>
@@ -114,7 +134,7 @@ export default function EditMember({
         </Typography>
 
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Cập nhật thông tin và lưu trực tiếp vào cơ sở dữ liệu Firebase.
+          Thông tin được lưu trực tiếp vào Firebase.
         </Typography>
 
         {message && (
@@ -132,8 +152,8 @@ export default function EditMember({
         <Box component="form" onSubmit={handleSubmit}>
           <Stack spacing={2}>
             <TextField
-              label="Mã hội viên"
               name="maHV"
+              label="Mã hội viên"
               value={form.maHV}
               onChange={handleChange}
               required
@@ -141,8 +161,8 @@ export default function EditMember({
             />
 
             <TextField
-              label="Họ và tên"
               name="hoTen"
+              label="Họ và tên"
               value={form.hoTen}
               onChange={handleChange}
               required
@@ -150,20 +170,38 @@ export default function EditMember({
             />
 
             <TextField
+              name="ngaySinh"
+              label="Ngày sinh"
+              type="date"
+              value={form.ngaySinh}
+              onChange={handleChange}
+              slotProps={{ inputLabel: { shrink: true } }}
+              fullWidth
+            />
+
+            <TextField
               select
-              label="Điểm tập"
+              name="gioiTinh"
+              label="Giới tính"
+              value={form.gioiTinh}
+              onChange={handleChange}
+              fullWidth
+            >
+              <MenuItem value="Nam">Nam</MenuItem>
+              <MenuItem value="Nữ">Nữ</MenuItem>
+            </TextField>
+
+            <TextField
+              select
               name="diemTap"
+              label="Điểm tập"
               value={form.diemTap}
               onChange={handleChange}
               disabled={!isAdmin}
+              required
               fullWidth
-              helperText={
-                isAdmin
-                  ? "Quản trị viên có thể thay đổi điểm tập."
-                  : "Huấn luyện viên không thể chuyển điểm tập."
-              }
             >
-              {locations.map((item) => (
+              {allowedLocations.map((item) => (
                 <MenuItem key={item} value={item}>
                   {item}
                 </MenuItem>
@@ -171,8 +209,38 @@ export default function EditMember({
             </TextField>
 
             <TextField
-              label="Cấp đai/đẳng"
+              name="soDienThoaiPhuHuynh"
+              label="Số điện thoại phụ huynh"
+              value={form.soDienThoaiPhuHuynh}
+              onChange={handleChange}
+              fullWidth
+            />
+
+            <TextField
+              select
+              name="loaiHocPhi"
+              label="Loại học phí"
+              value={form.loaiHocPhi}
+              onChange={handleChange}
+              fullWidth
+            >
+              <MenuItem value="Tháng">Tháng</MenuItem>
+              <MenuItem value="Quý">Quý</MenuItem>
+            </TextField>
+
+            <TextField
+              name="ngayBatDau"
+              label="Ngày bắt đầu tập"
+              type="date"
+              value={form.ngayBatDau}
+              onChange={handleChange}
+              slotProps={{ inputLabel: { shrink: true } }}
+              fullWidth
+            />
+
+            <TextField
               name="capDaiDang"
+              label="Cấp đai/đẳng"
               value={form.capDaiDang}
               onChange={handleChange}
               fullWidth
@@ -180,8 +248,8 @@ export default function EditMember({
 
             <TextField
               select
-              label="Trạng thái hội viên"
               name="trangThai"
+              label="Trạng thái hội viên"
               value={form.trangThai}
               onChange={handleChange}
               fullWidth
@@ -200,6 +268,7 @@ export default function EditMember({
               </Button>
 
               <Button
+                type="button"
                 variant="outlined"
                 onClick={onCancel}
                 disabled={saving}
