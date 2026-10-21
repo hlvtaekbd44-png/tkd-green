@@ -1,10 +1,6 @@
 
 import { useState } from "react";
-import {
-  addDoc,
-  collection,
-  serverTimestamp,
-} from "firebase/firestore";
+import { createMemberWithAutoId } from "./memberIdService.js";
 import {
   Box,
   Button,
@@ -63,10 +59,10 @@ async function handleSubmit(event) {
 
   setMessage("");
 
-  if (!form.maHV.trim() || !form.hoTen.trim()) {
-    setMessage("Vui lòng nhập mã hội viên VTF và họ tên.");
-    return;
-  }
+  if (!form.hoTen.trim()) {
+  setMessage("Vui lòng nhập họ tên hội viên.");
+  return;
+}
 
   if (!allowedLocations.includes(form.diemTap)) {
     setMessage("Bạn không có quyền thêm hội viên tại điểm tập này.");
@@ -77,17 +73,18 @@ async function handleSubmit(event) {
   setMessage("Đang lưu hồ sơ hội viên...");
 
   try {
-    const docRef = await addDoc(collection(db, "members"), {
-      ...form,
-      maHV: form.maHV.trim(),
-      hoTen: form.hoTen.trim(),
-      trangThai: "Đang học",
-      capDaiDang: "Chưa cập nhật",
-      createdAt: serverTimestamp(),
-    });
+    const result = await createMemberWithAutoId({
+  ...form,
+  maHV: "",
+  maHoiVienNoiBo: "",
+  hoTen: form.hoTen.trim(),
+  trangThai: "Đang học",
+  capDaiDang: "Chưa cập nhật",
+});
 
-    console.log("Đã lưu hội viên, ID:", docRef.id);
-    setMessage(`Đã lưu thành công! Mã tài liệu: ${docRef.id}`);
+setMessage(
+  `Đã lưu thành công! Mã hội viên: ${result.maHoiVienNoiBo}`
+);
 
     // Tạm thời không đóng biểu mẫu để bạn nhìn thấy kết quả.
     // onSaved?.();
@@ -121,12 +118,12 @@ async function handleSubmit(event) {
       </Typography>
 
       <TextField
-        name="maHV"
-        label="Mã hội viên VTF"
-        value={form.maHV}
-        onChange={handleChange}
-        required
-      />
+          name="maHV"
+          label="Mã hội viên VTF"
+          value=""
+          disabled
+          helperText="Mã VTF sẽ được Admin cập nhật sau."
+        />
 
       <TextField
         name="hoTen"

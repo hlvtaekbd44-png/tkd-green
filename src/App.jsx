@@ -133,7 +133,8 @@ useEffect(() => {
         
         return {
           id: item.id,
-          maHV: member.maHV || item.id,
+          maHV: member.maHV || "",
+          maHoiVienNoiBo: member.maHoiVienNoiBo || "",
           name: member.hoTen || '',
           ngaySinh: member.ngaySinh || '',
           gioiTinh: member.gioiTinh || 'Nam',
@@ -144,7 +145,6 @@ useEffect(() => {
           lichSuChuKy: Array.isArray(member.lichSuChuKy)
             ? member.lichSuChuKy
             : [],
-          location: member.diemTap || '',
           location: member.diemTap || '',
           belt: member.capDaiDang || 'Chưa cập nhật',
           status: member.trangThai || 'Chưa cập nhật',
@@ -175,12 +175,12 @@ useEffect(() => {
     const query = search.trim().toLocaleLowerCase('vi');
     const matchesSearch =
       !query ||
-      `${student.name} ${student.maHV} ${student.location}`
+      `${student.name} ${student.maHV} ${student.maHoiVienNoiBo} ${student.location}`
         .toLocaleLowerCase('vi')
         .includes(query);
 
     return matchesLocation && matchesSearch;
-  }), [location, search]);
+  }), [students, location, search]);
 
   if (loading) {
     return (
@@ -412,14 +412,22 @@ useEffect(() => {
                   </Stack>
                   <Box className="student-table-wrap">
                     <Box className="student-table-head">
-                      <Typography>MÃ HỘI VIÊN VTF / HỌ TÊN</Typography><Typography>ĐIỂM TẬP</Typography>
+                      <Typography>MÃ HỘI VIÊN / HỌ TÊN</Typography><Typography>ĐIỂM TẬP</Typography>
                       <Typography>CẤP ĐAI</Typography><Typography>TRẠNG THÁI</Typography><Typography>HỌC PHÍ</Typography>
                     </Box>
                     {filteredStudents.length ? filteredStudents.map((student) => (
                       <Box className="student-table-row" key={student.id}>
                         <Box className="student-name-cell">
                           <Avatar className="student-avatar">{student.name.split(' ').slice(-1)[0].charAt(0)}</Avatar>
-                          <Box><Typography className="student-name">{student.name}</Typography><Typography className="student-id">{student.maHV}</Typography></Box>
+                          <Box><Typography className="student-name">{student.name}</Typography><Stack spacing={0.3}>
+                          <Typography className="student-id">
+                            {student.maHoiVienNoiBo || "Chưa cấp ID nội bộ"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            VTF: {student.maHV || "Chưa cấp"}
+                          </Typography>
+                        </Stack>
+                        </Box>
                         </Box>
                         <Typography className="table-cell">{student.location}</Typography>
                         <Typography className="table-cell">{student.belt}</Typography>
@@ -456,6 +464,7 @@ useEffect(() => {
   />
 ) : selected === 'Hội viên' ? (
   <MemberList
+    profile={profile}
     students={students}
     loading={membersLoading}
     error={membersError}

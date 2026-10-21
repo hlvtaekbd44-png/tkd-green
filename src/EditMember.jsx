@@ -16,15 +16,8 @@ import {
   Typography,
 } from "@mui/material";
 import { db } from "./firebase";
-
-const locations = [
-  "Lê Văn Tám",
-  "Nghĩa Trung",
-  "Đồng Tâm",
-  "Thôn 6",
-  "Phước Sơn",
-  "Minh Hưng",
-];
+import { LOCATION_NAMES } from "./memberLocations";
+import { transferMemberLocation } from "./memberIdService";
 
 export default function EditMember({
   member,
@@ -32,13 +25,16 @@ export default function EditMember({
   onSaved,
   onCancel,
 }) {
+  const isAdmin = profile?.role === "admin";
+
   const [form, setForm] = useState({
     maHV: member?.maHV || "",
     hoTen: member?.name || "",
     ngaySinh: member?.ngaySinh || "",
     gioiTinh: member?.gioiTinh || "Nam",
     diemTap: member?.location || "",
-    soDienThoaiPhuHuynh: member?.soDienThoaiPhuHuynh || "",
+    soDienThoaiPhuHuynh:
+      member?.soDienThoaiPhuHuynh || "",
     loaiHocPhi: member?.loaiHocPhi || "Tháng",
     ngayBatDau: member?.ngayBatDau || "",
     capDaiDang: member?.belt || "Chưa cập nhật",
@@ -49,39 +45,41 @@ export default function EditMember({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const isAdmin = profile?.role === "admin";
-
-  const allowedLocations =
-    isAdmin
-      ? locations
-      : locations.filter((item) =>
-          profile?.diemTap?.includes(item)
-        );
+  const allowedLocations = isAdmin
+    ? LOCATION_NAMES
+    : LOCATION_NAMES.filter((item) =>
+        profile?.diemTap?.includes(item)
+      );
 
   function handleChange(event) {
+    const { name, value } = event.target;
+
     setForm((previous) => ({
       ...previous,
-      [event.target.name]: event.target.value,
+      [name]: value,
     }));
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
+
     setMessage("");
     setError("");
 
     if (!member?.id) {
-      setError("Không tìm thấy ID hồ sơ trong Firebase.");
+      setError("Không tìm thấy ID hồ sơ Firebase.");
       return;
     }
 
-    if (!form.maHV.trim() || !form.hoTen.trim()) {
-      setError("Vui lòng nhập mã hội viên VTF và họ tên.");
+    if (!form.hoTen.trim()) {
+      setError("Vui lòng nhập họ và tên hội viên.");
       return;
     }
 
     if (!allowedLocations.includes(form.diemTap)) {
-      setError("Bạn không có quyền cập nhật tại điểm tập này.");
+      setError(
+        "Bạn không có quyền cập nhật tại điểm tập này."
+      );
       return;
     }
 
@@ -89,11 +87,11 @@ export default function EditMember({
 
     try {
       const updateData = {
-        maHV: form.maHV.trim(),
         hoTen: form.hoTen.trim(),
         ngaySinh: form.ngaySinh,
         gioiTinh: form.gioiTinh,
-        soDienThoaiPhuHuynh: form.soDienThoaiPhuHuynh.trim(),
+        soDienThoaiPhuHuynh:
+          form.soDienThoaiPhuHuynh.trim(),
         loaiHocPhi: form.loaiHocPhi,
         ngayBatDau: form.ngayBatDau,
         capDaiDang: form.capDaiDang.trim(),
@@ -101,25 +99,39 @@ export default function EditMember({
         updatedAt: serverTimestamp(),
       };
 
-      // Chỉ admin được đổi điểm tập.
+      // Chỉ Admin được cấp hoặc sửa mã VTF.
       if (isAdmin) {
-        updateData.diemTap = form.diemTap;
-      }
+  updateData.maHV = form.maHV.trim();
+}
 
-      await updateDoc(
-        doc(db, "members", member.id),
-        updateData
+const locationChanged =
+  isAdmin && form.diemTap !== member.location;
+
+if (locationChanged) {
+  await transferMemberLocation(
+    member.id,
+    form.diemTap,
+    updateData
+  );
+} else {
+  await updateDoc(
+    doc(db, "members", member.id),
+    updateData
+  );
+}
+
+      setMessage(
+        "Đã cập nhật hồ sơ hội viên thành công."
       );
 
-      setMessage("Đã cập nhật hồ sơ hội viên thành công.");
-
-      if (onSaved) {
-        onSaved();
-      }
+      onSaved?.();
     } catch (err) {
       console.error("Lỗi cập nhật hội viên:", err);
+
       setError(
-        `Không thể cập nhật: ${err.code || ""} ${err.message || ""}`
+        `Không thể cập nhật: ${err.code || ""} ${
+          err.message || ""
+        }`
       );
     } finally {
       setSaving(false);
@@ -127,13 +139,33 @@ export default function EditMember({
   }
 
   return (
-    <Box sx={{ mt: 2, maxWidth: 900, mx: "auto", width: "100%" }}>
-      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
-        <Typography variant="h5" fontWeight={800} gutterBottom>
+    <Box
+      sx={{
+        mt: 2,
+        maxWidth: 900,
+        mx: "auto",
+        width: "100%",
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, sm: 3 },
+          borderRadius: 3,
+        }}
+      >
+        <Typography
+          variant="h5"
+          fontWeight={800}
+          gutterBottom
+        >
           Chỉnh sửa hồ sơ hội viên
         </Typography>
 
-        <Typography color="text.secondary" sx={{ mb: 3 }}>
+        <Typography
+          color="text.secondary"
+          sx={{ mb: 3 }}
+        >
           Thông tin được lưu trực tiếp vào Firebase.
         </Typography>
 
@@ -152,12 +184,30 @@ export default function EditMember({
         <Box component="form" onSubmit={handleSubmit}>
           <Stack spacing={2}>
             <TextField
+              label="Mã hội viên nội bộ"
+              value={
+                member?.maHoiVienNoiBo ||
+                "Chưa cấp mã nội bộ"
+              }
+              disabled
+              fullWidth
+              helperText={
+                "Mã nội bộ tự động đổi theo điểm tập mới khi Admin chuyển điểm tập."
+              }
+            />
+
+            <TextField
               name="maHV"
               label="Mã hội viên VTF"
               value={form.maHV}
               onChange={handleChange}
-              required
+              disabled={!isAdmin}
               fullWidth
+              helperText={
+                isAdmin
+                  ? "Admin có thể cấp mã VTF sau. Không bắt buộc nhập."
+                  : "Chỉ Admin được cấp hoặc thay đổi mã VTF."
+              }
             />
 
             <TextField
@@ -175,7 +225,9 @@ export default function EditMember({
               type="date"
               value={form.ngaySinh}
               onChange={handleChange}
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+              }}
               fullWidth
             />
 
@@ -224,8 +276,12 @@ export default function EditMember({
               onChange={handleChange}
               fullWidth
             >
-              <MenuItem value="Tháng">Tháng</MenuItem>
-              <MenuItem value="Quý">Quý</MenuItem>
+              <MenuItem value="Tháng">
+                Tháng
+              </MenuItem>
+              <MenuItem value="Quý">
+                Quý
+              </MenuItem>
             </TextField>
 
             <TextField
@@ -234,7 +290,9 @@ export default function EditMember({
               type="date"
               value={form.ngayBatDau}
               onChange={handleChange}
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+              }}
               fullWidth
             />
 
@@ -254,17 +312,27 @@ export default function EditMember({
               onChange={handleChange}
               fullWidth
             >
-              <MenuItem value="Đang học">Đang học</MenuItem>
-              <MenuItem value="Nghỉ học">Nghỉ học</MenuItem>
+              <MenuItem value="Đang học">
+                Đang học
+              </MenuItem>
+              <MenuItem value="Nghỉ học">
+                Nghỉ học
+              </MenuItem>
             </TextField>
 
-            <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Stack
+              direction="row"
+              spacing={1}
+              flexWrap="wrap"
+            >
               <Button
                 type="submit"
                 variant="contained"
                 disabled={saving}
               >
-                {saving ? "Đang lưu..." : "Lưu thay đổi"}
+                {saving
+                  ? "Đang lưu..."
+                  : "Lưu thay đổi"}
               </Button>
 
               <Button

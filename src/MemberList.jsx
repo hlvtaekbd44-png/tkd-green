@@ -11,6 +11,8 @@ import {
 } from "@mui/material";
 import AddRounded from "@mui/icons-material/AddRounded";
 import EditRounded from "@mui/icons-material/EditRounded";
+import VisibilityRounded from "@mui/icons-material/VisibilityRounded";
+import MemberProfile from "./MemberProfile";
 
 export default function MemberList({
   students = [],
@@ -21,8 +23,10 @@ export default function MemberList({
   locations = [],
   onAdd,
   onEdit,
+  profile,
 }) {
   const [search, setSearch] = useState("");
+  const [viewMember, setViewMember] = useState(null);
 
   const filteredStudents = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase("vi");
@@ -33,6 +37,7 @@ export default function MemberList({
         student.location === location;
 
       const content = [
+        student.maHoiVienNoiBo,
         student.maHV,
         student.name,
         student.location,
@@ -82,7 +87,7 @@ export default function MemberList({
           <TextField
             fullWidth
             size="small"
-            label="Tìm mã hội viên VTF hoặc họ tên"
+            label="Tìm mã nội bộ, mã VTF hoặc họ tên"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -123,7 +128,7 @@ export default function MemberList({
             }}
           >
             <Typography variant="body2" fontWeight={700}>
-              Mã hội viên VTF
+              Mã nội bộ / VTF
             </Typography>
             <Typography variant="body2" fontWeight={700}>
               Họ và tên
@@ -161,7 +166,7 @@ export default function MemberList({
                 sx={{
                   display: "grid",
                   gridTemplateColumns:
-                    "1.1fr 1.7fr 1.2fr 1fr 1fr",
+                    "1.1fr 1.7fr 1.2fr 1fr 1fr auto",
                   gap: 2,
                   p: 2,
                   borderTop: "1px solid",
@@ -169,9 +174,22 @@ export default function MemberList({
                   alignItems: "center",
                 }}
               >
-                <Typography variant="body2">
-                  {student.maHV}
-                </Typography>
+                <Stack spacing={0.5}>
+  <Typography
+    variant="body2"
+    fontWeight={700}
+    color="primary.main"
+  >
+    {student.maHoiVienNoiBo || "Chưa cấp ID"}
+  </Typography>
+
+  <Typography
+    variant="caption"
+    color="text.secondary"
+  >
+    VTF: {student.maHV || "Chưa cấp"}
+  </Typography>
+</Stack>
                 <Typography fontWeight={600}>
                   {student.name}
                 </Typography>
@@ -179,23 +197,55 @@ export default function MemberList({
                   {student.location}
                 </Typography>
                 <Typography variant="body2">
-                  {student.belt}
-                </Typography>
-                <Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<EditRounded />}
-                  onClick={() => onEdit?.(student)}
-                  >
-                  Sửa hồ sơ
-                  </Button>
-                </Box>
+  {student.belt}
+</Typography>
+
+<Box>
+  <Chip
+    label={student.status || "Chưa cập nhật"}
+    size="small"
+    color={
+      student.status === "Đang học"
+        ? "success"
+        : "default"
+    }
+    variant="outlined"
+  />
+</Box>
+
+<Box>
+  <Stack direction="row" spacing={1}>
+    <Button
+      size="small"
+      variant="outlined"
+      startIcon={<VisibilityRounded />}
+      onClick={() => setViewMember(student)}
+    >
+      Xem
+    </Button>
+
+    <Button
+      size="small"
+      variant="outlined"
+      startIcon={<EditRounded />}
+      onClick={() => onEdit?.(student)}
+    >
+      Sửa hồ sơ
+    </Button>
+  </Stack>
+</Box>
               </Box>
             ))
           )}
         </Box>
-      </Paper>
+            </Paper>
+
+      <MemberProfile
+        open={Boolean(viewMember)}
+        onClose={() => setViewMember(null)}
+        member={viewMember}
+        profile={profile}
+      />
     </Box>
   );
 }
