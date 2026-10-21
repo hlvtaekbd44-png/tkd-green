@@ -82,7 +82,7 @@ export default function MemberList({
           <TextField
             fullWidth
             size="small"
-            label="Tìm mã hội viên hoặc họ tên"
+            label="Tìm mã hội viên VTF hoặc họ tên"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -123,7 +123,7 @@ export default function MemberList({
             }}
           >
             <Typography variant="body2" fontWeight={700}>
-              Mã hội viên
+              Mã hội viên VTF
             </Typography>
             <Typography variant="body2" fontWeight={700}>
               Họ và tên

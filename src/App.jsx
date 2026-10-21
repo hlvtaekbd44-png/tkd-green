@@ -25,6 +25,7 @@ import AddMember from "./AddMember";
 import MemberList from "./MemberList";
 import EditMember from "./EditMember";
 import TuitionManagement from "./TuitionManagement";
+import ExamManagement from "./ExamManagement";
 import './App.css'
 
 const drawerWidth = 258
@@ -139,6 +140,11 @@ useEffect(() => {
           soDienThoaiPhuHuynh: member.soDienThoaiPhuHuynh || '',
           loaiHocPhi: member.loaiHocPhi || 'Tháng',
           ngayBatDau: member.ngayBatDau || '',
+          ngayHetHan: member.ngayHetHan || '',
+          lichSuChuKy: Array.isArray(member.lichSuChuKy)
+            ? member.lichSuChuKy
+            : [],
+          location: member.diemTap || '',
           location: member.diemTap || '',
           belt: member.capDaiDang || 'Chưa cập nhật',
           status: member.trangThai || 'Chưa cập nhật',
@@ -401,12 +407,12 @@ useEffect(() => {
       : `Có ${students.length.toLocaleString('vi-VN')} hội viên`}
 </Typography>
                     </Box>
-                    <TextField size="small" placeholder="Tìm tên, mã hội viên..." value={search} onChange={(e) => setSearch(e.target.value)}
+                    <TextField size="small" placeholder="Tìm tên, mã hội viên VTF..." value={search} onChange={(e) => setSearch(e.target.value)}
                       className="student-search" InputProps={{ startAdornment: <InputAdornment position="start"><SearchRounded fontSize="small" /></InputAdornment> }} />
                   </Stack>
                   <Box className="student-table-wrap">
                     <Box className="student-table-head">
-                      <Typography>MÃ HỘI VIÊN / HỌ TÊN</Typography><Typography>ĐIỂM TẬP</Typography>
+                      <Typography>MÃ HỘI VIÊN VTF / HỌ TÊN</Typography><Typography>ĐIỂM TẬP</Typography>
                       <Typography>CẤP ĐAI</Typography><Typography>TRẠNG THÁI</Typography><Typography>HỌC PHÍ</Typography>
                     </Box>
                     {filteredStudents.length ? filteredStudents.map((student) => (
@@ -476,7 +482,17 @@ useEffect(() => {
     onLocationChange={setLocation}
     locations={locations}
   />
+
+  ) : selected === "Thi cấp" ? (
+  <ExamManagement
+    students={students}
+    profile={profile}
+    loading={membersLoading}
+    error={membersError}
+    location={location}
+  />
 ) : (
+  
   <Paper className="module-placeholder" elevation={0}>
     <Box className="module-placeholder-icon">
       <ShieldRounded />

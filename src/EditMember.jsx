@@ -76,7 +76,7 @@ export default function EditMember({
     }
 
     if (!form.maHV.trim() || !form.hoTen.trim()) {
-      setError("Vui lòng nhập mã hội viên và họ tên.");
+      setError("Vui lòng nhập mã hội viên VTF và họ tên.");
       return;
     }
 
@@ -153,7 +153,7 @@ export default function EditMember({
           <Stack spacing={2}>
             <TextField
               name="maHV"
-              label="Mã hội viên"
+              label="Mã hội viên VTF"
               value={form.maHV}
               onChange={handleChange}
               required

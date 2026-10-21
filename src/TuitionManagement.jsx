@@ -1,12 +1,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  addDoc,
   collection,
   doc,
   onSnapshot,
   serverTimestamp,
-  updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import {
   Alert,
@@ -56,6 +55,56 @@ export default function TuitionManagement({
   const [paymentDate, setPaymentDate] = useState(
     new Date().toLocaleDateString("en-CA")
   );
+  const parseLocalDate = (value) => {
+  if (!value || typeof value !== "string") return null;
+
+  const parts = value.split("-").map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+
+  const [year, month, day] = parts;
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+};
+
+const toISODate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const addMonthsClamped = (date, months) => {
+  const target = new Date(
+    date.getFullYear(),
+    date.getMonth() + months,
+    1
+  );
+
+  const lastDay = new Date(
+    target.getFullYear(),
+    target.getMonth() + 1,
+    0
+  ).getDate();
+
+  target.setDate(Math.min(date.getDate(), lastDay));
+  return target;
+};
+
+const addDays = (date, days) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
   const [note, setNote] = useState("");
   const [payments, setPayments] = useState([]);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
@@ -138,60 +187,102 @@ export default function TuitionManagement({
   };
 
   const submitPayment = async (event) => {
-    event.preventDefault();
-    setMessage("");
-    setFormError("");
+  event.preventDefault();
+  setMessage("");
+  setFormError("");
 
-    if (!selectedMember?.id) {
-      setFormError("Không tìm thấy hồ sơ hội viên.");
-      return;
-    }
+  if (!selectedMember?.id) {
+    setFormError("Không tìm thấy hồ sơ hội viên.");
+    return;
+  }
 
-    const numericAmount = Number(amount);
+  const numericAmount = Number(amount);
 
-    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      setFormError("Vui lòng nhập số tiền thu hợp lệ.");
-      return;
-    }
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    setFormError("Vui lòng nhập số tiền thu hợp lệ.");
+    return;
+  }
 
-    if (!paymentDate) {
-      setFormError("Vui lòng chọn ngày thu.");
-      return;
-    }
+  const paidDate = parseLocalDate(paymentDate);
 
-    setSaving(true);
+  if (!paidDate) {
+    setFormError("Ngày thu không hợp lệ.");
+    return;
+  }
 
-    try {
-      await addDoc(collection(db, "tuitionPayments"), {
-        memberId: selectedMember.id,
-        maHV: selectedMember.maHV || selectedMember.id,
-        hoTen: selectedMember.name || "",
-        diemTap: selectedMember.location || "",
-        ngayThu: paymentDate,
-        soTien: numericAmount,
-        loaiHocPhi: period,
-        ghiChu: note.trim(),
-        nguoiThu: profile?.email || "",
-        createdAt: serverTimestamp(),
-      });
+  setSaving(true);
 
-      await updateDoc(doc(db, "members", selectedMember.id), {
-        tinhTrangHocPhi: "Đã đóng",
-      });
+  try {
+    const oldDueDate = parseLocalDate(selectedMember.ngayHetHan);
+    const hasRemainingTime = oldDueDate && oldDueDate >= paidDate;
 
-      setMessage(
-        `Đã lưu khoản thu ${money(numericAmount)} của ${selectedMember.name}.`
-      );
-      setSelectedMember(null);
-    } catch (err) {
-      console.error("Lỗi lưu khoản thu:", err);
-      setFormError(
-        `Không thể lưu khoản thu: ${err.code || ""} ${err.message || ""}`
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+    const baseDate = hasRemainingTime ? oldDueDate : paidDate;
+    const cycleStart = hasRemainingTime
+      ? addDays(oldDueDate, 1)
+      : paidDate;
+
+    const months = period === "Quý" ? 3 : 1;
+    const newDueDate = addMonthsClamped(baseDate, months);
+
+    const startISO = toISODate(cycleStart);
+    const dueISO = toISODate(newDueDate);
+
+    const oldHistory = Array.isArray(selectedMember.lichSuChuKy)
+      ? selectedMember.lichSuChuKy
+      : [];
+
+    const newCycle = {
+      ngayBatDau: startISO,
+      ngayHetHan: dueISO,
+      loaiHocPhi: period,
+      soTien: numericAmount,
+      ngayThu: paymentDate,
+    };
+
+    const memberRef = doc(db, "members", selectedMember.id);
+    const paymentRef = doc(collection(db, "tuitionPayments"));
+
+    const batch = writeBatch(db);
+
+    batch.set(paymentRef, {
+      memberId: selectedMember.id,
+      maHV: selectedMember.maHV || selectedMember.id,
+      hoTen: selectedMember.name || "",
+      diemTap: selectedMember.location || "",
+      ngayThu: paymentDate,
+      ngayBatDauKy: startISO,
+      ngayHetHanMoi: dueISO,
+      soTien: numericAmount,
+      loaiHocPhi: period,
+      ghiChu: note.trim(),
+      nguoiThu: profile?.email || "",
+      createdAt: serverTimestamp(),
+    });
+
+    batch.update(memberRef, {
+      loaiHocPhi: period,
+      ngayHetHan: dueISO,
+      lichSuChuKy: [...oldHistory, newCycle],
+      tinhTrangHocPhi: "Đã đóng",
+    });
+
+    await batch.commit();
+
+    setMessage(
+      `Đã lưu khoản thu ${money(numericAmount)} của ${selectedMember.name}. Hạn học phí mới: ${dueISO}.`
+    );
+
+    setSelectedMember(null);
+  } catch (err) {
+    console.error("Lỗi lưu khoản thu:", err);
+
+    setFormError(
+      `Không thể lưu khoản thu: ${err.code || ""} ${err.message || ""}`
+    );
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <Stack spacing={3}>
@@ -257,7 +348,7 @@ export default function TuitionManagement({
           <TextField
             fullWidth
             size="small"
-            placeholder="Tìm mã hội viên, họ tên..."
+            placeholder="Tìm mã hội viên VTF, họ tên..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             slotProps={{
@@ -303,7 +394,7 @@ export default function TuitionManagement({
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Mã hội viên</TableCell>
+                  <TableCell>Mã hội viên VTF</TableCell>
                   <TableCell>Họ và tên</TableCell>
                   <TableCell>Điểm tập</TableCell>
                   <TableCell>Trạng thái HP</TableCell>
@@ -373,7 +464,7 @@ export default function TuitionManagement({
               <TableHead>
                 <TableRow>
                   <TableCell>Ngày thu</TableCell>
-                  <TableCell>Mã hội viên</TableCell>
+                  <TableCell>Mã hội viên VTF</TableCell>
                   <TableCell>Họ tên</TableCell>
                   <TableCell>Loại HP</TableCell>
                   <TableCell align="right">Số tiền</TableCell>

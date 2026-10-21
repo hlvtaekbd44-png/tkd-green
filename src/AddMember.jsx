@@ -64,7 +64,7 @@ async function handleSubmit(event) {
   setMessage("");
 
   if (!form.maHV.trim() || !form.hoTen.trim()) {
-    setMessage("Vui lòng nhập mã hội viên và họ tên.");
+    setMessage("Vui lòng nhập mã hội viên VTF và họ tên.");
     return;
   }
 
@@ -122,7 +122,7 @@ async function handleSubmit(event) {
 
       <TextField
         name="maHV"
-        label="Mã hội viên"
+        label="Mã hội viên VTF"
         value={form.maHV}
         onChange={handleChange}
         required
