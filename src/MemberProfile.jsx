@@ -54,6 +54,7 @@ export default function MemberProfile({
   const [detail, setDetail] = useState(null);
   const [transfers, setTransfers] = useState([]);
   const [exams, setExams] = useState([]);
+  const [examPeriods, setExamPeriods] = useState([]);
   const [payments, setPayments] = useState([]);
   const [error, setError] = useState("");
 
@@ -135,6 +136,50 @@ export default function MemberProfile({
 
     return () => unsubscribes.forEach((fn) => fn());
   }, [open, member?.id, isAdmin]);
+
+    useEffect(() => {
+    if (!open || !isAdmin) {
+      setExamPeriods([]);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      collection(db, "examPeriods"),
+      (snapshot) => {
+        setExamPeriods(
+          snapshot.docs.map((item) => ({
+            id: item.id,
+            ...item.data(),
+          }))
+        );
+      },
+      (err) => {
+        console.error("Lỗi tải danh sách đợt thi:", err);
+        setError("Không đọc được danh sách đợt thi.");
+      }
+    );
+
+    return () => unsubscribe();
+  }, [open, isAdmin]);
+
+  function getExamPeriodCode(periodId) {
+    if (!periodId) return "Chưa xác định";
+
+    const period = examPeriods.find(
+      (item) => item.id === periodId
+    );
+
+    if (!period) return periodId;
+
+    return (
+      period.maDotThi ||
+      period.code ||
+      period.periodCode ||
+      period.name ||
+      period.tenDotThi ||
+      periodId
+    );
+  }
 
   const dateTime = (value) => {
     if (!value) return "—";
@@ -300,7 +345,7 @@ export default function MemberProfile({
                   Đẳng dự thi: {display(item.dangDuThi)}
                 </Typography>
                 <Typography variant="body2">
-                  Mã đợt thi: {display(item.periodId)}
+                  Mã đợt thi: {getExamPeriodCode(item.periodId)}
                 </Typography>
                 <Typography variant="body2">
                   Trạng thái: {display(item.status)}

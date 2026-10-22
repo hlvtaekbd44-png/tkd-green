@@ -13,6 +13,8 @@ import AddRounded from "@mui/icons-material/AddRounded";
 import EditRounded from "@mui/icons-material/EditRounded";
 import VisibilityRounded from "@mui/icons-material/VisibilityRounded";
 import MemberProfile from "./MemberProfile";
+import  UploadFileRounded from "@mui/icons-material/UploadFileRounded";
+import ImportMembers from "./ImportMembers";
 
 export default function MemberList({
   students = [],
@@ -27,6 +29,7 @@ export default function MemberList({
 }) {
   const [search, setSearch] = useState("");
   const [viewMember, setViewMember] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const filteredStudents = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase("vi");
@@ -70,13 +73,25 @@ export default function MemberList({
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          startIcon={<AddRounded />}
-          onClick={onAdd}
-        >
-          Thêm hội viên
-        </Button>
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+  {profile?.role === "admin" && (
+    <Button
+      variant="outlined"
+      startIcon={<UploadFileRounded />}
+      onClick={() => setImportOpen(true)}
+    >
+      Import Excel
+    </Button>
+  )}
+
+  <Button
+    variant="contained"
+    startIcon={<AddRounded />}
+    onClick={onAdd}
+  >
+    Thêm hội viên
+  </Button>
+</Stack>
       </Stack>
 
       <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
@@ -245,6 +260,12 @@ export default function MemberList({
         onClose={() => setViewMember(null)}
         member={viewMember}
         profile={profile}
+      />
+
+      <ImportMembers
+  open={importOpen && profile?.role === "admin"}
+  onClose={() => setImportOpen(false)}
+  students={students}
       />
     </Box>
   );

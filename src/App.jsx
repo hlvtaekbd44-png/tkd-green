@@ -26,6 +26,7 @@ import MemberList from "./MemberList";
 import EditMember from "./EditMember";
 import TuitionManagement from "./TuitionManagement";
 import ExamManagement from "./ExamManagement";
+import AttendanceManagement from "./AttendanceManagement";
 import './App.css'
 
 const drawerWidth = 258
@@ -499,6 +500,12 @@ useEffect(() => {
     loading={membersLoading}
     error={membersError}
     location={location}
+  />
+) : selected === "Điểm danh" ? (
+  <AttendanceManagement
+    students={students}
+    profile={profile}
+    loading={membersLoading}
   />
 ) : (
   
