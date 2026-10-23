@@ -1,131 +1,86 @@
-#root { min-height: 100vh; }
-* { box-sizing: border-box; }
-.app-shell { min-height: 100vh; background: #f4f7f5; }
-.MuiDrawer-paper { border-right: 1px solid #e8eee9 !important; background: #fff !important; }
-.sidebar-inner { display: flex; flex-direction: column; height: 100%; padding: 25px 17px 16px; }
-.brand { display: flex; align-items: center; gap: 12px; padding: 2px 10px 32px; }
-.brand-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: #176b45; color: #fff; box-shadow: 0 7px 16px #176b4526; }
-.brand-mark svg { font-size: 27px; }
-.brand-title { font-size: 16px !important; line-height: 1.3 !important; font-weight: 900 !important; letter-spacing: 1px !important; color: #174b34; }
-.brand-subtitle { font-size: 9px !important; font-weight: 800 !important; letter-spacing: 1.35px !important; color: #87958c; margin-top: 3px !important; }
-.sidebar-section-label { padding: 0 12px 10px; color: #9aa69e; font-size: 10px; font-weight: 800; letter-spacing: 1.2px; }
-.nav-list { padding: 0 !important; }
-.nav-item { border-radius: 10px !important; margin-bottom: 5px !important; min-height: 47px !important; padding: 0 12px !important; color: #65746a !important; }
-.nav-item .MuiListItemIcon { min-width: 38px; color: inherit; }
-.nav-item .MuiListItemIcon svg { font-size: 21px; }
-.nav-item .MuiListItemText-primary { font-size: 13px; font-weight: 650; }
-.nav-item.Mui-selected { background: #eaf5ee !important; color: #176b45 !important; }
-.nav-item.Mui-selected:before { content: ''; position: absolute; left: 0; width: 3px; height: 26px; border-radius: 0 5px 5px 0; background: #176b45; }
-.nav-item.Mui-selected .MuiListItemText-primary { font-weight: 800; }
-.nav-count { margin-left: auto; font-size: 10px !important; font-weight: 800 !important; color: #176b45; background: #d9eddf; border-radius: 6px; padding: 3px 5px; }
-.settings-label { margin-top: 28px; }
-.sidebar-bottom { margin-top: auto; }
-.coach-card { display: flex; align-items: center; gap: 9px; padding: 12px 8px; border-top: 1px solid #edf1ee; border-bottom: 1px solid #edf1ee; }
-.coach-avatar { width: 34px !important; height: 34px !important; font-size: 12px !important; font-weight: 800 !important; background: #dceee3 !important; color: #176b45 !important; }
-.coach-name { font-size: 11px !important; font-weight: 800 !important; white-space: nowrap; }
-.coach-role { font-size: 10px !important; color: #829087; margin-top: 3px !important; }
-.admin-chip { height: 19px !important; font-size: 8px !important; font-weight: 900 !important; color: #176b45 !important; background: #edf7f0 !important; margin-left: auto; }
-.sidebar-version { font-size: 8px !important; text-align: center; color: #a0aaa3; letter-spacing: .5px; margin-top: 14px !important; }
-.main-area { min-width: 0; min-height: 100vh; margin-left: 258px; }
-.topbar { background: rgba(255,255,255,.92) !important; color: #172b21 !important; border-bottom: 1px solid #e8eee9; backdrop-filter: blur(12px); }
-.topbar-toolbar { min-height: 76px !important; padding: 0 34px !important; }
-.topbar-eyebrow { font-size: 9px !important; color: #8a978f; font-weight: 800 !important; letter-spacing: 1.2px; }
-.topbar-title { font-size: 18px !important; font-weight: 850 !important; margin-top: 3px !important; }
-.notification-button { color: #68776e !important; margin-right: 13px !important; }
-.topbar-avatar { width: 36px !important; height: 36px !important; background: #176b45 !important; font-size: 12px !important; font-weight: 800 !important; }
-.page-content { max-width: 1600px; margin: 0 auto; padding: 29px 34px 18px; }
-.welcome-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 24px; }
-.welcome-kicker { color: #176b45; font-size: 9px !important; font-weight: 900 !important; letter-spacing: 1.25px; margin-bottom: 7px !important; }
-.welcome-title { font-size: clamp(20px, 2vw, 26px) !important; font-weight: 850 !important; letter-spacing: -.6px !important; }
-.welcome-description { color: #758279; font-size: 12px !important; margin-top: 7px !important; }
-.add-student-button { min-height: 42px !important; padding: 0 17px !important; white-space: nowrap; box-shadow: 0 6px 14px #176b4520 !important; }
-.filter-bar { padding: 14px 18px; border: 1px solid #e9efeb; margin-bottom: 18px; }
-.filter-icon { color: #176b45; font-size: 20px !important; }
-.filter-label { color: #6c7a71; font-size: 12px !important; font-weight: 650 !important; }
-.period-chip { height: 27px !important; background: #f0f5f1 !important; color: #344b3c !important; font-size: 11px !important; font-weight: 750 !important; }
-.location-select { min-width: 185px; }
-.location-select .MuiInputBase-root { font-size: 12px; background: #fff; }
-.location-select select { padding-top: 9px; padding-bottom: 9px; }
-.stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; margin-bottom: 18px; }
-.stat-card { padding: 20px 19px; border: 1px solid #e9efeb; min-width: 0; }
-.stat-card-accent { background: linear-gradient(135deg, #176b45, #104b31); color: #fff; border-color: #176b45; }
-.stat-title { font-size: 11px !important; color: #748178; font-weight: 700 !important; }
-.stat-card-accent .stat-title { color: #d2e9da; }
-.stat-value { font-size: clamp(23px, 2.2vw, 30px) !important; font-weight: 850 !important; letter-spacing: -.8px !important; margin-top: 8px !important; line-height: 1.1 !important; }
-.stat-note { font-size: 9px !important; color: #728077; }
-.stat-card-accent .stat-note { color: #d2e9da; }
-.stat-icon { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; background: #eaf5ee; color: #176b45; }
-.stat-icon svg { font-size: 21px; }
-.stat-icon-accent { background: #ffffff20; color: #fff; }
-.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr); gap: 18px; margin-bottom: 18px; }
-.panel { border: 1px solid #e9efeb; padding: 21px; min-width: 0; }
-.panel-title { font-size: 14px !important; font-weight: 850 !important; color: #1d3327; }
-.panel-subtitle { color: #8a968e; font-size: 10px !important; margin-top: 5px !important; }
-.chart-year-chip { height: 25px !important; background: #f0f5f1 !important; color: #526257 !important; font-size: 10px !important; font-weight: 800 !important; }
-.chart-wrap { height: 242px; margin-top: 17px; }
-.quick-panel { padding-bottom: 12px; }
-.quick-link { display: flex !important; justify-content: flex-start !important; gap: 11px !important; padding: 12px 4px !important; border-bottom: 1px solid #eef2ef !important; border-radius: 0 !important; text-align: left !important; color: inherit !important; }
-.quick-link:last-child { border-bottom: 0 !important; }
-.quick-link-icon { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex-shrink: 0; background: #edf6f0; color: #176b45; }
-.quick-link-icon svg { font-size: 20px; }
-.quick-link-copy { flex-grow: 1; min-width: 0; }
-.quick-link-title { font-size: 11px !important; font-weight: 800 !important; color: #25392d; }
-.quick-link-desc { font-size: 9px !important; color: #89958d; margin-top: 4px !important; }
-.quick-arrow { color: #9aa79f; font-size: 17px !important; }
-.students-panel { padding: 0; overflow: hidden; }
-.students-header { padding: 21px; }
-.student-search { width: 245px; }
-.student-search .MuiInputBase-root { font-size: 11px; background: #fbfcfb; }
-.student-search input { padding-top: 9px; padding-bottom: 9px; }
-.student-table-wrap { overflow-x: auto; }
-.student-table-head, .student-table-row { display: grid; grid-template-columns: minmax(210px, 1.5fr) minmax(110px, 1fr) minmax(90px, .8fr) minmax(100px, .85fr) minmax(100px, .85fr); align-items: center; gap: 13px; min-width: 720px; padding: 12px 21px; }
-.student-table-head { background: #f8faf8; border-top: 1px solid #eef2ef; border-bottom: 1px solid #eef2ef; }
-.student-table-head p, .student-table-head .MuiTypography-root { color: #89958d; font-size: 8px !important; font-weight: 900 !important; letter-spacing: .55px; }
-.student-table-row { min-height: 69px; border-bottom: 1px solid #f0f3f1; }
-.student-table-row:last-child { border-bottom: 0; }
-.student-name-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.student-avatar { width: 34px !important; height: 34px !important; background: #e5f2e9 !important; color: #176b45 !important; font-size: 12px !important; font-weight: 800 !important; }
-.student-name { font-size: 11px !important; font-weight: 800 !important; color: #2a3c31; }
-.student-id { font-size: 9px !important; color: #9aa59e; margin-top: 3px !important; }
-.table-cell { font-size: 10px !important; color: #5e6e63; }
-.status-active, .fee-paid { background: #e8f6ed !important; color: #207346 !important; }
-.status-paused { background: #f0f1f0 !important; color: #68736b !important; }
-.fee-due { background: #fff4db !important; color: #946710 !important; }
-.fee-debt { background: #ffebea !important; color: #b83d36 !important; }
-.status-active, .status-paused, .fee-paid, .fee-due, .fee-debt { font-size: 9px !important; font-weight: 750 !important; height: 23px !important; }
-.empty-state { padding: 25px; color: #7d8b82; font-size: 12px !important; }
-.view-all-button { margin: 11px 21px 17px !important; color: #176b45 !important; font-size: 11px !important; font-weight: 800 !important; }
-.module-placeholder { min-height: 390px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 35px; border: 1px solid #e9efeb; }
-.module-placeholder-icon { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 18px; color: #176b45; background: #e7f4eb; margin-bottom: 18px; }
-.module-placeholder-icon svg { font-size: 32px; }
-.module-placeholder-text { max-width: 460px; color: #77847b; font-size: 12px !important; line-height: 1.8 !important; margin: 12px 0 22px !important; }
-.footer { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 22px 3px 4px; color: #9aa69e; }
-.footer .MuiTypography-root { font-size: 8px !important; letter-spacing: .35px; }
-@media (max-width: 1200px) {
-  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dashboard-grid { grid-template-columns: minmax(0, 1.3fr) minmax(270px, 1fr); }
-  .page-content { padding-left: 24px; padding-right: 24px; }
-}
-@media (max-width: 900px) {
-  .main-area { margin-left: 0; }
-  .dashboard-grid { grid-template-columns: 1fr; }
-  .topbar-toolbar { padding: 0 20px !important; }
-}
-@media (max-width: 600px) {
-  .page-content { padding: 21px 14px 14px; }
-  .topbar-toolbar { min-height: 67px !important; padding: 0 13px !important; }
-  .welcome-row { align-items: flex-start; flex-direction: column; }
-  .add-student-button { width: 100%; }
-  .stats-grid { gap: 10px; }
-  .stat-card { padding: 15px 13px; }
-  .stat-icon { width: 31px; height: 31px; border-radius: 9px; }
-  .stat-icon svg { font-size: 18px; }
-  .stat-note { font-size: 8px !important; }
-  .filter-bar { padding: 13px; }
-  .location-select { width: 100%; }
-  .panel { padding: 16px; }
-  .students-panel { padding: 0; }
-  .students-header { padding: 16px; }
-  .student-search { width: 100%; }
-  .footer { padding-top: 17px; }
-}
+/* TKD GREEN — Professional UI v1 | Pure presentation layer: does not modify Firebase logic */
+:root{color-scheme:light;--tkd-bg:#091515;--tkd-surface:#102021;--tkd-surface-2:#152829;--tkd-border:#29413e;--tkd-text:#eaf5ef;--tkd-muted:#9cb5aa;--tkd-accent:#24c979;--tkd-glow:rgba(35,201,121,.19);font-synthesis:none}
+*{box-sizing:border-box}html,body,#root{margin:0;min-height:100%;width:100%}body{background:var(--tkd-bg);font-family:Inter,'Segoe UI',Arial,sans-serif;color:var(--tkd-text)}
+::selection{background:#167b53;color:white}*{scrollbar-color:#34534d #0b1919;scrollbar-width:thin}
+.app-shell{display:flex;min-height:100vh;background:radial-gradient(ellipse 850px 450px at 95% -18%,rgba(32,160,110,.15),transparent 70%),#091515}
+.app-shell .MuiDrawer-paper{background:linear-gradient(180deg,#0a1918 0%,#0b1718 62%,#0a1415 100%)!important;border-right:1px solid #25453e!important;color:#dcefe5}
+.sidebar-inner{min-height:100vh;display:flex;flex-direction:column;padding:23px 14px 14px;gap:0}
+.brand{display:flex;align-items:center;gap:11px;padding:3px 7px 25px;border-bottom:1px solid #223b36;margin-bottom:22px}
+.brand-mark{width:53px;height:53px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;border:2px solid #277a53;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px #1ebc6940}
+.brand-mark img{width:100%;height:100%;object-fit:contain;display:block}.brand-title{font-size:17px!important;font-weight:900!important;letter-spacing:.3px;color:#f1fff4}.brand-subtitle{font-size:9px!important;letter-spacing:2px!important;color:#7ebc96!important;font-weight:800!important}
+.sidebar-section-label{font-size:10px!important;font-weight:800!important;letter-spacing:1.5px;color:#668d80;padding:5px 13px 11px;margin-top:2px}.settings-label{margin-top:22px}
+.nav-list{padding:0!important}.nav-item{border-radius:11px!important;margin:3px 0!important;min-height:43px!important;padding:8px 12px!important;position:relative;color:#a5beb3!important;transition:background .18s,color .18s,transform .18s!important}
+.nav-item .MuiListItemIcon-root{min-width:37px!important;color:inherit!important}.nav-item svg{font-size:20px!important}.nav-item .MuiListItemText-primary{font-weight:650!important;font-size:13px!important}
+.nav-item:hover{background:#17362c!important;color:#e7fff0!important;transform:translateX(2px)}.nav-item.Mui-selected,.nav-item.Mui-selected:hover{background:linear-gradient(90deg,#135f43,#12452f)!important;color:#66edaa!important;box-shadow:inset 3px 0 #35ec97}.nav-count{font-size:10px!important;background:#1c5940;color:#7ff3b8;padding:2px 7px;border-radius:7px}
+.sidebar-bottom{margin-top:auto;padding-top:22px}.coach-card{display:flex;align-items:center;gap:9px;background:#142625;border:1px solid #26423d;border-radius:13px;padding:11px 8px;margin-bottom:12px}.coach-avatar{background:#1f8057!important;color:#eafff3!important;font-weight:800!important;width:34px!important;height:34px!important}.coach-name{font-size:12px!important;font-weight:800!important}.coach-role{font-size:10px!important;color:#9db7a9!important}.admin-chip{border:1px solid #306d4e!important;background:#184c38!important;color:#8fecc0!important;font-size:9px!important;height:23px!important}.sidebar-version{color:#53796b!important;text-align:center;font-size:9px!important;letter-spacing:1px}
+.main-area{min-width:0;flex:1;display:flex;flex-direction:column;max-width:100%}.topbar{background:rgba(12,25,25,.96)!important;border-bottom:1px solid #25403b!important;backdrop-filter:blur(14px);box-shadow:none!important}.topbar-toolbar{min-height:73px!important;padding:9px clamp(16px,3vw,38px)!important;gap:14px}.topbar-eyebrow{font-size:9px!important;font-weight:850!important;letter-spacing:1.6px!important;color:#6eaa8c!important}.topbar-title{font-size:18px!important;font-weight:850!important;letter-spacing:-.5px}
+.notification-button{border:1px solid #29483f!important;border-radius:10px!important;color:#add5c0!important;width:38px;height:38px}.page-content{width:100%;max-width:1740px;margin:0 auto;padding:clamp(16px,2.7vw,38px);flex:1}.welcome-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:18px;margin-bottom:23px}.welcome-kicker{font-size:10px!important;color:#4de097!important;letter-spacing:1.6px;font-weight:850!important}.welcome-title{font-size:clamp(22px,2vw,31px)!important;line-height:1.27!important;margin:6px 0!important}.welcome-description{font-size:13px!important;color:var(--tkd-muted)!important}.add-student-button{font-weight:800!important;padding:10px 18px!important}.filter-bar{background:#112121!important;border:1px solid #2a4140!important;border-radius:15px!important;padding:13px 17px;margin:0 0 22px}.filter-icon{color:#39d78b}.filter-label{color:#adccc0;font-weight:750!important;font-size:12px!important}.period-chip{background:#153e2d!important;color:#7ae3a8!important;border:1px solid #2b6649}
+.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin:0 0 22px}.stat-card{background:linear-gradient(160deg,#142c27,#102021)!important;border:1px solid #2b463d!important;border-radius:16px!important;padding:21px!important;min-height:138px;box-shadow:none!important;transition:border .2s,transform .2s,box-shadow .2s}.stat-card:hover{border-color:#24885d!important;transform:translateY(-2px);box-shadow:0 10px 30px #0003!important}.stat-card-accent{background:linear-gradient(135deg,#146640,#0f4635)!important;border-color:#219762!important}.stat-title{font-size:12px!important;color:#acccbc!important;font-weight:750!important}.stat-value{font-weight:900!important;font-size:clamp(23px,2.6vw,33px)!important;color:#f0fff5!important;margin:8px 0 4px!important;letter-spacing:-1px}.stat-note{font-size:10px!important;color:#8cbd9c!important}.stat-icon{width:43px;height:43px;background:#183f31;border-radius:12px;color:#42dfa1;display:flex;align-items:center;justify-content:center}.stat-icon-accent{background:#267c54;color:#e5fff1}
+.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(285px,1fr);gap:18px;margin-bottom:20px}.panel{background:#112122!important;border:1px solid #29413e!important;border-radius:17px!important;padding:21px!important;box-shadow:none!important;min-width:0}.panel-title{font-size:16px!important;font-weight:800!important;color:#e8faef!important}.panel-subtitle{font-size:12px!important;color:#89a99e!important;margin-top:3px!important}.chart-wrap{height:265px;width:100%;margin-top:17px}.chart-year-chip{background:#18382f!important;color:#a7edc5!important;border:1px solid #2f6a50}.quick-link{display:flex!important;text-align:left!important;align-items:center!important;justify-content:flex-start!important;gap:12px;margin-top:12px!important;background:#142b2b!important;border:1px solid #2b4440!important;border-radius:12px!important;padding:13px!important;color:#e6f7ed!important}.quick-link:hover{background:#1c3930!important;border-color:#288c61!important}.quick-link-icon{width:38px;height:38px;border-radius:11px;background:#1d583e;color:#54e69e;display:flex;align-items:center;justify-content:center}.quick-link-copy{flex:1}.quick-link-title{font-size:13px!important;font-weight:800!important}.quick-link-desc{font-size:11px!important;color:#92b1a4!important}.quick-arrow{color:#42d993}
+.students-panel{margin-bottom:15px}.students-header{margin-bottom:18px}.student-search{min-width:240px}.student-table-wrap{overflow-x:auto;border:1px solid #2b433f;border-radius:12px}.student-table-head,.student-table-row{min-width:690px;display:grid;grid-template-columns:minmax(240px,2fr) minmax(105px,1fr) minmax(95px,1fr) minmax(105px,1fr) minmax(105px,1fr);align-items:center;gap:12px;padding:12px 16px}.student-table-head{background:#172f2d;border-bottom:1px solid #31504a}.student-table-head .MuiTypography-root{color:#82b29a;font-size:10px;font-weight:850;letter-spacing:.45px}.student-table-row{border-bottom:1px solid #213936;transition:background .16s}.student-table-row:last-child{border-bottom:0}.student-table-row:hover{background:#18322e}.student-name-cell{display:flex;align-items:center;gap:11px;min-width:0}.student-avatar{background:#176541!important;color:#bbf1d3!important;width:37px!important;height:37px!important}.student-name{font-size:12px!important;font-weight:800!important}.student-id{font-size:10px!important;color:#83b49c!important}.table-cell{font-size:12px!important;color:#bcd4c9!important}.empty-state{padding:26px!important;color:#93aea1!important}.view-all-button{margin-top:16px!important;color:#61e9a2!important;font-weight:800!important}.footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;border-top:1px solid #233936;padding-top:20px;margin-top:25px}.footer .MuiTypography-root{font-size:9px!important;letter-spacing:.45px!important;color:#5c8777!important}
+.module-placeholder{padding:36px;text-align:center;border-radius:17px!important}.module-placeholder-icon{color:#4fe79a;margin-bottom:16px}.module-placeholder-text{color:#92aca1!important;max-width:520px;margin:12px auto!important}
+/* Consistent treatment of all subordinate Material UI screens */
+.page-content .MuiPaper-root{box-shadow:none}.page-content .MuiTableContainer-root{border:1px solid #2c4741;border-radius:12px}.page-content .MuiTableHead-root{background:#172f2d}.page-content .MuiTableRow-root:hover .MuiTableCell-body{background:#16312c}.page-content .MuiAlert-root{border-radius:11px}.page-content .MuiButton-outlined{border-color:#386755}.page-content .MuiTypography-h5,.page-content .MuiTypography-h6{letter-spacing:-.35px}.MuiDialog-paper{box-shadow:0 28px 90px #000b!important}.MuiDialogTitle-root{font-weight:850!important;border-bottom:1px solid #263e39}.MuiDialogActions-root{border-top:1px solid #263e39}.MuiTabs-indicator{height:3px!important;border-radius:3px}.MuiMenu-paper,.MuiPopover-paper{background:#152727!important;border:1px solid #32504a!important}.MuiButton-containedPrimary{color:#082119!important}.MuiFormLabel-root{color:#adc5ba}
+/* Make both user and admin dialogs and cards legible */
+.MuiCard-root{border:1px solid #2b463f!important;background:#122425!important}.MuiDivider-root{border-color:#274039!important}.MuiAvatar-root{flex-shrink:0}.MuiSwitch-colorPrimary.Mui-checked{color:#37e192}.MuiSwitch-colorPrimary.Mui-checked+.MuiSwitch-track{background:#1ba66b}.MuiCircularProgress-root{color:#40da98}
+@media(max-width:1279px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-grid{grid-template-columns:1fr}.chart-wrap{height:245px}}
+@media(max-width:899px){.sidebar-inner{padding-top:18px}.topbar-toolbar{min-height:64px!important}.page-content{padding:18px 15px}.dashboard-grid{grid-template-columns:1fr}.stats-grid{gap:11px}.stat-card{min-height:115px;padding:16px!important}.welcome-title{font-size:23px!important}}
+@media(max-width:560px){.stats-grid{grid-template-columns:1fr 1fr;gap:9px}.stat-card{padding:13px!important}.stat-value{font-size:22px!important}.panel{padding:14px!important}.welcome-row{align-items:flex-start}.filter-bar{padding:12px}.chart-wrap{height:205px}.footer{display:block}.footer .MuiTypography-root{margin-bottom:7px!important}}
+
+.topbar-wordmark{width:78px;height:42px;padding:3px 7px;overflow:hidden;border-radius:11px;background:#fff;border:1px solid #30644e;display:flex;align-items:center;justify-content:center;flex-shrink:0}.topbar-wordmark img{max-width:100%;max-height:100%;object-fit:contain}@media(max-width:650px){.topbar-wordmark{display:none}}
+
+/* TKD GREEN — MẪU 5 LIGHT EDITION | Tổng thể sáng, sidebar thương hiệu xanh đậm */
+:root{--tkd-bg:#f4f8f5;--tkd-surface:#fff;--tkd-surface-2:#f8fcf9;--tkd-border:#dfece3;--tkd-text:#183529;--tkd-muted:#60796a;--tkd-accent:#0b8e57;--tkd-glow:rgba(15,145,86,.10)}
+html,body,#root{color-scheme:light;background:#f4f8f5;color:#183529}
+*{scrollbar-color:#b8d6c3 #f0f7f2}
+.app-shell{background:radial-gradient(ellipse 950px 470px at 94% -15%,#d5f3e3 0%,transparent 75%),#f4f8f5!important}
+/* Sidebar intentionally remains dark green, giving both original logos a strong branded home */
+.app-shell .MuiDrawer-paper{background:linear-gradient(170deg,#073c2e,#092c26 70%,#0c4735)!important;border-right:1px solid #215b44!important}
+.sidebar-inner,.sidebar-inner .MuiTypography-root{color:#e8fff2}
+.brand{border-bottom-color:#2d6651}
+.brand-title{color:#fff!important}.brand-subtitle{color:#b3eecb!important}
+.sidebar-section-label{color:#92c9ab!important}.nav-item{color:#c6e6d4!important}.nav-item:hover{background:#186c4b!important;color:white!important}.nav-item.Mui-selected,.nav-item.Mui-selected:hover{background:#147e50!important;color:#fff!important;box-shadow:inset 3px 0 #85edb2!important}
+.sidebar-bottom .coach-card{background:#0d4a37;border-color:#277653}.sidebar-version{color:#87c09f!important}
+.topbar{background:rgba(255,255,255,.94)!important;border-bottom:1px solid #e0eae3!important;box-shadow:0 2px 10px rgba(17,80,43,.035)!important}
+.topbar-eyebrow{color:#478666!important}.topbar-title{color:#1b3b2b!important}
+.topbar .MuiTypography-root{color:#244738}.topbar .MuiButton-root{color:#0d8051}
+.notification-button{color:#286a49!important;border-color:#d8e8dc!important;background:#f8fcf9!important}
+.page-content{color:#213d2e}
+.welcome-kicker{color:#0c8a53!important}.welcome-title{color:#163c29!important}.welcome-description{color:#6b8475!important}
+.filter-bar,.panel,.students-panel{background:#fff!important;border:1px solid #e0eae2!important;box-shadow:0 8px 22px rgba(29,94,55,.045)!important}
+.filter-icon{color:#149767}.filter-label{color:#426e55!important}.period-chip,.chart-year-chip{background:#eaf8ef!important;color:#187c4e!important;border:1px solid #d1ebda!important}
+.stat-card{background:linear-gradient(145deg,#fff,#f2faf5)!important;border:1px solid #dcebe0!important;box-shadow:0 6px 22px rgba(29,100,55,.04)!important}
+.stat-card:hover{box-shadow:0 10px 26px rgba(23,112,62,.10)!important;border-color:#abd6bb!important}
+.stat-card-accent{background:linear-gradient(135deg,#087c50,#0d9b63)!important;border-color:#078054!important}
+.stat-title{color:#537361!important}.stat-value{color:#173c2a!important}.stat-note{color:#58886c!important}.stat-icon{background:#e2f6e9;color:#0c9860}
+.stat-card-accent .stat-title,.stat-card-accent .stat-value,.stat-card-accent .stat-note{color:white!important}.stat-card-accent .stat-icon{background:#ffffff25;color:#fff}
+.panel-title{color:#1f4530!important}.panel-subtitle{color:#688171!important}
+.quick-link{background:#f7fcf8!important;border:1px solid #e1ece4!important;color:#1c3d2a!important}.quick-link:hover{background:#eaf8ee!important;border-color:#8dccab!important}
+.quick-link-icon{background:#e2f6e9;color:#0e915a}.quick-link-title{color:#1e4b32!important}.quick-link-desc{color:#738d7b!important}.quick-arrow{color:#0a9456}
+.student-table-wrap,.page-content .MuiTableContainer-root{border:1px solid #dce9df!important;background:white!important}
+.student-table-head,.page-content .MuiTableHead-root{background:#eaf5ed!important;border-color:#d8e9dd!important}
+.student-table-head .MuiTypography-root{color:#4e715c!important}.student-table-row{border-color:#e5ede7!important}.student-table-row:hover,.page-content .MuiTableRow-root:hover .MuiTableCell-body{background:#f3faf6!important}
+.student-name,.student-table-row .MuiTypography-root{color:#254431!important}.student-id{color:#668b75!important}.table-cell{color:#445f50!important}.empty-state{color:#728577!important}.view-all-button{color:#0e8f55!important}
+.footer{border-top-color:#dfece2}.footer .MuiTypography-root{color:#8a9e90!important}.module-placeholder{background:white!important}.module-placeholder-text{color:#657b6b!important}
+.topbar-wordmark{border-color:#d7eadd;background:#fff}
+/* Unified MUI components across Hội viên, Học phí, Thi cấp, Điểm danh, Cài đặt */
+.page-content .MuiPaper-root:not(.stat-card-accent),.page-content .MuiCard-root{background-color:#fff;color:#244231;border-color:#e0eae3}
+.page-content .MuiTableCell-head{background:#eaf6ed;color:#356647;font-weight:800}
+.page-content .MuiTableCell-body{color:#294435}
+.page-content .MuiDivider-root,.MuiDialog-paper .MuiDivider-root{border-color:#e2ece5!important}
+.page-content .MuiButton-outlined{border-color:#c4dbcd!important;color:#126a45!important}
+.page-content .MuiButton-containedPrimary,.MuiDialog-paper .MuiButton-containedPrimary{background:#0a8854!important;color:#fff!important}
+.page-content .MuiButton-containedPrimary:hover,.MuiDialog-paper .MuiButton-containedPrimary:hover{background:#076d42!important}
+.page-content .MuiOutlinedInput-root,.MuiDialog-paper .MuiOutlinedInput-root{background:#fff!important;color:#1e3c2a!important}
+.page-content .MuiInputLabel-root,.MuiDialog-paper .MuiInputLabel-root{color:#537264}
+.page-content .MuiOutlinedInput-notchedOutline{border-color:#cfe0d4}
+.page-content .MuiTabs-root,.MuiDialog-paper .MuiTabs-root{color:#356a4a}
+.page-content .MuiAlert-standardInfo{background:#e9f6ff;color:#225e7c}
+.page-content .MuiAlert-standardWarning{background:#fff5e6;color:#85541c}
+.page-content .MuiAlert-standardError{background:#fff0ed;color:#994339}
+.MuiDialog-paper,.MuiPopover-paper,.MuiMenu-paper{background:#fff!important;color:#243f30!important;border:1px solid #dce9df!important;box-shadow:0 18px 65px rgba(14,63,32,.18)!important}
+.MuiDialogTitle-root,.MuiDialogActions-root{border-color:#e2ebe4!important}
+.MuiCard-root{background:#fff!important;border-color:#e1ebe3!important}
+.MuiFormLabel-root{color:#537264!important}
+.MuiCircularProgress-root{color:#0d8b55}
+@media(max-width:900px){.page-content{padding:18px 14px!important}.topbar-toolbar{padding:10px 15px!important}}
