@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert, Avatar, Box, Button, Chip, Divider, FormControl, InputAdornment,
-  MenuItem, Pagination, Paper, Select, Stack, TextField, Typography,
+  IconButton, Menu, MenuItem, Pagination, Paper, Select, Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
 import AddRounded from "@mui/icons-material/AddRounded";
 import EditRounded from "@mui/icons-material/EditRounded";
@@ -18,6 +18,9 @@ import ImportMembers from "./ImportMembers";
 import MemberAccountDialog from "./MemberAccountDialog";
 import DeleteMemberDialog from "./DeleteMemberDialog";
 import PersonAddAlt1Rounded from "@mui/icons-material/PersonAddAlt1Rounded";
+import MoreVertRounded from "@mui/icons-material/MoreVertRounded";
+import DeleteForeverRounded from "@mui/icons-material/DeleteForeverRounded";
+import BeltBadge from "./BeltBadge";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const ALL = "Tất cả";
@@ -73,6 +76,7 @@ export default function MemberList({
   const [importOpen, setImportOpen] = useState(false);
   const [accountMember, setAccountMember] = useState(null);
   const [deleteMember, setDeleteMember] = useState(null);
+  const [actionMenu, setActionMenu] = useState({ anchorEl: null, member: null });
 
   const canCreateMember = profile?.role === "admin" ||
     (profile?.role === "hlv" && profile?.permissions?.members?.create === true);
@@ -124,15 +128,33 @@ export default function MemberList({
     if (locations.includes("Tất cả điểm tập")) onLocationChange?.("Tất cả điểm tập");
   };
 
+  const openActions = (event, student) => {
+    setActionMenu({ anchorEl: event.currentTarget, member: student });
+  };
+  const closeActions = () => setActionMenu({ anchorEl: null, member: null });
+  const runAction = (callback) => {
+    const selectedMember = actionMenu.member;
+    closeActions();
+    if (selectedMember) callback(selectedMember);
+  };
+
   const memberActions = (student, compact = false) => (
-    <Stack direction="row" spacing={1} sx={{ width: compact ? "100%" : "auto" }}>
-      <Button size="small" variant="outlined" startIcon={<VisibilityRounded />} onClick={() => setViewMember(student)}
-        sx={{ borderRadius: 2, minHeight: 39, flex: compact ? 1 : "none", whiteSpace: "nowrap" }}>Xem</Button>
-      {profile?.role === "admin" && <Button size="small" variant="outlined" startIcon={<PersonAddAlt1Rounded />} onClick={() => setAccountMember(student)}
-        sx={{ borderRadius: 2, minHeight: 39, whiteSpace: "nowrap" }}>Cấp tài khoản</Button>}
-      {profile?.role === "admin" && <Button size="small" color="error" variant="outlined" onClick={() => setDeleteMember(student)} sx={{borderRadius:2,minHeight:39,whiteSpace:"nowrap"}}>Xóa vĩnh viễn</Button>}
-      <Button size="small" variant="outlined" startIcon={<EditRounded />} onClick={() => onEdit?.(student)} disabled={!onEdit || !canEditMember}
-        sx={{ borderRadius: 2, minHeight: 39, flex: compact ? 1 : "none", whiteSpace: "nowrap" }}>Sửa hồ sơ</Button>
+    <Stack direction="row" spacing={0.75} alignItems="center"
+      sx={{ width: compact ? "100%" : "auto", minWidth: 0, justifyContent: compact ? "flex-end" : "flex-start" }}>
+      <Button size="small" variant="outlined" startIcon={<VisibilityRounded fontSize="small" />}
+        onClick={() => setViewMember(student)}
+        sx={{ borderRadius: 2, height: 34, minWidth: 68, px: 1, fontWeight: 700, whiteSpace: "nowrap" }}>
+        Xem
+      </Button>
+      {(canEditMember || profile?.role === "admin") && (
+        <Tooltip title="Thao tác khác">
+          <IconButton size="small" aria-label={`Thao tác với ${student.name || "hội viên"}`}
+            aria-haspopup="menu" onClick={(event) => openActions(event, student)}
+            sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, width: 34, height: 34 }}>
+            <MoreVertRounded fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
     </Stack>
   );
 
@@ -205,7 +227,7 @@ export default function MemberList({
                 <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="caption" color="text.secondary">{student.location || "Chưa có điểm tập"}</Typography>
-                    <Typography variant="body2" fontWeight={700}>{student.belt || "Chưa cập nhật cấp đai"}</Typography>
+                    <BeltBadge level={student.belt} compact />
                   </Box>
                   <Chip size="small" variant="outlined" color={getStatusColor(student.status)} label={memberStatus(student.status)} />
                 </Stack>
@@ -217,14 +239,14 @@ export default function MemberList({
           {/* Máy tính: bảng rõ ràng, có dòng hover */}
           <Paper elevation={0} sx={{ display: { xs: "none", md: "block" }, borderRadius: 3, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
             <Box sx={{ overflowX: "auto" }}>
-              <Box sx={{ minWidth: 870 }}>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1.2fr 1.7fr 1fr 1fr 1fr 190px", gap: 1.5, px: 2, py: 1.8, bgcolor: "action.hover" }}>
+              <Box sx={{ minWidth: 810 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "1.15fr 1.65fr 1fr 1fr .9fr 126px", gap: 1.5, px: 2, py: 1.8, bgcolor: "action.hover" }}>
                   {["Mã nội bộ / VTF", "Họ và tên", "Điểm tập", "Cấp đai", "Trạng thái", "Thao tác"].map((title) => (
                     <Typography key={title} variant="caption" fontWeight={900} sx={cellSx}>{title}</Typography>
                   ))}
                 </Box>
                 {pageStudents.map((student) => (
-                  <Box key={student.id} sx={{ display: "grid", gridTemplateColumns: "1.2fr 1.7fr 1fr 1fr 1fr 190px", gap: 1.5, px: 2, py: 1.6, alignItems: "center", borderTop: "1px solid", borderColor: "divider", "&:hover": { bgcolor: "action.hover" } }}>
+                  <Box key={student.id} sx={{ display: "grid", gridTemplateColumns: "1.15fr 1.65fr 1fr 1fr .9fr 126px", gap: 1.5, px: 2, py: 1.6, alignItems: "center", borderTop: "1px solid", borderColor: "divider", "&:hover": { bgcolor: "action.hover" } }}>
                     <Box sx={cellSx}>
                       <Typography variant="body2" fontWeight={800} color="success.main">{student.maHoiVienNoiBo || "Chưa cấp ID"}</Typography>
                       <Typography variant="caption" color="text.secondary">VTF: {student.maHV || "Chưa cấp"}</Typography>
@@ -234,7 +256,7 @@ export default function MemberList({
                       <Typography variant="body2" fontWeight={800} sx={cellSx}>{student.name || "Chưa có tên"}</Typography>
                     </Stack>
                     <Typography variant="body2" sx={cellSx}>{student.location || "—"}</Typography>
-                    <Typography variant="body2" sx={cellSx}>{student.belt || "Chưa cập nhật"}</Typography>
+                    <BeltBadge level={student.belt} compact />
                     <Box><Chip size="small" variant="outlined" color={getStatusColor(student.status)} label={memberStatus(student.status)} /></Box>
                     {memberActions(student)}
                   </Box>
@@ -261,6 +283,34 @@ export default function MemberList({
           </Stack>
         </Paper>
       )}
+
+      <Menu
+        anchorEl={actionMenu.anchorEl}
+        open={Boolean(actionMenu.anchorEl)}
+        onClose={closeActions}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { mt: 0.75, minWidth: 205, borderRadius: 2, boxShadow: "0 12px 30px rgba(0,0,0,.24)" } } }}
+      >
+        {canEditMember && onEdit && (
+          <MenuItem onClick={() => runAction((member) => onEdit(member))}>
+            <EditRounded fontSize="small" sx={{ mr: 1.5 }} /> Sửa hồ sơ
+          </MenuItem>
+        )}
+        {profile?.role === "admin" && (
+          <MenuItem onClick={() => runAction(setAccountMember)}>
+            <PersonAddAlt1Rounded fontSize="small" sx={{ mr: 1.5 }} /> Tài khoản
+          </MenuItem>
+        )}
+        {profile?.role === "admin" && (
+          <>
+            <Divider />
+            <MenuItem onClick={() => runAction(setDeleteMember)} sx={{ color: "error.main" }}>
+              <DeleteForeverRounded fontSize="small" sx={{ mr: 1.5 }} /> Xóa hội viên
+            </MenuItem>
+          </>
+        )}
+      </Menu>
 
       <DeleteMemberDialog open={Boolean(deleteMember)} member={deleteMember} onClose={() => setDeleteMember(null)} />
       <MemberAccountDialog open={Boolean(accountMember)} member={accountMember} onClose={() => setAccountMember(null)} />
