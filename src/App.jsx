@@ -1,4 +1,5 @@
 import GoogleLogin from "./GoogleLogin";
+import useDashboardLiveMetrics from "./useDashboardLiveMetrics";
 import MemberSelfPortal from "./MemberSelfPortal";
 import {
   collection,
@@ -32,21 +33,30 @@ import AttendanceManagement from "./AttendanceManagement";
 import SettingsManagement from "./SettingsManagement";
 import './App.css'
 
-const drawerWidth = 258
+const drawerWidth = 256
 
 const theme = createTheme({
   palette: {
     mode: 'light',
-    primary: { main: '#176b45', dark: '#104b31', light: '#e5f4eb' },
-    secondary: { main: '#c6a75e' },
-    background: { default: '#f4f7f5', paper: '#ffffff' },
-    text: { primary: '#172b21', secondary: '#68766e' },
+    primary: { main: '#087d4b', dark: '#075f3b', light: '#d9f5e5', contrastText: '#ffffff' },
+    secondary: { main: '#b78a35' },
+    background: { default: '#f4f8f5', paper: '#ffffff' },
+    text: { primary: '#18362a', secondary: '#617b6d' },
   },
   shape: { borderRadius: 14 },
   typography: {
     fontFamily: '"Inter", "Segoe UI", Arial, sans-serif',
     button: { textTransform: 'none', fontWeight: 700 },
     h5: { fontWeight: 800, letterSpacing: '-0.5px' },
+  },
+  components: {
+    MuiPaper: { styleOverrides: { root: { backgroundImage: 'none', border: '1px solid #e0ebe4' } } },
+    MuiButton: { styleOverrides: { root: { borderRadius: 10, boxShadow: 'none', minHeight: 36 }, containedPrimary: { '&:hover': { boxShadow: '0 7px 20px #0c9f6050' } } } },
+    MuiTextField: { defaultProps: { size: 'small' } },
+    MuiOutlinedInput: { styleOverrides: { root: { borderRadius: 10, backgroundColor: '#ffffff' } } },
+    MuiDialog: { styleOverrides: { paper: { backgroundColor: '#ffffff', backgroundImage: 'none', border: '1px solid #dbe9df', borderRadius: 18 } } },
+    MuiTableCell: { styleOverrides: { root: { borderBottom: '1px solid #e6eee8' }, head: { fontWeight: 800, color: '#446b56' } } },
+    MuiChip: { styleOverrides: { root: { fontWeight: 700 } } },
   },
 })
 
@@ -149,7 +159,7 @@ function MemberPortalLayout({ profile, user }) {
   ];
   const visiblePage = items.some(x => x.label === page) ? page : (items[0]?.label || '');
   const side = <Box className="sidebar-inner">
-    <Box className="brand"><Box className="brand-mark"><ShieldRounded /></Box>
+    <Box className="brand"><Box className="brand-mark"><img src="/branding/green-emblem.png" alt="Logo Green Taekwondo" /></Box>
       <Box><Typography className="brand-title">TKD GREEN</Typography><Typography className="brand-subtitle">CLUB MANAGEMENT</Typography></Box>
     </Box>
     <Box className="sidebar-section-label">VÕ SINH / PHỤ HUYNH</Box>
@@ -172,7 +182,7 @@ function MemberPortalLayout({ profile, user }) {
     <Box className="main-area"><AppBar position="sticky" elevation={0} className="topbar"><Toolbar className="topbar-toolbar">
       {mobile && <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon/></IconButton>}
       <Box sx={{ flexGrow: 1 }}><Typography className="topbar-eyebrow">TKD GREEN CLUB / VÕ SINH</Typography>
-      <Typography className="topbar-title">{visiblePage || 'Chưa được mở chức năng'}</Typography></Box><GoogleLogin/>
+      <Typography className="topbar-title">{visiblePage || 'Chưa được mở chức năng'}</Typography></Box><Box className="topbar-wordmark"><img src="/branding/green-wordmark.png" alt="Green Taekwondo logo" /></Box><GoogleLogin/>
     </Toolbar></AppBar><Box component="main" className="page-content">
       {memberError && <Alert severity="error" sx={{ mb: 2 }}>{memberError}</Alert>}
       {locationError && <Alert severity="warning" sx={{ mb: 2 }}>{locationError}</Alert>}
@@ -190,6 +200,7 @@ function App() {
   const [selected, setSelected] = useState('Tổng quan');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location, setLocation] = useState('Tất cả điểm tập');
+  const dashboardMetrics = useDashboardLiveMetrics(profile, location);
   const [search, setSearch] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
@@ -339,7 +350,7 @@ useEffect(() => {
       <div style={{ padding: 32 }}>
         <h2>CLB Taekwondo Green</h2>
         <p>Vui lòng đăng nhập bằng tài khoản được CLB cấp.</p>
-        <GoogleLogin />
+        <Box className="topbar-wordmark"><img src="/branding/green-wordmark.png" alt="Green Taekwondo logo" /></Box><GoogleLogin />
       </div>
     );
   }
@@ -349,7 +360,7 @@ useEffect(() => {
       <div style={{ padding: 32 }}>
         <h2>Không có quyền truy cập</h2>
         <p>{error || 'Tài khoản chưa được cấp quyền.'}</p>
-        <GoogleLogin />
+        <Box className="topbar-wordmark"><img src="/branding/green-wordmark.png" alt="Green Taekwondo logo" /></Box><GoogleLogin />
       </div>
     );
   }
@@ -364,7 +375,7 @@ useEffect(() => {
   const drawerContent = (
     <Box className="sidebar-inner">
       <Box className="brand">
-        <Box className="brand-mark"><ShieldRounded /></Box>
+        <Box className="brand-mark"><img src="/branding/green-emblem.png" alt="Logo Green Taekwondo" /></Box>
         <Box>
           <Typography className="brand-title">TKD GREEN</Typography>
           <Typography className="brand-subtitle">CLUB MANAGEMENT</Typography>
@@ -475,39 +486,43 @@ useEffect(() => {
   </Badge>
 </IconButton>
 
-<GoogleLogin />
+<Box className="topbar-wordmark"><img src="/branding/green-wordmark.png" alt="Green Taekwondo logo" /></Box><GoogleLogin />
 
             </Toolbar>
           </AppBar>
 
           <Box component="main" className="page-content">
-            <Box className="welcome-row">
-              <Box>
-                <Typography className="welcome-kicker">HỆ THỐNG QUẢN LÝ CLB TAEKWONDO</Typography>
-                <Typography variant="h5" className="welcome-title">Xin chào, HLV Nguyễn Hữu Tài 👋</Typography>
-                <Typography className="welcome-description">Theo dõi hoạt động và tình hình câu lạc bộ tại một nơi.</Typography>
+            {activePage === "Tổng quan" && (
+              <>
+              <Box className="welcome-row">
+                <Box>
+                  <Typography className="welcome-kicker">HỆ THỐNG QUẢN LÝ CLB TAEKWONDO</Typography>
+                  <Typography variant="h5" className="welcome-title">Xin chào, HLV Nguyễn Hữu Tài 👋</Typography>
+                  <Typography className="welcome-description">Theo dõi hoạt động và tình hình câu lạc bộ tại một nơi.</Typography>
+                </Box>
+                {canCreateMember && <Button variant="contained" startIcon={<AddRounded />} className="add-student-button" onClick={() => {
+    navigate('Hội viên');
+    setShowAddMember(true);
+  }}>
+                  Thêm hội viên
+                </Button>}
               </Box>
-              {canCreateMember && <Button variant="contained" startIcon={<AddRounded />} className="add-student-button" onClick={() => {
-  navigate('Hội viên');
-  setShowAddMember(true);
-}}>
-                Thêm hội viên
-              </Button>}
-            </Box>
-
-            <Paper className="filter-bar" elevation={0}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexGrow: 1 }}>
-                  <CalendarMonthRounded className="filter-icon" />
-                  <Typography className="filter-label">Kỳ báo cáo</Typography>
-                  <Chip label="Tháng 10, 2026" className="period-chip" />
+  
+              <Paper className="filter-bar" elevation={0}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexGrow: 1 }}>
+                    <CalendarMonthRounded className="filter-icon" />
+                    <Typography className="filter-label">Kỳ báo cáo</Typography>
+                    <Chip label={dashboardMetrics.periodLabel} className="period-chip" />
+                  </Stack>
+                  <TextField select slotProps={{ select: { native: true }, htmlInput: { "aria-label": "Lọc theo điểm tập" } }} value={location} onChange={(e) => setLocation(e.target.value)}
+                    size="small" className="location-select">
+                    {availableLocations.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </TextField>
                 </Stack>
-                <TextField select slotProps={{ select: { native: true }, htmlInput: { "aria-label": "Lọc theo điểm tập" } }} value={location} onChange={(e) => setLocation(e.target.value)}
-                  size="small" className="location-select">
-                  {availableLocations.map((item) => <option key={item} value={item}>{item}</option>)}
-                </TextField>
-              </Stack>
-            </Paper>
+              </Paper>
+              </>
+            )}
 
             {!activePage ? (
               <Paper sx={{ p: 3 }}><Typography>Chưa được cấp quyền sử dụng chức năng nào. Vui lòng liên hệ Admin.</Typography></Paper>
@@ -516,8 +531,8 @@ useEffect(() => {
                 <Box className="stats-grid">
                   <StatCard title="Tổng hội viên" value={students.length.toLocaleString("vi-VN")} note="Theo dữ liệu được phân quyền" icon={<GroupsRounded />} />
                   <StatCard title="Đang học" value={students.filter((s) => s.status === "Đang học").length.toLocaleString("vi-VN")} note="Theo dữ liệu được phân quyền" icon={<FactCheckRounded />} />
-                  <StatCard title="Học phí đã thu" value="186,5 tr" note="Tháng 10/2026" icon={<PaymentsRounded />} accent />
-                  <StatCard title="Chờ thi cấp" value="42" note="Trong danh sách đăng ký" icon={<EmojiEventsRounded />} />
+                  <StatCard title="Học phí đã thu" value={dashboardMetrics.collected} note={dashboardMetrics.tuitionNote} icon={<PaymentsRounded />} accent />
+                  <StatCard title="Chờ thi cấp" value={dashboardMetrics.pending} note={dashboardMetrics.examNote} icon={<EmojiEventsRounded />} />
                 </Box>
 
                 <Box className="dashboard-grid">
