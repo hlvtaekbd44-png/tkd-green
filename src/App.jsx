@@ -27,6 +27,7 @@ import EditMember from "./EditMember";
 import TuitionManagement from "./TuitionManagement";
 import ExamManagement from "./ExamManagement";
 import AttendanceManagement from "./AttendanceManagement";
+import SettingsManagement from "./SettingsManagement";
 import './App.css'
 
 const drawerWidth = 258
@@ -57,6 +58,14 @@ const navItems = [
 ]
 
 const locations = ['Tất cả điểm tập', 'Lê Văn Tám', 'Nghĩa Trung', 'Đồng Tâm', 'Thôn 6', 'Phước Sơn', 'Minh Hưng']
+
+// Chuẩn hóa điểm tập được gán; không suy diễn quyền từ các cờ chức năng.
+function assignedLocations(profile) {
+  const value = profile?.diemTap;
+  if (Array.isArray(value)) return [...new Set(value.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim()))];
+  if (typeof value === 'string' && value.trim()) return [value.trim()];
+  return [];
+}
 
 const chartData = [
   { month: 'T5', members: 720 }, { month: 'T6', members: 765 },
@@ -96,46 +105,70 @@ const [students, setStudents] = useState([]);
 const [membersLoading, setMembersLoading] = useState(true);
 const [membersError, setMembersError] = useState('');
 
+const canCreateMember = profile?.role === 'admin' || (profile?.role === 'hlv' && profile?.permissions?.members?.create === true);
+
 const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+const assignedPoints = useMemo(() => assignedLocations(profile), [profile]);
+const assignedKey = assignedPoints.join('\u0001');
+const availableLocations = useMemo(() => (
+  profile?.role === 'admin'
+    ? locations
+    : ['Tất cả điểm tập', ...assignedPoints]
+), [profile?.role, assignedKey]);
+
+// Không giữ bộ lọc điểm tập cũ khi chuyển sang tài khoản HLV khác.
 useEffect(() => {
-  if (!profile) return;
+  if (location !== 'Tất cả điểm tập' && !availableLocations.includes(location)) {
+    setLocation('Tất cả điểm tập');
+  }
+}, [location, availableLocations]);
 
-  setMembersLoading(true);
-  setMembersError('');
-
-  // HLV chưa được phân công điểm tập thì không truy vấn hội viên.
-  if (
-    profile.role === 'hlv' &&
-    (!profile.diemTap || profile.diemTap.length === 0)
-  ) {
+useEffect(() => {
+  if (!profile) {
     setStudents([]);
     setMembersLoading(false);
     return;
   }
 
+  setMembersLoading(true);
+  setMembersError('');
+  setStudents([]);
+
+  if (profile.role !== 'admin' && profile.role !== 'hlv') {
+    setMembersError('Tài khoản chưa có vai trò hợp lệ để xem hội viên.');
+    setMembersLoading(false);
+    return;
+  }
+
+  if (profile.role === 'hlv' && assignedPoints.length === 0) {
+    setMembersError('HLV chưa được gán điểm tập trong hồ sơ (diemTap). Hãy kiểm tra cấu hình phân quyền.');
+    setMembersLoading(false);
+    return;
+  }
+
   const membersRef = collection(db, 'members');
+  // Firestore giới hạn số giá trị trong truy vấn "in"; chia nhóm tối đa 30.
+  const memberQueries = profile.role === 'admin'
+    ? [membersRef]
+    : Array.from({ length: Math.ceil(assignedPoints.length / 30) }, (_, i) =>
+        query(membersRef, where('diemTap', 'in', assignedPoints.slice(i * 30, (i + 1) * 30)))
+      );
 
-  // HLV chỉ truy vấn những điểm tập được phân công.
-  const membersQuery =
-    profile.role === 'admin'
-      ? membersRef
-      : query(
-          membersRef,
-          where('diemTap', 'in', profile.diemTap)
-        );
-
-  const unsubscribe = onSnapshot(
-    membersQuery,
-    (snapshot) => {
-      const data = snapshot.docs.map((item) => {
+  const snapshots = new Map();
+  const unsubscribers = memberQueries.map((membersQuery, index) =>
+    onSnapshot(membersQuery, (snapshot) => {
+      snapshots.set(index, snapshot.docs);
+      const uniqueDocs = new Map();
+      for (const docs of snapshots.values()) {
+        docs.forEach((item) => uniqueDocs.set(item.id, item));
+      }
+      const data = [...uniqueDocs.values()].map((item) => {
         const member = item.data();
-
-        
         return {
           id: item.id,
-          maHV: member.maHV || "",
-          maHoiVienNoiBo: member.maHoiVienNoiBo || "",
+          maHV: member.maHV || '',
+          maHoiVienNoiBo: member.maHoiVienNoiBo || '',
           name: member.hoTen || '',
           ngaySinh: member.ngaySinh || '',
           gioiTinh: member.gioiTinh || 'Nam',
@@ -143,31 +176,27 @@ useEffect(() => {
           loaiHocPhi: member.loaiHocPhi || 'Tháng',
           ngayBatDau: member.ngayBatDau || '',
           ngayHetHan: member.ngayHetHan || '',
-          lichSuChuKy: Array.isArray(member.lichSuChuKy)
-            ? member.lichSuChuKy
-            : [],
+          lichSuChuKy: Array.isArray(member.lichSuChuKy) ? member.lichSuChuKy : [],
           location: member.diemTap || '',
           belt: member.capDaiDang || 'Chưa cập nhật',
           status: member.trangThai || 'Chưa cập nhật',
           fee: member.tinhTrangHocPhi || 'Chưa cập nhật',
         };
       });
-
       setStudents(data);
-      setMembersLoading(false);
+      if (snapshots.size === memberQueries.length) setMembersLoading(false);
       setMembersError('');
-    },
-    (err) => {
+    }, (err) => {
       console.error('Lỗi đọc danh sách hội viên:', err);
-      setMembersError(
-        'Không tải được hội viên. Vui lòng kiểm tra quyền Firestore.'
-      );
+      setStudents([]);
+      setMembersError(err.code === 'permission-denied'
+        ? 'Firestore từ chối quyền đọc hội viên (permission-denied). Cần kiểm tra Rules và điểm tập được gán.'
+        : `Không tải được hội viên: ${err.message || err.code || 'Lỗi không xác định'}`);
       setMembersLoading(false);
-    }
+    })
   );
-
-  return () => unsubscribe();
-}, [profile]);
+  return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+}, [profile?.role, assignedKey, profile?.uid]);
 
 
   const filteredStudents = useMemo(() => students.filter((student) => {
@@ -233,17 +262,36 @@ useEffect(() => {
           >
             <ListItemIcon>{item.icon}</ListItemIcon>
             <ListItemText primary={item.label} />
-            {item.label === 'Hội viên' && <Typography className="nav-count">1.008</Typography>}
+            {item.label === 'Hội viên' && <Typography className="nav-count">{students.length.toLocaleString("vi-VN")}</Typography>}
           </ListItemButton>
         ))}
       </List>
-      <Box className="sidebar-section-label settings-label">HỆ THỐNG</Box>
-      <List className="nav-list">
-        <ListItemButton className="nav-item" onClick={() => { setSelected('Cài đặt'); setMobileOpen(false) }}>
-          <ListItemIcon><SettingsRounded /></ListItemIcon>
-          <ListItemText primary="Cài đặt" />
-        </ListItemButton>
-      </List>
+      
+{profile.role === "admin" && (
+  <>
+    <Box className="sidebar-section-label settings-label">
+      HỆ THỐNG
+    </Box>
+
+    <List className="nav-list">
+      <ListItemButton
+        className="nav-item"
+        selected={selected === "Cài đặt"}
+        onClick={() => {
+          setSelected("Cài đặt");
+          setMobileOpen(false);
+        }}
+      >
+        <ListItemIcon>
+          <SettingsRounded />
+        </ListItemIcon>
+
+        <ListItemText primary="Cài đặt" />
+      </ListItemButton>
+    </List>
+  </>
+)}
+
       <Box className="sidebar-bottom">
         
 <Box className="coach-card">
@@ -262,7 +310,7 @@ useEffect(() => {
 
     {profile.role === "hlv" && (
       <Typography variant="caption" display="block">
-        {profile.diemTap.join(", ") || "Chưa được phân công"}
+        {assignedPoints.join(", ") || "Chưa được phân công"}
       </Typography>
     )}
   </Box>
@@ -323,12 +371,12 @@ useEffect(() => {
                 <Typography variant="h5" className="welcome-title">Xin chào, HLV Nguyễn Hữu Tài 👋</Typography>
                 <Typography className="welcome-description">Theo dõi hoạt động và tình hình câu lạc bộ tại một nơi.</Typography>
               </Box>
-              <Button variant="contained" startIcon={<AddRounded />} className="add-student-button" onClick={() => {
+              {canCreateMember && <Button variant="contained" startIcon={<AddRounded />} className="add-student-button" onClick={() => {
   setSelected('Hội viên');
   setShowAddMember(true);
 }}>
                 Thêm hội viên
-              </Button>
+              </Button>}
             </Box>
 
             <Paper className="filter-bar" elevation={0}>
@@ -338,9 +386,9 @@ useEffect(() => {
                   <Typography className="filter-label">Kỳ báo cáo</Typography>
                   <Chip label="Tháng 10, 2026" className="period-chip" />
                 </Stack>
-                <TextField select SelectProps={{ native: true }} value={location} onChange={(e) => setLocation(e.target.value)}
-                  size="small" className="location-select" inputProps={{ 'aria-label': 'Lọc theo điểm tập' }}>
-                  {locations.map((item) => <option key={item} value={item}>{item}</option>)}
+                <TextField select slotProps={{ select: { native: true }, htmlInput: { "aria-label": "Lọc theo điểm tập" } }} value={location} onChange={(e) => setLocation(e.target.value)}
+                  size="small" className="location-select">
+                  {availableLocations.map((item) => <option key={item} value={item}>{item}</option>)}
                 </TextField>
               </Stack>
             </Paper>
@@ -348,8 +396,8 @@ useEffect(() => {
             {selected === 'Tổng quan' ? (
               <>
                 <Box className="stats-grid">
-                  <StatCard title="Tổng hội viên" value="1.008" note="+8,7% so với tháng trước" icon={<GroupsRounded />} />
-                  <StatCard title="Đang học" value="946" note="93,8% tổng hội viên" icon={<FactCheckRounded />} />
+                  <StatCard title="Tổng hội viên" value={students.length.toLocaleString("vi-VN")} note="Theo dữ liệu được phân quyền" icon={<GroupsRounded />} />
+                  <StatCard title="Đang học" value={students.filter((s) => s.status === "Đang học").length.toLocaleString("vi-VN")} note="Theo dữ liệu được phân quyền" icon={<FactCheckRounded />} />
                   <StatCard title="Học phí đã thu" value="186,5 tr" note="Tháng 10/2026" icon={<PaymentsRounded />} accent />
                   <StatCard title="Chờ thi cấp" value="42" note="Trong danh sách đăng ký" icon={<EmojiEventsRounded />} />
                 </Box>
@@ -409,7 +457,7 @@ useEffect(() => {
 </Typography>
                     </Box>
                     <TextField size="small" placeholder="Tìm tên, mã hội viên VTF..." value={search} onChange={(e) => setSearch(e.target.value)}
-                      className="student-search" InputProps={{ startAdornment: <InputAdornment position="start"><SearchRounded fontSize="small" /></InputAdornment> }} />
+                      className="student-search" slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchRounded fontSize="small" /></InputAdornment> } }} />
                   </Stack>
                   <Box className="student-table-wrap">
                     <Box className="student-table-head">
@@ -471,7 +519,7 @@ useEffect(() => {
     error={membersError}
     location={location}
     onLocationChange={setLocation}
-    locations={locations}
+    locations={availableLocations}
     onAdd={() => {
       setEditingMember(null);
       setShowAddMember(true);
@@ -490,7 +538,7 @@ useEffect(() => {
     error={membersError}
     location={location}
     onLocationChange={setLocation}
-    locations={locations}
+    locations={availableLocations}
   />
 
   ) : selected === "Thi cấp" ? (
@@ -507,6 +555,8 @@ useEffect(() => {
     profile={profile}
     loading={membersLoading}
   />
+) : selected === "Cài đặt" && profile.role === "admin" ? (
+  <SettingsManagement profile={profile} />
 ) : (
   
   <Paper className="module-placeholder" elevation={0}>

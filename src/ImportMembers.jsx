@@ -32,6 +32,7 @@ export default function ImportMembers({
   open,
   onClose,
   students = [],
+  profile,
 }) {
   const [rows, setRows] = useState([]);
   const [filename, setFilename] = useState("");
@@ -40,8 +41,24 @@ export default function ImportMembers({
   const [message, setMessage] = useState("");
   const [results, setResults] = useState([]);
 
-  const validRows = rows.filter((row) => row.valid);
-  const invalidRows = rows.filter((row) => !row.valid);
+  const isAdmin = profile?.role === "admin";
+  const canCreate = isAdmin || (
+    profile?.role === "hlv" &&
+    profile?.permissions?.members?.create === true
+  );
+  const allowedLocations = isAdmin
+    ? null
+    : (profile?.locationPermissions?.members || []);
+
+  const hasLocationAccess = (location) =>
+    isAdmin || (canCreate && allowedLocations.includes(location));
+
+  const validRows = rows.filter((row) =>
+    row.valid && hasLocationAccess(row.member.diemTap)
+  );
+  const invalidRows = rows.filter((row) =>
+    !row.valid || !hasLocationAccess(row.member.diemTap)
+  );
 
   function downloadExcelTemplate() {
   const headers = IMPORT_COLUMNS;
@@ -100,6 +117,7 @@ for (const col of ["B", "I", "J"]) {
     ["Minh Hưng"],
     [],
     ["LOẠI HỌC PHÍ"],
+    ["Ngày"],
     ["Tháng"],
     ["Quý"],
     [],
@@ -182,14 +200,14 @@ for (const col of ["B", "I", "J"]) {
       );
 
       setFilename(file.name);
-      setRows(validateImportRows(nonEmpty, students));
+      setRows(validateImportRows(nonEmpty, students, profile));
     } catch (error) {
       setMessage(error.message || "Không đọc được file Excel.");
     }
   }
 
   async function handleImport() {
-    if (!validRows.length || busy) return;
+    if (!canCreate || !validRows.length || invalidRows.length || busy) return;
 
     setBusy(true);
     setResults([]);
@@ -202,7 +220,10 @@ for (const col of ["B", "I", "J"]) {
       const row = validRows[i];
 
       try {
-        const result = await importOneMember(row.member);
+        if (!hasLocationAccess(row.member.diemTap)) {
+          throw new Error("Không có quyền thêm hội viên tại điểm tập này.");
+        }
+        const result = await importOneMember(row.member, profile);
         completed.push({
           rowNumber: row.rowNumber,
           success: true,

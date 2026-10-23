@@ -4,11 +4,17 @@ import {
   collection,
   doc,
   onSnapshot,
+  updateDoc,
+  serverTimestamp,
   query,
   where,
 } from "firebase/firestore";
 import {
   Alert,
+  Button,
+  MenuItem,
+  TextField,
+  CircularProgress,
   Box,
   Chip,
   Dialog,
@@ -22,9 +28,16 @@ import {
 } from "@mui/material";
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import { db } from "./firebase";
+import { POLICY_LABELS, validateTuitionPolicy } from "./tuitionPolicy";
 
 const money = (value) =>
   Number(value || 0).toLocaleString("vi-VN") + " ₫";
+
+const dateVN = (value) => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value || "—";
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+};
 
 const display = (value) =>
   value === null || value === undefined || value === ""
@@ -57,6 +70,9 @@ export default function MemberProfile({
   const [examPeriods, setExamPeriods] = useState([]);
   const [payments, setPayments] = useState([]);
   const [error, setError] = useState("");
+  const [policy, setPolicy] = useState({loai:"binh_thuong", giaTri:0, lyDo:"", tuNgay:"", denNgay:""});
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyMessage, setPolicyMessage] = useState("");
 
   const isAdmin = profile?.role === "admin";
 
@@ -75,6 +91,8 @@ export default function MemberProfile({
       (snap) => {
         if (snap.exists()) {
           setDetail({ id: snap.id, ...snap.data() });
+          const p = snap.data().chinhSachHocPhi;
+          setPolicy({loai:p?.loai || "binh_thuong", giaTri:p?.giaTri ?? 0, lyDo:p?.lyDo || "", tuNgay:p?.tuNgay || "", denNgay:p?.denNgay || ""});
         } else {
           setError("Không tìm thấy hồ sơ hội viên.");
         }
@@ -181,6 +199,24 @@ export default function MemberProfile({
     );
   }
 
+  const savePolicy = async () => {
+    if (!isAdmin || !detail?.id) return;
+    setPolicyMessage("");
+    try {
+      validateTuitionPolicy(policy);
+      setPolicySaving(true);
+      const normalized = policy.loai === "binh_thuong"
+        ? {loai:"binh_thuong", giaTri:0, lyDo:"", tuNgay:"", denNgay:""}
+        : {...policy, giaTri:policy.loai === "mien_100" ? 100 : Number(policy.giaTri), lyDo:policy.lyDo.trim()};
+      await updateDoc(doc(db, "members", detail.id), {
+        chinhSachHocPhi: normalized,
+        chinhSachHocPhiCapNhatLuc: serverTimestamp(),
+      });
+      setPolicyMessage("Đã lưu chính sách. Các kỳ thu trước đây không thay đổi.");
+    } catch(e) { setPolicyMessage(e.message || "Không lưu được chính sách."); }
+    finally { setPolicySaving(false); }
+  };
+
   const dateTime = (value) => {
     if (!value) return "—";
     if (typeof value.toDate === "function") {
@@ -262,6 +298,7 @@ export default function MemberProfile({
           <Tab label="Chuyển điểm tập" />
           <Tab label="Thi cấp" />
           <Tab label="Học phí" />
+          <Tab label="Chính sách học phí" />
         </Tabs>
 
         {tab === 0 && (
@@ -276,7 +313,7 @@ export default function MemberProfile({
             }}
           >
             <Field label="Họ và tên" value={detail?.hoTen} />
-            <Field label="Ngày sinh" value={detail?.ngaySinh} />
+            <Field label="Ngày sinh" value={dateVN(detail?.ngaySinh)} />
             <Field label="Giới tính" value={detail?.gioiTinh} />
             <Field label="Điểm tập" value={detail?.diemTap} />
             <Field label="Cấp đai" value={detail?.capDaiDang} />
@@ -285,15 +322,16 @@ export default function MemberProfile({
               label="SĐT phụ huynh"
               value={detail?.soDienThoaiPhuHuynh}
             />
-            <Field label="Ngày bắt đầu" value={detail?.ngayBatDau} />
+            <Field label="Ngày bắt đầu" value={dateVN(detail?.ngayBatDau)} />
             <Field label="Loại học phí" value={detail?.loaiHocPhi} />
-            <Field label="Ngày hết hạn" value={detail?.ngayHetHan} />
+            <Field label="Kết thúc kỳ học phí đầu tiên" value={dateVN(detail?.ngayDenHanDauTien)} />
+            <Field label="Đã thanh toán đến" value={detail?.ngayHetHan ? dateVN(detail.ngayHetHan) : "Chưa ghi nhận thanh toán"} />
             <Field label="Trạng thái" value={detail?.trangThai} />
             <Field label="Ghi chú" value={detail?.ghiChu} />
           </Box>
         )}
 
-        {tab !== 0 && !isAdmin && (
+        {tab !== 0 && tab !== 4 && !isAdmin && (
           <Alert severity="info">
             Phần lịch sử hiện chỉ dành cho Admin.
           </Alert>
@@ -374,11 +412,11 @@ export default function MemberProfile({
                   {money(item.soTien)} — {display(item.loaiHocPhi)}
                 </Typography>
                 <Typography variant="body2">
-                  Ngày thu: {display(item.ngayThu)}
+                  Ngày thu: {dateVN(item.ngayThu)}
                 </Typography>
                 <Typography variant="body2">
-                  Kỳ học phí: {display(item.ngayBatDauKy)} đến{" "}
-                  {display(item.ngayHetHanMoi)}
+                  Kỳ học phí: {dateVN(item.ngayBatDauKy)} đến{" "}
+                  {dateVN(item.ngayHetHanMoi)}
                 </Typography>
                 <Typography variant="body2">
                   Người thu: {display(item.nguoiThu)}
@@ -388,6 +426,33 @@ export default function MemberProfile({
                 </Typography>
               </Box>
             ))}
+          </Stack>
+        )}
+        {tab === 4 && (
+          <Stack spacing={2.2} sx={{maxWidth:650}}>
+            <Alert severity="info">Chính sách áp dụng theo ngày bắt đầu của từng kỳ học phí. Để trống ngày kết thúc nếu không thời hạn. Kỳ đã thu trước đây không bị tính lại.</Alert>
+            <TextField select label="Chế độ học phí" value={policy.loai} disabled={!isAdmin || policySaving}
+              onChange={e=>setPolicy(p=>({...p,loai:e.target.value}))} fullWidth>
+              {Object.entries(POLICY_LABELS).map(([k,v])=><MenuItem key={k} value={k}>{v}</MenuItem>)}
+            </TextField>
+            {policy.loai === "giam_phan_tram" && <TextField label="Giảm (%)" type="number" value={policy.giaTri} disabled={!isAdmin || policySaving}
+              onChange={e=>setPolicy(p=>({...p,giaTri:e.target.value}))} inputProps={{min:0.01,max:100,step:0.01}} />}
+            {policy.loai === "giam_co_dinh" && <TextField label="Giảm cố định (VNĐ/kỳ)" type="number" value={policy.giaTri} disabled={!isAdmin || policySaving}
+              onChange={e=>setPolicy(p=>({...p,giaTri:e.target.value}))} inputProps={{min:1,step:1}} />}
+            {policy.loai !== "binh_thuong" && <>
+              <TextField label="Lý do miễn/giảm" value={policy.lyDo} disabled={!isAdmin || policySaving}
+                onChange={e=>setPolicy(p=>({...p,lyDo:e.target.value}))} fullWidth />
+              <Stack direction={{xs:"column",sm:"row"}} spacing={2}>
+                <TextField label="Có hiệu lực từ" type="date" value={policy.tuNgay} disabled={!isAdmin || policySaving}
+                  onChange={e=>setPolicy(p=>({...p,tuNgay:e.target.value}))} InputLabelProps={{shrink:true}} fullWidth />
+                <TextField label="Đến ngày (bỏ trống = không thời hạn)" type="date" value={policy.denNgay} disabled={!isAdmin || policySaving}
+                  onChange={e=>setPolicy(p=>({...p,denNgay:e.target.value}))} InputLabelProps={{shrink:true}} fullWidth />
+              </Stack>
+            </>}
+            {policyMessage && <Alert severity={policyMessage.startsWith("Đã lưu")?"success":"error"}>{policyMessage}</Alert>}
+            {isAdmin ? <Button variant="contained" color="success" onClick={savePolicy} disabled={policySaving}
+              startIcon={policySaving?<CircularProgress size={16}/>:null}>Lưu chính sách học phí</Button>
+              : <Alert severity="info">Chỉ Admin được thay đổi chính sách học phí.</Alert>}
           </Stack>
         )}
       </DialogContent>
