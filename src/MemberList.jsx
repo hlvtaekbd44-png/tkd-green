@@ -16,6 +16,7 @@ import FilterAltOffRounded from "@mui/icons-material/FilterAltOffRounded";
 import MemberProfile from "./MemberProfile";
 import ImportMembers from "./ImportMembers";
 import MemberAccountDialog from "./MemberAccountDialog";
+import DeleteMemberDialog from "./DeleteMemberDialog";
 import PersonAddAlt1Rounded from "@mui/icons-material/PersonAddAlt1Rounded";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -71,6 +72,7 @@ export default function MemberList({
   const [viewMember, setViewMember] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [accountMember, setAccountMember] = useState(null);
+  const [deleteMember, setDeleteMember] = useState(null);
 
   const canCreateMember = profile?.role === "admin" ||
     (profile?.role === "hlv" && profile?.permissions?.members?.create === true);
@@ -128,6 +130,7 @@ export default function MemberList({
         sx={{ borderRadius: 2, minHeight: 39, flex: compact ? 1 : "none", whiteSpace: "nowrap" }}>Xem</Button>
       {profile?.role === "admin" && <Button size="small" variant="outlined" startIcon={<PersonAddAlt1Rounded />} onClick={() => setAccountMember(student)}
         sx={{ borderRadius: 2, minHeight: 39, whiteSpace: "nowrap" }}>Cấp tài khoản</Button>}
+      {profile?.role === "admin" && <Button size="small" color="error" variant="outlined" onClick={() => setDeleteMember(student)} sx={{borderRadius:2,minHeight:39,whiteSpace:"nowrap"}}>Xóa vĩnh viễn</Button>}
       <Button size="small" variant="outlined" startIcon={<EditRounded />} onClick={() => onEdit?.(student)} disabled={!onEdit || !canEditMember}
         sx={{ borderRadius: 2, minHeight: 39, flex: compact ? 1 : "none", whiteSpace: "nowrap" }}>Sửa hồ sơ</Button>
     </Stack>
@@ -259,6 +262,7 @@ export default function MemberList({
         </Paper>
       )}
 
+      <DeleteMemberDialog open={Boolean(deleteMember)} member={deleteMember} onClose={() => setDeleteMember(null)} />
       <MemberAccountDialog open={Boolean(accountMember)} member={accountMember} onClose={() => setAccountMember(null)} />
       <MemberProfile open={Boolean(viewMember)} onClose={() => setViewMember(null)} member={viewMember} profile={profile} />
       <ImportMembers open={importOpen && canCreateMember} onClose={() => setImportOpen(false)} students={students} profile={profile} />

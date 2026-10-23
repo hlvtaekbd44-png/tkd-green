@@ -128,6 +128,87 @@ async function setActive({uid,active}, adminUid) {
   return response(200,{ok:true,uid,active});
 }
 
+
+// XÓA VĨNH VIỄN HỘI VIÊN: chỉ Admin; thao tác phá hủy không hoàn tác.
+const MEMBER_LINKED_COLLECTIONS = [
+  ['tuitionPayments', 'memberId'],
+  ['examRegistrations', 'memberDocId'],
+  ['dailyTuitionCharges', 'memberId'],
+  ['dailyTuitionPayments', 'memberId'],
+  ['memberTransferHistory', 'memberId'],
+  ['leaveRequests', 'memberDocId'],
+];
+async function collectMemberData(memberId) {
+  const db = getFirestore();
+  const {ref, snap} = await resolveMember(memberId);
+  const docs = new Map([[ref.path,ref]]);
+  const counts = {};
+  for (const [collectionName,fieldName] of MEMBER_LINKED_COLLECTIONS) {
+    const result = await db.collection(collectionName).where(fieldName,'==',memberId).get();
+    counts[collectionName] = result.size;
+    result.docs.forEach(d => docs.set(d.ref.path,d.ref));
+  }
+  // Một số phiên bản điểm danh lưu records trong session/records/{memberId}.
+  // Duyệt các session để không phụ thuộc collection-group index.
+  const sessions = await db.collection('attendanceSessions').get();
+  let attendanceCount = 0;
+  for (const session of sessions.docs) {
+    const record = session.ref.collection('records').doc(memberId);
+    if ((await record.get()).exists) { docs.set(record.path,record); attendanceCount++; }
+  }
+  counts.attendanceRecords=attendanceCount;
+  let accountUid = snap.get('accountUid') || '';
+  const linkedUsers = await db.collection('users').where('memberDocId','==',memberId).get();
+  for (const u of linkedUsers.docs) {
+    if (u.get('role') !== 'member') throw Object.assign(new Error('Có tài khoản liên kết không đúng vai trò; dừng xóa.'),{httpStatus:409});
+    if (accountUid && accountUid !== u.id) throw Object.assign(new Error('Phát hiện nhiều UID không đồng nhất, cần đối soát.'),{httpStatus:409});
+    accountUid=u.id;
+    docs.set(u.ref.path,u.ref);
+  }
+  if (accountUid) {
+    const userRef=db.doc(`users/${accountUid}`);
+    const user=await userRef.get();
+    if (user.exists) {
+      if(user.get('role')!=='member' || user.get('memberDocId')!==memberId) throw Object.assign(new Error('Liên kết tài khoản có dấu hiệu bất thường; dừng xóa.'),{httpStatus:409});
+      docs.set(userRef.path,userRef);
+      const username=user.get('username');
+      if (username) {
+        const nameRef=db.doc(`loginNames/${username}`);
+        const login=await nameRef.get();
+        if (login.exists) {
+          if (login.get('uid')!==accountUid) throw Object.assign(new Error('Tên đăng nhập đang liên kết UID khác; dừng xóa.'),{httpStatus:409});
+          docs.set(nameRef.path,nameRef);
+        }
+      }
+    }
+  }
+  const legacyLink=db.doc(`memberAccountLinks/${memberId}`);
+  if ((await legacyLink.get()).exists) docs.set(legacyLink.path,legacyLink);
+  return {snap,accountUid,docs:[...docs.values()],counts};
+}
+async function deleteMemberForever({memberDocId, confirmCode}, adminUid) {
+  if(typeof memberDocId!=='string' || !memberDocId || memberDocId.includes('/')) return failure(400,'ID hồ sơ không hợp lệ.');
+  const data=await collectMemberData(memberDocId);
+  const code=String(data.snap.get('maHoiVienNoiBo') || data.snap.get('maHV') || memberDocId).trim();
+  if(typeof confirmCode!=='string' || confirmCode.trim()!==code) return failure(400,`Phải nhập chính xác mã hội viên: ${code}`);
+  if(data.docs.length>1500) return failure(409,'Quá nhiều tài liệu liên quan; cần chạy quy trình xóa chia lô phía máy chủ.');
+  // Khóa Auth trước để ngăn đăng nhập trong lúc xóa. Lưu ý các thao tác xóa Firestore
+  // không thể được transaction hóa cùng Firebase Authentication.
+  if(data.accountUid) {
+    await getAuth().updateUser(data.accountUid,{disabled:true});
+    await getAuth().revokeRefreshTokens(data.accountUid);
+  }
+  const writer=getFirestore().bulkWriter();
+  const deletes=data.docs.map(ref=>writer.delete(ref));
+  await writer.close();
+  // close() không bảo đảm báo lỗi từng tài liệu; kiểm tra tất cả promises.
+  const outcomes=await Promise.allSettled(deletes);
+  if(outcomes.some(o=>o.status!=="fulfilled")) throw new Error("Một phần dữ liệu xóa thất bại; cần đối soát trong Function logs trước khi tiếp tục.");
+  if(data.accountUid) await getAuth().deleteUser(data.accountUid);
+  console.info('permanent-member-deletion',JSON.stringify({adminUid,memberDocId,deletedDocuments:data.docs.length}));
+  return response(200,{ok:true,deletedDocuments:data.docs.length});
+}
+
 export async function handler(event) {
   if (event.httpMethod !== 'POST') return failure(405,'Chỉ hỗ trợ POST.');
   try {
@@ -139,6 +220,7 @@ export async function handler(event) {
       case 'createMember':
       case 'createCoach': return await createAccount(body,admin.uid);
       case 'setActive': return await setActive(body,admin.uid);
+      case 'deleteMemberForever': return await deleteMemberForever(body,admin.uid);
       default: return failure(400,'Chức năng không hợp lệ.');
     }
   } catch(err) {
