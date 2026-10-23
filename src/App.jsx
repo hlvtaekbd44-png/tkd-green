@@ -2,6 +2,7 @@ import GoogleLogin from "./GoogleLogin";
 import MemberSelfPortal from "./MemberSelfPortal";
 import {
   collection,
+  doc,
   onSnapshot,
   query,
   where,
@@ -93,6 +94,97 @@ function StatCard({ title, value, note, icon, accent = false }) {
 }
 
   
+// Khu vực riêng: chỉ có Hội viên của tôi và Xin phép nghỉ khi điểm tập đã bật.
+// Component tách riêng để các hook của khu vực võ sinh không ảnh hưởng hook của App.
+function MemberPortalLayout({ profile, user }) {
+  const [page, setPage] = useState('Hội viên');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [leaveEnabled, setLeaveEnabled] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const [linkedMember, setLinkedMember] = useState(null);
+  const mobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  useEffect(() => {
+    setLeaveEnabled(false);
+    setLinkedMember(null);
+    if (!profile?.memberDocId) return undefined;
+    return onSnapshot(doc(db, 'members', profile.memberDocId), snapshot => {
+      setLinkedMember(snapshot.exists() ? snapshot.data() : null);
+    }, () => { setLinkedMember(null); });
+  }, [profile?.memberDocId]);
+
+  useEffect(() => {
+    setLeaveEnabled(false);
+    setLocationError('');
+    const locationId = linkedMember?.locationId;
+    if (!locationId || typeof locationId !== 'string') return undefined;
+    return onSnapshot(doc(db, 'locations', locationId), snapshot => {
+      const loc = snapshot.data();
+      setLeaveEnabled(Boolean(snapshot.exists() && loc?.active === true &&
+        loc?.name === linkedMember?.diemTap && loc?.features?.leaveRequests === true));
+    }, () => { setLeaveEnabled(false); setLocationError('Không tải được quyền xin nghỉ của điểm tập.'); });
+  }, [linkedMember?.locationId, linkedMember?.diemTap]);
+
+  useEffect(() => {
+    if (page === 'Xin phép nghỉ' && !leaveEnabled) setPage('Hội viên');
+  }, [page, leaveEnabled]);
+
+  const items = [
+    { label: 'Hội viên', icon: <GroupsRounded /> },
+    ...(leaveEnabled ? [{ label: 'Xin phép nghỉ', icon: <CalendarMonthRounded /> }] : []),
+  ];
+  const side = <Box className="sidebar-inner">
+    <Box className="brand"><Box className="brand-mark"><ShieldRounded /></Box>
+      <Box><Typography className="brand-title">TKD GREEN</Typography>
+        <Typography className="brand-subtitle">CLUB MANAGEMENT</Typography></Box>
+    </Box>
+    <Box className="sidebar-section-label">VÕ SINH / PHỤ HUYNH</Box>
+    <List className="nav-list">
+      {items.map(item => <ListItemButton key={item.label} className="nav-item"
+        selected={page === item.label} onClick={() => { setPage(item.label); setMobileOpen(false); }}>
+        <ListItemIcon>{item.icon}</ListItemIcon><ListItemText primary={item.label} />
+      </ListItemButton>)}
+    </List>
+    <Box className="sidebar-bottom">
+      <Box className="coach-card"><Avatar className="coach-avatar">{(user?.email || 'V')[0].toUpperCase()}</Avatar>
+        <Box sx={{ minWidth: 0, flex: 1 }}><Typography className="coach-name" noWrap>
+          {linkedMember?.hoTen || profile?.username || user?.email || 'Hội viên'}
+        </Typography><Typography className="coach-role">Võ sinh / Phụ huynh</Typography></Box>
+        <Chip size="small" className="admin-chip" label="HỘI VIÊN" />
+      </Box>
+      <Typography className="sidebar-version">TKD GREEN CLUB · MEMBER</Typography>
+    </Box>
+  </Box>;
+
+  return <ThemeProvider theme={theme}><CssBaseline />
+    <Box className="app-shell">
+      <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+        {mobile ? <Drawer variant="temporary" open={mobileOpen}
+          onClose={() => setMobileOpen(false)} ModalProps={{ keepMounted: true }}
+          sx={{ '& .MuiDrawer-paper': { width: drawerWidth } }}>{side}</Drawer>
+          : <Drawer variant="permanent" open sx={{ '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box' } }}>{side}</Drawer>}
+      </Box>
+      <Box className="main-area">
+        <AppBar position="sticky" elevation={0} className="topbar"><Toolbar className="topbar-toolbar">
+          {mobile && <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon /></IconButton>}
+          <Box sx={{ flexGrow: 1 }}><Typography className="topbar-eyebrow">TKD GREEN CLUB / VÕ SINH</Typography>
+            <Typography className="topbar-title">{page}</Typography></Box>
+          <GoogleLogin />
+        </Toolbar></AppBar>
+        <Box component="main" className="page-content">
+          <Typography variant="h5" fontWeight={800} sx={{ mb: 2 }}>
+            {page === 'Hội viên' ? 'Hồ sơ hội viên của tôi' : 'Xin phép nghỉ học'}
+          </Typography>
+          {locationError && <Alert severity="warning" sx={{ mb: 2 }}>{locationError}</Alert>}
+          <MemberSelfPortal profile={profile} embedded view={page} leaveEnabled={leaveEnabled} />
+          <Box className="footer"><Typography>© 2026 TKD GREEN CLUB</Typography>
+            <Typography>CỔNG THÔNG TIN VÕ SINH / PHỤ HUYNH</Typography></Box>
+        </Box>
+      </Box>
+    </Box>
+  </ThemeProvider>;
+}
+
 function App() {
   const { user, profile, loading, error } = useUserRole();
 
@@ -247,7 +339,7 @@ useEffect(() => {
     return (
       <div style={{ padding: 32 }}>
         <h2>CLB Taekwondo Green</h2>
-        <p>Vui lòng đăng nhập bằng tài khoản Google.</p>
+        <p>Vui lòng đăng nhập bằng tài khoản được CLB cấp.</p>
         <GoogleLogin />
       </div>
     );
@@ -265,8 +357,10 @@ useEffect(() => {
 
   // Giữ phần return giao diện Dashboard hiện tại ở phía dưới.
 
-  // Võ sinh chỉ xem hồ sơ riêng. Không render menu và danh sách HLV/Admin.
-  if (profile.role === 'member') return <MemberSelfPortal profile={profile} />;
+  // Tài khoản võ sinh: sử dụng khung TKD Green nhưng KHÔNG mở các module quản trị.
+  if (profile.role === 'member') {
+    return <MemberPortalLayout profile={profile} user={user} />;
+  }
 
   const drawerContent = (
     <Box className="sidebar-inner">
