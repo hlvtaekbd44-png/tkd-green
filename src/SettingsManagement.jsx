@@ -5,7 +5,7 @@ import { Alert, Box, Button, Checkbox, CircularProgress, Divider, FormControlLab
 import { db, auth } from "./firebase";
 import { accountRequest, normalizeUsername, validUsername } from "./accountApi";
 
-const DEFAULT_LOCATIONS = ["Lê Văn Tám", "Nghĩa Trung", "Đồng Tâm", "Thôn 6", "Phước Sơn", "Minh Hưng"];
+
 const MODULES = [
   { key: "dashboard", label: "Tổng quan", actions: [["view", "Xem"]] },
   { key: "members", label: "Hội viên", actions: [["view", "Xem"], ["create", "Thêm"], ["edit", "Sửa"], ["delete", "Xóa"]] },
@@ -20,7 +20,7 @@ const blankLocations = () => Object.fromEntries(LOCATION_MODULES.map(key => [key
 
 export default function SettingsManagement({ profile }) {
   const [coaches, setCoaches] = useState([]);
-  const [locationNames, setLocationNames] = useState(DEFAULT_LOCATIONS);
+  const [locationNames, setLocationNames] = useState([]);
   const [settingsTab, setSettingsTab] = useState("locations");
   const [selectedUid, setSelectedUid] = useState("");
   const [permissions, setPermissions] = useState(blankPermissions);
@@ -48,8 +48,8 @@ export default function SettingsManagement({ profile }) {
   useEffect(() => {
     if (profile?.role !== "admin") return;
     return onSnapshot(collection(db, "locations"), snapshot => {
-      const names = snapshot.docs.map(d => d.data().name).filter(Boolean);
-      setLocationNames([...new Set([...DEFAULT_LOCATIONS, ...names])]);
+      const names = snapshot.docs.filter(d => d.data().deleted !== true).map(d => d.data().name).filter(Boolean);
+      setLocationNames([...new Set(names)].sort((a, b) => a.localeCompare(b, "vi")));
     }, err => console.error("Không tải được danh sách điểm tập:", err));
   }, [profile?.role]);
 
@@ -106,6 +106,20 @@ export default function SettingsManagement({ profile }) {
       await accountRequest("setActive", { uid: coach.uid, active });
       setSuccess(active ? "Đã kích hoạt HLV." : "Đã ngừng kích hoạt HLV.");
     } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  };
+
+  const deleteCoach = async () => {
+    if (!coach || busy) return;
+    const label = coach.username || coach.email || coach.uid;
+    const confirmText = window.prompt(`XÓA VĨNH VIỄN tài khoản HLV ${label}\nNhập chính xác tên đăng nhập để xác nhận:`);
+    if (confirmText !== label) return;
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      await accountRequest("deleteCoach", { uid: coach.uid, confirmUsername: label });
+      setSelectedUid("");
+      setSuccess(`Đã xóa tài khoản HLV ${label}. Lịch sử nghiệp vụ của HLV vẫn được giữ.`);
+    } catch (e) { setError(`Không xóa được HLV: ${e.message}`); }
     finally { setBusy(false); }
   };
 
@@ -185,6 +199,7 @@ export default function SettingsManagement({ profile }) {
       </Paper>
       <Paper sx={{ p: 3, borderRadius: 3 }}>
         <Typography variant="h6" fontWeight={700} gutterBottom>2. Điểm tập được phép quản lý</Typography>
+        {locationNames.length === 0 && <Alert severity="warning">Chưa có điểm tập trong collection locations. Vào Quản lý điểm tập để khởi tạo, sau đó mới phân quyền HLV.</Alert>}
         {LOCATION_MODULES.map(key => <Box key={key} sx={{ py: 1.5 }}>
           <Typography fontWeight={700}>{MODULES.find(m => m.key === key)?.label}</Typography>
           <Stack direction="row" flexWrap="wrap" gap={1}>
@@ -192,6 +207,7 @@ export default function SettingsManagement({ profile }) {
           </Stack><Divider />
         </Box>)}
       </Paper>
+      <Button color="error" variant="outlined" disabled={busy} onClick={deleteCoach} sx={{ mr: 1 }}>Xóa vĩnh viễn tài khoản HLV</Button>
       <Button variant="contained" size="large" disabled={!dirty || busy} onClick={save}>{busy ? "Đang lưu..." : "Lưu phân quyền"}</Button>
     </>}
     </>}

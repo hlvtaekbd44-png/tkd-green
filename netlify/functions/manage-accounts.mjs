@@ -209,6 +209,117 @@ async function deleteMemberForever({memberDocId, confirmCode}, adminUid) {
   return response(200,{ok:true,deletedDocuments:data.docs.length});
 }
 
+
+// Xóa tài khoản HLV mà không xóa lịch sử do HLV thao tác.
+async function deleteCoach({uid,confirmUsername}, adminUid) {
+  if (typeof uid !== 'string' || !uid || uid.includes('/') || uid === adminUid)
+    return failure(400,'UID tài khoản HLV không hợp lệ.');
+  const db=getFirestore();
+  const ref=db.doc(`users/${uid}`);
+  const snap=await ref.get();
+  if(!snap.exists || snap.get('role')!=='hlv') return failure(404,'Không tìm thấy HLV hợp lệ.');
+  const label=snap.get('username') || snap.get('email') || uid;
+  if(confirmUsername!==label) return failure(400,'Tên xác nhận không chính xác.');
+  const auth=getAuth();
+  let authUser;
+  try { authUser=await auth.getUser(uid); }
+  catch(e) {if(e.code!=='auth/user-not-found') throw e;}
+  // Vô hiệu hóa trước; khi một bước thất bại thì không cấp quyền trở lại.
+  if(authUser) {
+    await auth.updateUser(uid,{disabled:true});
+    await auth.revokeRefreshTokens(uid);
+  }
+  await ref.update({active:false});
+  const username=snap.get('username');
+  const loginRef=username?db.doc(`loginNames/${username}`):null;
+  if(loginRef) {
+    const login=await loginRef.get();
+    if(login.exists && login.get('uid')!==uid) return failure(409,'Tên đăng nhập liên kết UID khác; cần đối soát.');
+  }
+  // Xóa hồ sơ và tên đăng nhập; không đụng các chứng từ thu tiền, điểm danh hay kết quả thi.
+  const batch=db.batch();
+  batch.delete(ref);
+  if(loginRef) batch.delete(loginRef);
+  await batch.commit();
+  if(authUser) await auth.deleteUser(uid);
+  console.info('coach-delete',JSON.stringify({adminUid,uid}));
+  return response(200,{ok:true,uid});
+}
+
+// Xóa điểm tập: trả hội viên về Chưa xác định; loại tên điểm tập khỏi quyền HLV.
+// Cố ý GIỮ NGUYÊN lịch sử giao dịch và đợt thi của điểm tập đã xóa.
+async function deleteLocation({locationId,confirmName},adminUid) {
+  if(typeof locationId!=='string' || !locationId || locationId.includes('/')) return failure(400,'Mã điểm tập không hợp lệ.');
+  const db=getFirestore();
+  const ref=db.doc(`locations/${locationId}`);
+  const snap=await ref.get();
+  if(!snap.exists) return failure(404,'Điểm tập không tồn tại.');
+  const name=snap.get('name');
+  if(typeof name!=='string' || confirmName!==name) return failure(400,'Tên xác nhận xóa điểm tập không chính xác.');
+  if(snap.get('deleting')===true) return failure(409,'Điểm tập đang trong quá trình xóa hoặc đối soát; không thực hiện trùng.');
+  // Khóa cấu hình trước để cổng võ sinh ngừng cung cấp chức năng từ địa điểm này.
+  await ref.update({active:false,deleting:true,updatedAt:FieldValue.serverTimestamp()});
+  let updatedMembers=0, updatedCoaches=0;
+  const writer=db.bulkWriter();
+  const writes=[];
+  try {
+    // Phân trang tránh truy vấn một lượt quá nhiều hội viên.
+    while(true) {
+      const members=await db.collection('members').where('diemTap','==',name).limit(250).get();
+      if(members.empty) break;
+      for(const m of members.docs) {
+        writes.push(writer.update(m.ref,{
+          diemTap:'Chưa xác định',locationId:FieldValue.delete(),updatedAt:FieldValue.serverTimestamp(),
+        }));
+        updatedMembers++;
+      }
+      await writer.flush();
+    }
+    // Hội viên có locationId của địa điểm nhưng tên diemTap khác => cũng chuyển về Chưa xác định.
+    while(true) {
+      const extra=await db.collection('members').where('locationId','==',locationId).limit(250).get();
+      if(extra.empty) break;
+      for(const m of extra.docs){writes.push(writer.update(m.ref,{diemTap:'Chưa xác định',locationId:FieldValue.delete(),updatedAt:FieldValue.serverTimestamp()}));updatedMembers++;}
+      await writer.flush();
+    }
+    // Thu hồi toàn bộ quyền HLV tại điểm tập bị xóa, không đổi quyền ở các điểm tập khác.
+    const coaches=await db.collection('users').where('role','==','hlv').get();
+    for(const c of coaches.docs){
+      const existing=c.data();
+      const lp={...(existing.locationPermissions||{})};
+      let changed=false;
+      for(const [key,value] of Object.entries(lp)){
+        if(Array.isArray(value) && value.includes(name)){
+          lp[key]=value.filter(x=>x!==name);changed=true;
+        }
+      }
+      const oldPoints=Array.isArray(existing.diemTap)?existing.diemTap:[];
+      const newPoints=oldPoints.filter(x=>x!==name);
+      if(newPoints.length!==oldPoints.length) changed=true;
+      if(changed){writes.push(writer.update(c.ref,{locationPermissions:lp,diemTap:newPoints}));updatedCoaches++;}
+    }
+    await writer.close();
+    const outcomes=await Promise.allSettled(writes);
+    if(outcomes.some(x=>x.status==='rejected')) throw new Error('Một số hội viên/HLV cập nhật thất bại; cần đối soát.');
+    // Không xóa nếu phát hiện hội viên phát sinh trong lúc thao tác.
+    const [remainByName,remainById]=await Promise.all([
+      db.collection('members').where('diemTap','==',name).limit(1).get(),
+      db.collection('members').where('locationId','==',locationId).limit(1).get(),
+    ]);
+    if(!remainByName.empty || !remainById.empty) throw new Error('Vẫn còn hội viên gán điểm tập; cần tiếp tục đối soát trước khi xóa.');
+    // Đánh dấu đã xóa để không bị nút khởi tạo điểm tập cũ tự tạo trở lại.
+    // Cấu hình lưu trữ không được hiển thị/cho phép sử dụng.
+    await ref.update({deleted:true,deleting:false,active:false,deletedAt:FieldValue.serverTimestamp(),deletedBy:adminUid});
+    console.info('location-delete',JSON.stringify({adminUid,locationId,updatedMembers,updatedCoaches}));
+    return response(200,{ok:true,updatedMembers,updatedCoaches});
+  } catch(err) {
+    await writer.close().catch(()=>{});
+    // Giữ deleting=true để Admin biết thao tác cần đối soát; không mở lại cấu hình sai.
+    console.error('location-delete-partial',locationId,err.message);
+    throw err;
+  }
+}
+
 export async function handler(event) {
   if (event.httpMethod !== 'POST') return failure(405,'Chỉ hỗ trợ POST.');
   try {
@@ -221,6 +332,8 @@ export async function handler(event) {
       case 'createCoach': return await createAccount(body,admin.uid);
       case 'setActive': return await setActive(body,admin.uid);
       case 'deleteMemberForever': return await deleteMemberForever(body,admin.uid);
+      case 'deleteCoach': return await deleteCoach(body,admin.uid);
+      case 'deleteLocation': return await deleteLocation(body,admin.uid);
       default: return failure(400,'Chức năng không hợp lệ.');
     }
   } catch(err) {

@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { collection, doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { Alert, Box, Button, Checkbox, CircularProgress, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography, Divider } from "@mui/material";
 import { db } from "./firebase";
+import { accountRequest } from "./accountApi";
 
+const LEGACY_LOCATIONS = [
+  ["LVTA", "Lê Văn Tám"], ["NGTR", "Nghĩa Trung"], ["DOTM", "Đồng Tâm"],
+  ["T6", "Thôn 6"], ["PHSo", "Phước Sơn"], ["MIHU", "Minh Hưng"],
+];
 const DEFAULT_FEATURES = { members: true, tuition: true, exams: true, attendance: true, reports: true, leaveRequests: false };
 const EMPTY_FORM = { name: "", code: "", address: "", active: true, features: { ...DEFAULT_FEATURES }, fees: { daily: "", monthly: "", quarterly: "", exam: "" } };
 const FEATURE_LABELS = { members: "Hội viên", tuition: "Học phí", exams: "Thi cấp", attendance: "Điểm danh", reports: "Báo cáo", leaveRequests: "Xin phép nghỉ" };
@@ -10,6 +15,7 @@ const FEE_LABELS = { daily: "Học phí ngày", monthly: "Học phí tháng", qu
 
 export default function LocationManagement() {
   const [locations, setLocations] = useState([]);
+  const [retiredNames, setRetiredNames] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
@@ -19,7 +25,8 @@ export default function LocationManagement() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => onSnapshot(collection(db, "locations"), snapshot => {
-    setLocations(snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || "").localeCompare(b.name || "", "vi")));
+    setLocations(snapshot.docs.filter(d => d.data().deleted !== true).map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || "").localeCompare(b.name || "", "vi")));
+    setRetiredNames(snapshot.docs.filter(d => d.data().deleted === true).map(d => d.data().name).filter(Boolean));
     setLoading(false);
   }, err => { setError(`Không đọc được điểm tập: ${err.message}`); setLoading(false); }), []);
 
@@ -31,6 +38,45 @@ export default function LocationManagement() {
       fees: { daily: item.fees?.daily ?? "", monthly: item.fees?.monthly ?? "", quarterly: item.fees?.quarterly ?? "", exam: item.fees?.exam ?? "" } });
   };
   const startCreate = () => { setCreating(true); setSelectedId(""); setForm({ ...EMPTY_FORM, features: { ...DEFAULT_FEATURES }, fees: { ...EMPTY_FORM.fees } }); setError(""); setSuccess(""); };
+  // Tạo thủ công tài liệu cho điểm tập cũ còn thiếu; không ghi đè điểm đã cấu hình.
+  const missingLegacy = LEGACY_LOCATIONS.filter(([, name]) => !locations.some(x => x.name === name) && !retiredNames.includes(name));
+  const seedLegacy = async () => {
+    if (!missingLegacy.length || saving) return;
+    if (!window.confirm(`Tạo ${missingLegacy.length} điểm tập cũ chưa có trong Firestore? Các mức thu để trống và cần kiểm tra lại.`)) return;
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      const { runTransaction } = await import("firebase/firestore");
+      for (const [code, name] of missingLegacy) {
+        await runTransaction(db, async tx => {
+          const ref = doc(db, "locations", code);
+          const snap = await tx.get(ref);
+          if (!snap.exists()) tx.set(ref, {
+            name, code, address: "", active: true, features: {...DEFAULT_FEATURES},
+            fees: {daily:null,monthly:null,quarterly:null,exam:null},
+            createdAt:serverTimestamp(),updatedAt:serverTimestamp(),
+          });
+        });
+      }
+      setSuccess("Đã khởi tạo điểm tập còn thiếu. Hãy kiểm tra học phí và cấu hình từng điểm tập.");
+    } catch (e) { setError(`Không khởi tạo được: ${e.message}`); }
+    finally { setSaving(false); }
+  };
+
+  const deleteLocation = async () => {
+    const item = locations.find(x => x.id === selectedId);
+    if (!item || saving) return;
+    const name = item.name;
+    const confirmed = window.prompt(`XÓA ĐIỂM TẬP ${name}\nHội viên sẽ chuyển về Chưa xác định; phân quyền HLV sẽ được gỡ. Lịch sử thu tiền/thi cấp vẫn giữ nguyên.\nNhập đúng tên điểm tập để xác nhận:`);
+    if (confirmed !== name) return;
+    setSaving(true); setError(""); setSuccess("");
+    try {
+      const result = await accountRequest("deleteLocation", { locationId: item.id, confirmName: name });
+      setSelectedId(""); setCreating(false);
+      setSuccess(`Đã xóa ${name}; chuyển ${result.updatedMembers || 0} hội viên về Chưa xác định và cập nhật ${result.updatedCoaches || 0} tài khoản HLV.`);
+    } catch (e) { setError(`Xóa điểm tập thất bại: ${e.message}`); }
+    finally { setSaving(false); }
+  };
+
   const save = async () => {
     const name = form.name.trim();
     const code = form.code.trim().toUpperCase();
@@ -62,7 +108,10 @@ export default function LocationManagement() {
 
   return <Stack spacing={2}>
     <Typography variant="h6" fontWeight={800}>Quản lý điểm tập</Typography>
-    <Alert severity="info">Thiết lập chức năng và mức thu theo từng điểm tập. Cấu hình mới chưa tự động thay đổi nghiệp vụ học phí/thi cấp cho đến khi tích hợp các màn hình tương ứng.</Alert>
+    <Alert severity="info">Danh sách điểm tập trong mục này và mục Phân quyền HLV đều đọc từ Firestore collection locations. Xóa điểm tập không xóa lịch sử học phí, thi cấp hay điểm danh.</Alert>
+    {missingLegacy.length > 0 && <Alert severity="warning" action={<Button onClick={seedLegacy} disabled={saving} color="inherit">Khởi tạo điểm cũ</Button>}>
+      Còn {missingLegacy.length} điểm tập cũ chưa có bản ghi trong Firestore. Khởi tạo trước khi phân quyền hoặc xóa điểm tập.
+    </Alert>}
     <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
       <TextField select fullWidth label="Chọn điểm tập" value={creating ? "" : selectedId} onChange={e => selectLocation(e.target.value)} disabled={loading || saving}>
         <MenuItem value="">-- Chọn điểm tập --</MenuItem>
@@ -71,7 +120,7 @@ export default function LocationManagement() {
       <Button variant="outlined" onClick={startCreate} disabled={saving} sx={{ minWidth: 160 }}>+ Thêm điểm tập</Button>
     </Stack>
     {loading && <CircularProgress size={24} />}
-    {!loading && locations.length === 0 && <Alert severity="warning">Collection locations chưa có dữ liệu. Có thể thêm điểm tập mới tại đây. Các điểm tập cũ vẫn được giữ trong phần phân quyền HLV.</Alert>}
+    {!loading && locations.length === 0 && <Alert severity="warning">Collection locations chưa có dữ liệu. Hãy tạo mới hoặc dùng nút Khởi tạo điểm cũ ở trên.</Alert>}
     {error && <Alert severity="error">{error}</Alert>}
     {success && <Alert severity="success">{success}</Alert>}
     {(creating || selectedId) && <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
@@ -90,7 +139,10 @@ export default function LocationManagement() {
         <Typography fontWeight={700}>Mức thu (VNĐ)</Typography>
         <Alert severity="warning">Để trống mức thu nếu chưa cấu hình. Không nhập số 0 trừ khi mức thu thực sự bằng 0 đồng.</Alert>
         {Object.entries(FEE_LABELS).map(([key, label]) => <TextField key={key} fullWidth type="number" label={label} value={form.fees[key] ?? ""} onChange={e => setForm(p => ({ ...p, fees: { ...p.fees, [key]: e.target.value } }))} inputProps={{ min: 0, step: 1000 }} />)}
-        <Button variant="contained" onClick={save} disabled={saving}>{saving ? "Đang lưu..." : creating ? "Tạo điểm tập" : "Lưu cấu hình điểm tập"}</Button>
+        <Stack direction={{xs:"column",sm:"row"}} spacing={1}>
+          <Button variant="contained" onClick={save} disabled={saving}>{saving ? "Đang xử lý..." : creating ? "Tạo điểm tập" : "Lưu cấu hình điểm tập"}</Button>
+          {!creating && selectedId && <Button variant="outlined" color="error" disabled={saving} onClick={deleteLocation}>Xóa điểm tập</Button>}
+        </Stack>
       </Stack>
     </Paper>}
   </Stack>;
