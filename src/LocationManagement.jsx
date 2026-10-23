@@ -3,9 +3,9 @@ import { collection, doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 
 import { Alert, Box, Button, Checkbox, CircularProgress, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography, Divider } from "@mui/material";
 import { db } from "./firebase";
 
-const DEFAULT_FEATURES = { members: true, tuition: true, exams: true, attendance: true, reports: true };
+const DEFAULT_FEATURES = { members: true, tuition: true, exams: true, attendance: true, reports: true, leaveRequests: false };
 const EMPTY_FORM = { name: "", code: "", address: "", active: true, features: { ...DEFAULT_FEATURES }, fees: { daily: "", monthly: "", quarterly: "", exam: "" } };
-const FEATURE_LABELS = { members: "Hội viên", tuition: "Học phí", exams: "Thi cấp", attendance: "Điểm danh", reports: "Báo cáo" };
+const FEATURE_LABELS = { members: "Hội viên", tuition: "Học phí", exams: "Thi cấp", attendance: "Điểm danh", reports: "Báo cáo", leaveRequests: "Xin phép nghỉ" };
 const FEE_LABELS = { daily: "Học phí ngày", monthly: "Học phí tháng", quarterly: "Học phí quý", exam: "Lệ phí thi cấp" };
 
 export default function LocationManagement() {
