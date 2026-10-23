@@ -1,96 +1,67 @@
-
 import { useEffect, useState } from "react";
-import {
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-} from "firebase/auth";
+import { GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
+import { Alert, Box, Button, Stack, TextField, Typography } from "@mui/material";
 import { auth } from "./firebase";
+
+// Mã đăng nhập cấp từ hệ thống được ánh xạ nội bộ sang email Firebase Auth.
+// KHÔNG đọc Firestore công khai để tìm tài khoản từ mã VTF.
+const LOGIN_DOMAIN = "accounts.tkdgreen.invalid";
+function usernameToEmail(value) {
+  const username = String(value || "").trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(username)) {
+    throw new Error("Tên đăng nhập dài 3–40 ký tự, chỉ gồm a-z, 0-9, dấu chấm, gạch ngang hoặc gạch dưới.");
+  }
+  return `${username}@${LOGIN_DOMAIN}`;
+}
 
 export default function GoogleLogin() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  useEffect(() => onAuthStateChanged(auth, u => { setUser(u); setLoading(false); }), []);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  async function handleLogin() {
-    setError("");
-
+  async function passwordLogin(event) {
+    event.preventDefault(); setError(""); setBusy(true);
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithEmailAndPassword(auth, usernameToEmail(username), password);
+      setPassword("");
     } catch (err) {
-      console.error("Google login error:", err);
-      setError(
-        err.code === "auth/popup-blocked"
-          ? "Trình duyệt đã chặn cửa sổ đăng nhập. Hãy cho phép cửa sổ bật lên."
-          : err.message || "Đăng nhập thất bại."
-      );
-    }
+      setError(err.message?.includes("Tên đăng nhập") ? err.message : "Tên đăng nhập hoặc mật khẩu không đúng, hoặc tài khoản bị khóa.");
+    } finally { setBusy(false); }
+  }
+  async function googleLogin() {
+    setError(""); setBusy(true);
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+    catch { setError("Không đăng nhập được bằng Google."); }
+    finally { setBusy(false); }
+  }
+  async function logout() {
+    setError(""); setBusy(true);
+    try { await signOut(auth); } catch { setError("Không đăng xuất được."); }
+    finally { setBusy(false); }
   }
 
-  async function handleLogout() {
-    setError("");
-
-    try {
-      await signOut(auth);
-    } catch (err) {
-      console.error(err);
-      setError("Đăng xuất thất bại. Vui lòng thử lại.");
-    }
-  }
-
-  if (loading) {
-    return <span>Đang kiểm tra đăng nhập...</span>;
-  }
-
-  if (user) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        {user.photoURL && (
-          <img
-            src={user.photoURL}
-            alt="Ảnh đại diện"
-            referrerPolicy="no-referrer"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-            }}
-          />
-        )}
-
-        <div>
-          <div>{user.displayName || "Người dùng Google"}</div>
-          <small>{user.email}</small>
-        </div>
-
-        <button onClick={handleLogout}>Đăng xuất</button>
-        {error && <p role="alert">{error}</p>}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <button onClick={handleLogin}>
-        Đăng nhập bằng Google
-      </button>
-
-      {error && (
-        <p role="alert" style={{ color: "red" }}>
-          {error}
-        </p>
-      )}
-    </div>
-  );
+  if (loading) return <Typography>Đang kiểm tra đăng nhập...</Typography>;
+  if (user) return <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap:"wrap" }}>
+    <Typography variant="body2">{user.displayName || user.email || "Tài khoản"}</Typography>
+    <Button size="small" variant="outlined" onClick={logout} disabled={busy}>Đăng xuất</Button>
+    {error && <Alert severity="error">{error}</Alert>}
+  </Stack>;
+  return <Box sx={{maxWidth:380}}>
+    <Stack spacing={2}>
+      <Typography fontWeight={800}>Đăng nhập TKD Green</Typography>
+      <Box component="form" onSubmit={passwordLogin}>
+        <Stack spacing={1.5}>
+          <TextField label="Tên đăng nhập / Mã VTF / Mã nội bộ" value={username} autoComplete="username" required fullWidth onChange={e=>setUsername(e.target.value)} />
+          <TextField label="Mật khẩu" type="password" value={password} autoComplete="current-password" required fullWidth onChange={e=>setPassword(e.target.value)} />
+          <Button type="submit" variant="contained" disabled={busy}>Đăng nhập</Button>
+        </Stack>
+      </Box>
+      <Button variant="text" disabled={busy} onClick={googleLogin}>Đăng nhập Google (Admin dự phòng)</Button>
+      {error && <Alert severity="error">{error}</Alert>}
+    </Stack>
+  </Box>;
 }

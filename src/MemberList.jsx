@@ -15,6 +15,8 @@ import PersonOffRounded from "@mui/icons-material/PersonOffRounded";
 import FilterAltOffRounded from "@mui/icons-material/FilterAltOffRounded";
 import MemberProfile from "./MemberProfile";
 import ImportMembers from "./ImportMembers";
+import MemberAccountDialog from "./MemberAccountDialog";
+import PersonAddAlt1Rounded from "@mui/icons-material/PersonAddAlt1Rounded";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const ALL = "Tất cả";
@@ -68,6 +70,7 @@ export default function MemberList({
   const [pageSize, setPageSize] = useState(20);
   const [viewMember, setViewMember] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [accountMember, setAccountMember] = useState(null);
 
   const canCreateMember = profile?.role === "admin" ||
     (profile?.role === "hlv" && profile?.permissions?.members?.create === true);
@@ -123,6 +126,8 @@ export default function MemberList({
     <Stack direction="row" spacing={1} sx={{ width: compact ? "100%" : "auto" }}>
       <Button size="small" variant="outlined" startIcon={<VisibilityRounded />} onClick={() => setViewMember(student)}
         sx={{ borderRadius: 2, minHeight: 39, flex: compact ? 1 : "none", whiteSpace: "nowrap" }}>Xem</Button>
+      {profile?.role === "admin" && <Button size="small" variant="outlined" startIcon={<PersonAddAlt1Rounded />} onClick={() => setAccountMember(student)}
+        sx={{ borderRadius: 2, minHeight: 39, whiteSpace: "nowrap" }}>Cấp tài khoản</Button>}
       <Button size="small" variant="outlined" startIcon={<EditRounded />} onClick={() => onEdit?.(student)} disabled={!onEdit || !canEditMember}
         sx={{ borderRadius: 2, minHeight: 39, flex: compact ? 1 : "none", whiteSpace: "nowrap" }}>Sửa hồ sơ</Button>
     </Stack>
@@ -254,6 +259,7 @@ export default function MemberList({
         </Paper>
       )}
 
+      <MemberAccountDialog open={Boolean(accountMember)} member={accountMember} onClose={() => setAccountMember(null)} />
       <MemberProfile open={Boolean(viewMember)} onClose={() => setViewMember(null)} member={viewMember} profile={profile} />
       <ImportMembers open={importOpen && canCreateMember} onClose={() => setImportOpen(false)} students={students} profile={profile} />
     </Box>

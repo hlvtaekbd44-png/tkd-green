@@ -1,11 +1,11 @@
+import LocationManagement from "./LocationManagement";
 import { useEffect, useMemo, useState } from "react";
 import { collection, doc, onSnapshot, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Alert, Box, Button, Checkbox, CircularProgress, Divider, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { db, auth } from "./firebase";
-import { initializeApp, deleteApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { accountRequest, normalizeUsername, validUsername } from "./accountApi";
 
-const LOCATIONS = ["Lê Văn Tám", "Nghĩa Trung", "Đồng Tâm", "Thôn 6", "Phước Sơn", "Minh Hưng"];
+const DEFAULT_LOCATIONS = ["Lê Văn Tám", "Nghĩa Trung", "Đồng Tâm", "Thôn 6", "Phước Sơn", "Minh Hưng"];
 const MODULES = [
   { key: "dashboard", label: "Tổng quan", actions: [["view", "Xem"]] },
   { key: "members", label: "Hội viên", actions: [["view", "Xem"], ["create", "Thêm"], ["edit", "Sửa"], ["delete", "Xóa"]] },
@@ -20,6 +20,8 @@ const blankLocations = () => Object.fromEntries(LOCATION_MODULES.map(key => [key
 
 export default function SettingsManagement({ profile }) {
   const [coaches, setCoaches] = useState([]);
+  const [locationNames, setLocationNames] = useState(DEFAULT_LOCATIONS);
+  const [settingsTab, setSettingsTab] = useState("locations");
   const [selectedUid, setSelectedUid] = useState("");
   const [permissions, setPermissions] = useState(blankPermissions);
   const [locationPermissions, setLocationPermissions] = useState(blankLocations);
@@ -29,7 +31,7 @@ export default function SettingsManagement({ profile }) {
   const [success, setSuccess] = useState("");
   const [dirty, setDirty] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [newCoach, setNewCoach] = useState({ name: "", email: "", password: "" });
+  const [newCoach, setNewCoach] = useState({ name: "", username: "", password: "" });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -43,19 +45,27 @@ export default function SettingsManagement({ profile }) {
     });
   }, [profile?.role]);
 
+  useEffect(() => {
+    if (profile?.role !== "admin") return;
+    return onSnapshot(collection(db, "locations"), snapshot => {
+      const names = snapshot.docs.map(d => d.data().name).filter(Boolean);
+      setLocationNames([...new Set([...DEFAULT_LOCATIONS, ...names])]);
+    }, err => console.error("Không tải được danh sách điểm tập:", err));
+  }, [profile?.role]);
+
   const coach = useMemo(() => coaches.find(c => c.uid === selectedUid), [coaches, selectedUid]);
   useEffect(() => {
     const p = blankPermissions();
     const l = blankLocations();
     if (coach) {
       for (const m of MODULES) for (const [action] of m.actions) p[m.key][action] = coach.permissions?.[m.key]?.[action] === true;
-      for (const key of LOCATION_MODULES) l[key] = LOCATIONS.filter(x => (coach.locationPermissions?.[key] || []).includes(x));
+      for (const key of LOCATION_MODULES) l[key] = locationNames.filter(x => (coach.locationPermissions?.[key] || []).includes(x));
     }
     setPermissions(p);
     setLocationPermissions(l);
     setDirty(false);
     setSuccess("");
-  }, [coach]);
+  }, [coach, locationNames]);
 
   if (profile?.role !== "admin") return <Alert severity="error">Chỉ Admin được truy cập Cài đặt.</Alert>;
 
@@ -71,55 +81,39 @@ export default function SettingsManagement({ profile }) {
   };
   const createCoach = async () => {
     const name = newCoach.name.trim();
-    const email = newCoach.email.trim().toLowerCase();
-    if (!name || !email || newCoach.password.length < 8) {
-      setError("Nhập họ tên, email và mật khẩu ít nhất 8 ký tự.");
-      return;
+    const username = normalizeUsername(newCoach.username);
+    if (!name || !validUsername(username) || newCoach.password.length < 12) {
+      setError("Nhập họ tên, tên đăng nhập hợp lệ và mật khẩu ít nhất 12 ký tự."); return;
     }
     if (busy || creating) return;
     setCreating(true); setError(""); setSuccess("");
-    let secondaryApp = null;
-    let createdUid = "";
     try {
-      // Phiên Auth phụ không làm thay đổi phiên đăng nhập Admin.
-      secondaryApp = initializeApp(auth.app.options, `coach-creation-${Date.now()}`);
-      const secondaryAuth = getAuth(secondaryApp);
-      const credential = await createUserWithEmailAndPassword(secondaryAuth, email, newCoach.password);
-      createdUid = credential.user.uid;
-      await signOut(secondaryAuth);
-      const emptyPermissions = blankPermissions();
-      const emptyLocations = blankLocations();
-      await setDoc(doc(db, "users", createdUid), {
-        role: "hlv", active: true,
-        tenHienThi: name, email,
-        diemTap: [],
-        permissions: emptyPermissions,
-        locationPermissions: emptyLocations,
-        createdAt: serverTimestamp(),
-        createdBy: auth.currentUser.uid,
-      });
-      setSelectedUid(createdUid);
-      setNewCoach({ name: "", email: "", password: "" });
+      const result = await accountRequest("createCoach", { name, username, password: newCoach.password });
+      setSelectedUid(result.account.uid);
+      setNewCoach({ name: "", username: "", password: "" });
       setCreateOpen(false);
-      setSuccess("Đã tạo tài khoản HLV. Hãy chọn các quyền và điểm tập rồi bấm Lưu phân quyền.");
-    } catch (err) {
-      const explanation = createdUid
-        ? ` Tài khoản Authentication đã được tạo (UID: ${createdUid}) nhưng chưa lưu được hồ sơ Firestore. Hãy giữ UID để xử lý, không tạo lại email này.`
-        : "";
-      setError(`Tạo tài khoản thất bại: ${err.message}.${explanation}`);
-    } finally {
-      if (secondaryApp) {
-        try { await deleteApp(secondaryApp); } catch (e) { console.warn("Không thể đóng phiên phụ", e); }
-      }
-      setCreating(false);
-    }
+      setSuccess("Đã cấp tài khoản HLV. Hãy chọn quyền và điểm tập rồi bấm Lưu phân quyền.");
+    } catch (err) { setError(`Tạo tài khoản thất bại: ${err.message}`); }
+    finally { setCreating(false); }
+  };
+
+  const changeCoachStatus = async () => {
+    if (!coach || busy) return;
+    const active = coach.active === false;
+    if (!window.confirm(`Bạn chắc chắn muốn ${active ? "kích hoạt" : "ngừng kích hoạt"} HLV ${coach.tenHienThi || coach.username || coach.email}?`)) return;
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      await accountRequest("setActive", { uid: coach.uid, active });
+      setSuccess(active ? "Đã kích hoạt HLV." : "Đã ngừng kích hoạt HLV.");
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
   };
 
   const save = async () => {
     if (!coach || busy) return;
     setBusy(true); setError(""); setSuccess("");
     try {
-      const allowed = Object.fromEntries(LOCATION_MODULES.map(key => [key, locationPermissions[key].filter(x => LOCATIONS.includes(x))]));
+      const allowed = Object.fromEntries(LOCATION_MODULES.map(key => [key, locationPermissions[key].filter(x => locationNames.includes(x))]));
       const p = structuredClone(permissions);
       // Quyền xem là điều kiện tiên quyết cho quyền thao tác.
       for (const m of MODULES) if (!p[m.key].view) for (const action of Object.keys(p[m.key])) p[m.key][action] = false;
@@ -143,16 +137,21 @@ export default function SettingsManagement({ profile }) {
   };
 
   return <Stack spacing={3}>
-    <Typography variant="h5" fontWeight={800}>Cài đặt · Phân quyền HLV</Typography>
-    <Alert severity="info">Tạo HLV bằng email và mật khẩu; tài khoản mới chưa có quyền nào cho đến khi Admin cấp. Chức năng phân quyền cần được bảo vệ bằng Firestore Rules.</Alert>
+    <Typography variant="h5" fontWeight={800}>Cài đặt hệ thống</Typography>
+    <Stack direction="row" spacing={1}>
+      <Button variant={settingsTab === "locations" ? "contained" : "outlined"} onClick={() => setSettingsTab("locations")}>Quản lý điểm tập</Button>
+      <Button variant={settingsTab === "coaches" ? "contained" : "outlined"} onClick={() => setSettingsTab("coaches")}>Phân quyền HLV</Button>
+    </Stack>
+    {settingsTab === "locations" ? <LocationManagement /> : <>
+    <Alert severity="info">Tạo HLV bằng tên đăng nhập và mật khẩu; tài khoản mới chưa có quyền nào cho đến khi Admin cấp. Chức năng phân quyền cần được bảo vệ bằng Firestore Rules.</Alert>
     <Paper sx={{ p: 3, borderRadius: 3 }}>
       <Button variant="outlined" onClick={() => setCreateOpen(v => !v)} disabled={creating}>
         {createOpen ? "Đóng form tạo HLV" : "+ Tạo tài khoản HLV"}
       </Button>
       {createOpen && <Stack spacing={2} sx={{ mt: 2 }}>
         <TextField label="Họ và tên HLV" fullWidth value={newCoach.name} onChange={e => setNewCoach(v => ({...v, name: e.target.value}))} />
-        <TextField label="Email đăng nhập" type="email" fullWidth value={newCoach.email} onChange={e => setNewCoach(v => ({...v, email: e.target.value}))} />
-        <TextField label="Mật khẩu khởi tạo (ít nhất 8 ký tự)" type="password" fullWidth value={newCoach.password} onChange={e => setNewCoach(v => ({...v, password: e.target.value}))} />
+        <TextField label="Tên đăng nhập HLV" fullWidth value={newCoach.username} onChange={e => setNewCoach(v => ({...v, username: e.target.value}))} />
+        <TextField label="Mật khẩu khởi tạo (ít nhất 12 ký tự)" type="password" fullWidth value={newCoach.password} onChange={e => setNewCoach(v => ({...v, password: e.target.value}))} />
         <Button variant="contained" disabled={creating} onClick={createCoach}>
           {creating ? "Đang tạo tài khoản..." : "Xác nhận tạo HLV"}
         </Button>
@@ -162,11 +161,19 @@ export default function SettingsManagement({ profile }) {
     {success && <Alert severity="success">{success}</Alert>}
     <Paper sx={{ p: 3, borderRadius: 3 }}>
       {loading ? <CircularProgress size={24} /> : <TextField select fullWidth label="Chọn tài khoản HLV" value={selectedUid} onChange={e => { if (dirty && !window.confirm("Bỏ các thay đổi chưa lưu?")) return; setSelectedUid(e.target.value); }}>
-        {coaches.map(c => <MenuItem key={c.uid} value={c.uid}>{c.tenHienThi || c.displayName || c.email || c.uid} {c.active === false ? "(Đã khóa)" : ""}</MenuItem>)}
+        {coaches.map(c => <MenuItem key={c.uid} value={c.uid}>{c.tenHienThi || c.displayName || c.username || c.email || c.uid} {c.active === false ? "(Đã khóa)" : ""}</MenuItem>)}
       </TextField>}
       {!loading && coaches.length === 0 && <Typography sx={{ mt: 2 }}>Chưa tìm thấy tài khoản HLV trong collection users.</Typography>}
     </Paper>
     {coach && <>
+      <Paper sx={{ p: 2, borderRadius: 3 }}>
+        <Stack direction={{ xs:"column", sm:"row" }} alignItems={{ sm:"center" }} justifyContent="space-between" spacing={2}>
+          <Typography fontWeight={700}>Tài khoản: {coach.username || coach.email || coach.uid} · {coach.active === false ? "Ngừng kích hoạt" : "Đã kích hoạt"}</Typography>
+          <Button color={coach.active === false ? "success" : "error"} variant="outlined" disabled={busy} onClick={changeCoachStatus}>
+            {coach.active === false ? "Kích hoạt lại" : "Ngừng kích hoạt"}
+          </Button>
+        </Stack>
+      </Paper>
       <Paper sx={{ p: 3, borderRadius: 3 }}>
         <Typography variant="h6" fontWeight={700} gutterBottom>1. Quyền chức năng</Typography>
         {MODULES.map(m => <Box key={m.key} sx={{ py: 1.5 }}>
@@ -181,11 +188,12 @@ export default function SettingsManagement({ profile }) {
         {LOCATION_MODULES.map(key => <Box key={key} sx={{ py: 1.5 }}>
           <Typography fontWeight={700}>{MODULES.find(m => m.key === key)?.label}</Typography>
           <Stack direction="row" flexWrap="wrap" gap={1}>
-            {LOCATIONS.map(location => <FormControlLabel key={location} control={<Checkbox checked={locationPermissions[key]?.includes(location) || false} onChange={e => toggleLocation(key, location, e.target.checked)} />} label={location} />)}
+            {locationNames.map(location => <FormControlLabel key={location} control={<Checkbox checked={locationPermissions[key]?.includes(location) || false} onChange={e => toggleLocation(key, location, e.target.checked)} />} label={location} />)}
           </Stack><Divider />
         </Box>)}
       </Paper>
       <Button variant="contained" size="large" disabled={!dirty || busy} onClick={save}>{busy ? "Đang lưu..." : "Lưu phân quyền"}</Button>
+    </>}
     </>}
   </Stack>;
 }

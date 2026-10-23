@@ -47,6 +47,7 @@ import {
 } from "@mui/icons-material";
 import { db } from "./firebase";
 import { calculateTuitionPolicy } from "./tuitionPolicy";
+import ExamFeeCollection from "./ExamFeeCollection";
 
 const dateVN = (value) => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value || "—";
@@ -61,6 +62,72 @@ const cardStyle = { border: "1px solid", borderColor: "divider", borderRadius: 3
 const money = (value) =>
   Number(value || 0).toLocaleString("vi-VN") + " ₫";
 
+// Tạo các kỳ còn thiếu và phân bổ khoản thu theo thứ tự kỳ cũ trước.
+// Không tự suy diễn kỳ đã đóng khi lịch sử cũ thiếu thông tin.
+const validMoney = v => Number.isSafeInteger(Number(v)) && Number(v) >= 0;
+const cycleOwed = c => Number(c.soTienPhaiDong ?? c.soTien ?? 0);
+const cyclePaid = c => Number(c.daThu ?? c.soTien ?? 0);
+const cycleDebt = c => Math.max(0, cycleOwed(c) - cyclePaid(c));
+const nextDayISO = iso => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const cycleEndISO = (start, type) => {
+  if (type === 'Ngày') return start;
+  const [y,m,d] = start.split('-').map(Number);
+  const months = type === 'Quý' ? 3 : 1;
+  const target = new Date(y, m-1+months, 1, 12);
+  const last = new Date(target.getFullYear(), target.getMonth()+1, 0).getDate();
+  target.setDate(Math.min(d,last)); target.setDate(target.getDate()-1);
+  return `${target.getFullYear()}-${String(target.getMonth()+1).padStart(2,'0')}-${String(target.getDate()).padStart(2,'0')}`;
+};
+const normalizeCycles = history => history.map(c => ({
+  ...c, soTienPhaiDong: cycleOwed(c), daThu: cyclePaid(c),
+  conNo: cycleDebt(c), trangThai: cycleDebt(c) ? 'Còn nợ' : 'Đã đóng',
+}));
+const prepareLedger = (member, type, rate, untilISO) => {
+  const old = Array.isArray(member.lichSuChuKy) ? member.lichSuChuKy : [];
+  if (old.some(c => !c.ngayBatDau || !c.ngayHetHan || !validMoney(c.soTienPhaiDong ?? c.soTien) || !validMoney(c.daThu ?? c.soTien))) {
+    throw new Error('Lịch sử kỳ thu cũ thiếu thông tin. Cần đối soát trước khi tính nợ.');
+  }
+  const cycles = normalizeCycles(old).sort((a,b)=>a.ngayBatDau.localeCompare(b.ngayBatDau));
+  if (cycles.some(c=>c.daThu>c.soTienPhaiDong)) throw new Error('Lịch sử có số đã thu lớn hơn phải đóng. Cần đối soát.');
+  for(let i=1;i<cycles.length;i++) if(cycles[i].ngayBatDau<=cycles[i-1].ngayHetHan) throw new Error('Lịch sử kỳ thu bị trùng. Cần đối soát.');
+  const last = cycles[cycles.length-1];
+  if (last && member.ngayHetHan && member.ngayHetHan > last.ngayHetHan) throw new Error('Ngày đã thanh toán đến không khớp lịch sử. Cần đối soát.');
+  if (!last && member.ngayHetHan) throw new Error('Hồ sơ có ngày đã thanh toán đến nhưng thiếu lịch sử kỳ thu. Cần đối soát.');
+  let start = last ? nextDayISO(last.ngayHetHan) : member.ngayBatDau;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start || '')) throw new Error('Thiếu ngày bắt đầu hợp lệ.');
+  if (last && last.conNo>0 && last.loaiHocPhi !== type) throw new Error('Còn nợ kỳ cũ: giữ nguyên loại học phí để tránh chồng kỳ.');
+  if (last && last.conNo>0) type = last.loaiHocPhi;
+  let added=0;
+  while(start<=untilISO) {
+    if (++added>60) throw new Error('Có trên 60 kỳ chưa đối soát; cần xử lý theo từng giai đoạn.');
+    const end=cycleEndISO(start,type);
+    const policy=calculateTuitionPolicy(rate,member.chinhSachHocPhi,start);
+    cycles.push({ ngayBatDau:start, ngayHetHan:end, loaiHocPhi:type,
+      hocPhiGoc:rate, soTienGiam:policy.soTienGiam, lyDoGiam:policy.lyDoGiam,
+      chinhSachSnapshot:policy.chinhSachSnapshot, soTienPhaiDong:policy.soTienPhaiDong,
+      soTien:0, daThu:0, conNo:policy.soTienPhaiDong,
+      trangThai:policy.soTienPhaiDong===0?'Đã miễn':'Còn nợ', paymentIds:[] });
+    start=nextDayISO(end);
+  }
+  return cycles;
+};
+const allocatePayment = (cycles, amount, paymentId, date) => {
+  let remaining=amount;
+  const allocations=[];
+  const updated=cycles.map(c=>{
+    const debt=cycleDebt(c);
+    const applied=Math.min(debt,remaining);
+    remaining-=applied;
+    if(applied) allocations.push({ngayBatDauKy:c.ngayBatDau,ngayHetHanKy:c.ngayHetHan,soTien:applied});
+    const paid=cyclePaid(c)+applied;
+    return {...c, daThu:paid, soTien:paid, conNo:Math.max(0,cycleOwed(c)-paid),
+      trangThai:cycleOwed(c)===0?'Đã miễn':paid>=cycleOwed(c)?'Đã đóng':'Còn nợ',
+      ...(applied?{ngayThuCuoi:date,paymentIds:[...(c.paymentIds||[]),paymentId]}:{})};
+  });
+  if(remaining) throw new Error('Số tiền thu vượt tổng công nợ hiện tại.');
+  return {cycles:updated,allocations};
+};
+
 export default function TuitionManagement({
   students = [],
   profile,
@@ -70,6 +137,11 @@ export default function TuitionManagement({
   onLocationChange,
   locations = [],
 }) {
+  const [locationRates, setLocationRates] = useState([]);
+  const [ratesLoading, setRatesLoading] = useState(true);
+  const [ratesError, setRatesError] = useState("");
+  const [rateReady, setRateReady] = useState(false);
+  const [rateWarning, setRateWarning] = useState("");
   const [search, setSearch] = useState("");
   const [feeFilter, setFeeFilter] = useState("Tất cả");
   const [dueFilter, setDueFilter] = useState("Tất cả");
@@ -145,6 +217,49 @@ const addDays = (date, days) => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [formError, setFormError] = useState("");
+
+  // Bảng giá cấu hình tại Cài đặt → Quản lý điểm tập.
+  useEffect(() => onSnapshot(collection(db, "locations"), snapshot => {
+    setLocationRates(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    setRatesLoading(false);
+    setRatesError("");
+  }, err => {
+    setRatesLoading(false);
+    setRatesError(`Không đọc được bảng giá điểm tập: ${err.message}`);
+  }), []);
+
+  const feeKey = (value) => value === "Ngày" ? "daily" : value === "Quý" ? "quarterly" : "monthly";
+  const getRate = (member, type, source = locationRates) => {
+    const point = String(member?.diemTap || member?.location || "").trim();
+    const matches = source.filter(x => String(x.name || "").trim() === point);
+    if (matches.length !== 1) return { error: matches.length ? "Tên điểm tập bị trùng trong bảng giá." : `Chưa có cấu hình mức thu cho điểm tập ${point || "(trống)"}.` };
+    const config = matches[0];
+    if (config.active === false || config.features?.tuition === false) return { error: "Điểm tập đang ngừng hoạt động hoặc đã tắt chức năng Học phí." };
+    const value = config.fees?.[feeKey(type)];
+    if (value === null || value === undefined || value === "" || !Number.isSafeInteger(Number(value)) || Number(value) <= 0) {
+      return { error: `Chưa thiết lập mức Học phí ${type} hợp lệ cho ${point}.` };
+    }
+    return { value: Number(value), configId: config.id, point };
+  };
+
+  useEffect(() => {
+    if (!selectedMember) return;
+    if (ratesLoading || ratesError) {
+      setRateReady(false); setRateWarning(ratesError || "Đang tải bảng giá điểm tập...");
+      setBaseFee(""); setAmount("");
+      return;
+    }
+    const result = getRate(selectedMember, period);
+    if (result.error) {
+      setRateReady(false); setRateWarning(result.error); setBaseFee(""); setAmount("");
+      return;
+    }
+    setRateReady(true); setRateWarning("");
+    setBaseFee(String(result.value));
+    // Số tiền thực thu được tính lại bởi effect riêng theo chính sách.
+  }, [selectedMember?.id, selectedMember?.diemTap, selectedMember?.location, period, locationRates, ratesLoading, ratesError]);
+
+  // Không tự ghi đè số thực thu khi bảng giá hoặc chính sách thay đổi.
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -282,7 +397,7 @@ const addDays = (date, days) => {
     setBaseFee("");
     setDiscount("0");
     setDiscountReason("");
-    setPeriod(member.fee === "Quý" || member.loaiHocPhi === "Quý" ? "Quý" : "Tháng");
+    setPeriod(["Ngày", "Tháng", "Quý"].includes(member.loaiHocPhi || member.fee) ? (member.loaiHocPhi || member.fee) : "Tháng");
     setPaymentDate(todayISO());
     setNote("");
     setMessage("");
@@ -294,142 +409,84 @@ const addDays = (date, days) => {
     setFormError("");
   };
 
-  const previewStart = selectedMember?.ngayHetHan
-    ? toISODate(addDays(parseLocalDate(selectedMember.ngayHetHan),1))
-    : selectedMember?.ngayBatDau || "";
-  const policyPreview = (()=>{
-    if (!baseFee || !previewStart || policyLoading || !memberPolicy) return null;
-    try {return calculateTuitionPolicy(Number(baseFee),memberPolicy,previewStart);}catch{return null;}
+  const previewLedger = (() => {
+    if (!selectedMember || !rateReady || !baseFee || policyLoading || !memberPolicy) return null;
+    try {
+      const ledger = prepareLedger({...selectedMember, chinhSachHocPhi:memberPolicy},period,Number(baseFee),paymentDate);
+      return {ledger, debt:ledger.reduce((n,c)=>n+cycleDebt(c),0), error:""};
+    } catch(e) { return {ledger:[],debt:0,error:e.message}; }
   })();
+  const policyPreview = (()=>{
+    const last=previewLedger?.ledger?.at(-1);
+    return last ? {soTienGiam:last.soTienGiam,soTienPhaiDong:last.soTienPhaiDong} : null;
+  })();
+  const previewStart = previewLedger?.ledger?.at(-1)?.ngayBatDau || selectedMember?.ngayBatDau || "";
 
-  const submitPayment = async (event) => {
-  event.preventDefault();
-  setMessage("");
-  setFormError("");
-
-  if (!selectedMember?.id) {
-    setFormError("Không tìm thấy hồ sơ hội viên.");
-    return;
-  }
-
-  const numericAmount = Number(amount);
-  const numericBase = Number(baseFee);
-  if (!memberPolicy || policyLoading) {setFormError("Chưa tải xong chính sách học phí.");return;}
-  if (!Number.isSafeInteger(numericBase) || numericBase <= 0) {setFormError("Học phí gốc phải là số nguyên dương.");return;}
-  if (!Number.isSafeInteger(numericAmount) || numericAmount < 0) {setFormError("Số tiền thực thu không hợp lệ.");return;}
-
-  const paidDate = parseLocalDate(paymentDate);
-
-  if (!paidDate) {
-    setFormError("Ngày thu không hợp lệ.");
-    return;
-  }
-
-  setSaving(true);
-
-  try {
-    const memberRef = doc(db, "members", selectedMember.id);
-    // ID cố định cho từng kỳ: ngăn ghi hai khoản thu đủ cho cùng một kỳ.
-    const result = await runTransaction(db, async (tx) => {
-      const memberSnap = await tx.get(memberRef);
-      if (!memberSnap.exists()) throw new Error("Hồ sơ hội viên không còn tồn tại.");
-      const current = memberSnap.data();
-       // Không được gia hạn từ kỳ đầu nếu đã quá hạn và chưa đối soát công nợ.
-       // Thu kỳ đầu vẫn được phép, các kỳ tiếp theo cần xác định theo lịch sử.
-       if (!current.ngayHetHan && current.lichSuChuKy?.length) {
-         throw new Error("Hồ sơ có lịch sử kỳ thu nhưng chưa xác định ngày đã thanh toán đến.");
-       }
-      const history = Array.isArray(current.lichSuChuKy) ? current.lichSuChuKy : [];
-      const due = parseLocalDate(current.ngayHetHan);
-      const enrollment = parseLocalDate(current.ngayBatDau);
-      const latest = [...history].filter(x => x?.ngayHetHan && x?.ngayBatDau)
-        .sort((a,b) => b.ngayHetHan.localeCompare(a.ngayHetHan))[0];
-
-      // Không suy diễn các kỳ đã đóng khi lịch sử thiếu hoặc mâu thuẫn.
-      if (due && (!latest || latest.ngayHetHan !== current.ngayHetHan)) {
-        throw new Error("Ngày hết hạn không khớp lịch sử kỳ thu hoặc thiếu lịch sử. Cần đối soát hồ sơ trước khi gia hạn.");
-      }
-      if (latest) {
-        const latestStart = parseLocalDate(latest.ngayBatDau);
-        const latestMonths = latest.loaiHocPhi === "Quý" ? 3 : latest.loaiHocPhi === "Tháng" ? 1 : 0;
-        if (!latestStart || !latestMonths ||
-            toISODate(addDays(addMonthsClamped(latestStart, latestMonths), -1)) !== latest.ngayHetHan) {
-          throw new Error("Lịch sử có kỳ thu không đúng chu kỳ. Cần đối soát trước khi tiếp tục.");
-        }
-      }
-      if (!due && history.length) {
-        throw new Error("Có lịch sử kỳ thu nhưng thiếu ngày hết hạn. Cần đối soát.");
-      }
-      if (!due && !enrollment) {
-        throw new Error("Chưa có ngày bắt đầu hợp lệ để xác định kỳ học phí.");
-      }
-
-      const cycleStart = due ? addDays(due, 1) : enrollment;
-      // Không tự tạo kỳ mới trước ngày bắt đầu; không thu hồi tố tự động.
-      if (cycleStart > paidDate) {
-        throw new Error(`Kỳ tiếp theo bắt đầu ${dateVN(toISODate(cycleStart))}. Chưa thể thu trước kỳ bằng quy trình này.`);
-      }
-      const months = period === "Quý" ? 3 : 1;
-      const cycleEnd = addDays(addMonthsClamped(cycleStart, months), -1);
-      const startISO = toISODate(cycleStart);
-      const dueISO = toISODate(cycleEnd);
-      if (history.some(x => x?.ngayBatDau === startISO ||
-        (x?.ngayBatDau && x?.ngayHetHan && x.ngayBatDau <= dueISO && x.ngayHetHan >= startISO))) {
-        throw new Error("Kỳ học phí này đã tồn tại hoặc trùng với lịch sử. Không thể thu trùng.");
-      }
-      const policyResult = calculateTuitionPolicy(numericBase,current.chinhSachHocPhi,startISO);
-      if (numericAmount !== policyResult.soTienPhaiDong) {
-        throw new Error(`Theo chính sách hiện tại, kỳ này phải thu ${money(policyResult.soTienPhaiDong)}. Hãy kiểm tra lại số tiền.`);
-      }
-      const numericDiscount = policyResult.soTienGiam;
-      const discountReason = policyResult.lyDoGiam;
-      const paymentRef = doc(db, "tuitionPayments", `${selectedMember.id}_${startISO}`);
-      const existingPayment = await tx.get(paymentRef);
-      if (existingPayment.exists()) throw new Error("Đã có giao dịch cho kỳ này.");
-      const newCycle = {
-        ngayBatDau: startISO, ngayHetHan: dueISO, loaiHocPhi: period,
-        soTien: numericAmount, hocPhiGoc: numericBase,
-        soTienGiam: numericDiscount, lyDoGiam: discountReason,
-        chinhSachSnapshot: policyResult.chinhSachSnapshot,
-        ngayThu: paymentDate, paymentId: paymentRef.id,
-      };
-      tx.set(paymentRef, {
-        memberId: selectedMember.id,
-        maHV: current.maHV || selectedMember.id,
-        hoTen: current.hoTen || selectedMember.name || "",
-        diemTap: current.diemTap || selectedMember.location || "",
-        ngayThu: paymentDate, ngayBatDauKy: startISO, ngayHetHanMoi: dueISO,
-        soTien: numericAmount, hocPhiGoc: numericBase,
-        soTienGiam: numericDiscount, lyDoGiam: discountReason,
-        chinhSachSnapshot: policyResult.chinhSachSnapshot,
-        soTienPhaiDong: policyResult.soTienPhaiDong, loaiHocPhi: period,
-        loaiGiaoDich: policyResult.soTienPhaiDong === 0 ? "mien_hoc_phi" : "thu_hoc_phi",
-        ghiChu: note.trim(), nguoiThu: profile?.email || "",
-        createdAt: serverTimestamp(),
+  const submitPayment = async event => {
+    event.preventDefault(); setMessage(""); setFormError("");
+    if (!selectedMember?.id || !rateReady || ratesLoading || ratesError || policyLoading) {
+      setFormError('Chưa đủ dữ liệu hồ sơ, bảng giá hoặc chính sách.'); return;
+    }
+    if (profile?.role !== 'admin') {
+      setFormError('Quy tắc Firestore hiện tại chỉ cho Admin cập nhật lịch sử kỳ học phí. Chưa thể thu bằng tài khoản HLV.'); return;
+    }
+    const received=Number(amount);
+    if (!Number.isSafeInteger(received) || received < 0 || amount==='') {
+      setFormError('Số tiền thực thu phải là số nguyên không âm.');return;
+    }
+    if (!parseLocalDate(paymentDate)) {setFormError('Ngày thu không hợp lệ.');return;}
+    setSaving(true);
+    try {
+      const memberRef=doc(db,'members',selectedMember.id);
+      const pointName=String(selectedMember.diemTap || selectedMember.location || '').trim();
+      const points=locationRates.filter(x=>String(x.name||'').trim()===pointName);
+      if(points.length!==1) throw new Error('Không tìm thấy duy nhất điểm tập trong bảng giá.');
+      const configRef=doc(db,'locations',points[0].id);
+      const paymentRef=doc(collection(db,'tuitionPayments'));
+      const result=await runTransaction(db,async tx=>{
+        // Firestore transaction: tất cả đọc trước, tất cả ghi sau.
+        const memberSnap=await tx.get(memberRef);
+        const configSnap=await tx.get(configRef);
+        if(!memberSnap.exists()||!configSnap.exists()) throw new Error('Hồ sơ hoặc điểm tập không tồn tại.');
+        const memberData=memberSnap.data(), config=configSnap.data();
+        if(String(memberData.diemTap||'').trim()!==pointName || config.name!==pointName || config.active===false || config.features?.tuition===false)
+          throw new Error('Điểm tập đã thay đổi hoặc chức năng Học phí đã tắt.');
+        const liveRate=Number(config.fees?.[feeKey(period)]);
+        if(!Number.isSafeInteger(liveRate)||liveRate<=0 || liveRate!==Number(baseFee)) throw new Error('Bảng giá đã thay đổi. Đóng và mở lại phiếu thu.');
+        const ledger=prepareLedger(memberData,period,liveRate,paymentDate);
+        const totalDebt=ledger.reduce((n,c)=>n+cycleDebt(c),0);
+        if(received>totalDebt) throw new Error(`Số tiền thu vượt tổng phải thu ${money(totalDebt)}.`);
+        if(received===0 && totalDebt>0) throw new Error('Để ghi nhận công nợ mà chưa thu tiền, cần quy trình chốt kỳ riêng; không tạo phiếu thu 0đ.');
+        if(received===0 && !ledger.some(c=>c.trangThai==='Đã miễn')) throw new Error('Không có khoản miễn 100% cần ghi nhận.');
+        const allocation=allocatePayment(ledger,received,paymentRef.id,paymentDate);
+        const newLedger=allocation.cycles;
+        // ngayHetHan chỉ phản ánh chuỗi kỳ ĐÃ ĐÓNG ĐỦ liên tục từ kỳ đầu.
+        let paidThrough='';
+        for(const c of newLedger){if(c.conNo>0) break;paidThrough=c.ngayHetHan;}
+        const remainingDebt=newLedger.reduce((n,c)=>n+cycleDebt(c),0);
+        const affected=allocation.allocations;
+        tx.set(paymentRef,{
+          memberId:selectedMember.id, maHV:memberData.maHV||selectedMember.id,
+          hoTen:memberData.hoTen||selectedMember.name||'',diemTap:pointName,
+          ngayThu:paymentDate, soTien:received, loaiHocPhi:period,
+          ngayBatDauKy:affected[0]?.ngayBatDauKy||newLedger.at(-1)?.ngayBatDau||'',
+          ngayHetHanMoi:paidThrough, phanBoKy:affected,
+          tongNoTruocThu:totalDebt,conNoSauThu:remainingDebt,
+          loaiGiaoDich:received===0?'mien_hoc_phi':'thu_hoc_phi',
+          ghiChu:note.trim(),nguoiThu:profile?.email||'',createdAt:serverTimestamp(),
+        });
+        tx.update(memberRef,{
+          loaiHocPhi:period, ngayHetHan:paidThrough,
+          lichSuChuKy:newLedger, noHocPhi:remainingDebt,conNo:remainingDebt,
+          tinhTrangHocPhi:remainingDebt>0?'Còn nợ':'Đã đóng',
+        });
+        return {received,remainingDebt,cycles:newLedger.length};
       });
-      tx.update(memberRef, {
-        loaiHocPhi: period, ngayHetHan: dueISO,
-        lichSuChuKy: [...history, newCycle],
-        tinhTrangHocPhi: policyResult.soTienPhaiDong === 0 ? "Đã miễn" : "Đã đóng", soTienGiamGanNhat: numericDiscount,
-      });
-      return dueISO;
-    });
-
-    setMessage(
-      `Đã ghi nhận kỳ học phí ${money(numericAmount)} của ${selectedMember.name}. Hạn mới: ${dateVN(result)}.`
-    );
-
-    setSelectedMember(null);
-  } catch (err) {
-    console.error("Lỗi lưu khoản thu:", err);
-
-    setFormError(
-      `Không thể lưu khoản thu: ${err.code || ""} ${err.message || ""}`
-    );
-  } finally {
-    setSaving(false);
-  }
-};
+      setMessage(`Đã thu ${money(result.received)}. Tổng công nợ còn lại: ${money(result.remainingDebt)} (${result.cycles} kỳ được đối soát).`);
+      setSelectedMember(null);
+    }catch(err){console.error('Lỗi thu học phí:',err);setFormError(`Không thể lưu khoản thu: ${err.code||''} ${err.message||''}`);}
+    finally{setSaving(false);}
+  };
 
   return (
     <Stack spacing={2.5} sx={{ minWidth: 0, pb: 3 }}>
@@ -444,6 +501,7 @@ const addDays = (date, days) => {
       </Box>
       {message && <Alert severity="success" onClose={() => setMessage("")}>{message}</Alert>}
       {error && <Alert severity="error">{error}</Alert>}
+       {ratesError && <Alert severity="error">{ratesError}</Alert>}
       {formError && !selectedMember && <Alert severity="error" onClose={() => setFormError("")}>{formError}</Alert>}
 
       {/* Dashboard tài chính: không suy diễn công nợ khi chưa có dữ liệu */}
@@ -452,7 +510,7 @@ const addDays = (date, days) => {
           { label: "Đã thu trong tháng", value: money(totalCollected), detail: "Theo ngày thu thực tế", icon: <AccountBalanceWalletRounded />, accent: "#80dea7", bg: "rgba(29,120,75,.18)" },
           { label: "Giao dịch ghi nhận", value: payments.length.toLocaleString("vi-VN"), detail: "Lịch sử đã lưu", icon: <ReceiptLongRounded />, accent: "#a5c8ff", bg: "rgba(55,108,180,.16)" },
           { label: "Hội viên đang hiển thị", value: filteredStudents.length.toLocaleString("vi-VN"), detail: "Theo bộ lọc hiện tại", icon: <GroupsRounded />, accent: "#e4eaf0", bg: "rgba(120,138,155,.12)" },
-          { label: "Công nợ học phí", value: "Chưa tổng hợp", detail: "Chưa có bảng kỳ phải thu để đối soát", icon: <WarningAmberRounded />, accent: "#f3c47b", bg: "rgba(181,115,29,.15)" },
+          { label: "Công nợ đã ghi nhận", value: money(students.reduce((n,m)=>n+Number(m.noHocPhi || m.conNo || 0),0)), detail: "Chỉ gồm công nợ đã lưu trên hồ sơ; chưa tính kỳ chưa chốt", icon: <WarningAmberRounded />, accent: "#f3c47b", bg: "rgba(181,115,29,.15)" },
         ].map((item) => (
           <Paper key={item.label} elevation={0} sx={{ p: { xs: 1.8, sm: 2.5 }, borderRadius: 3.5, border: "1px solid", borderColor: "divider", bgcolor: item.bg, minWidth: 0, minHeight: 136 }}>
             <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
@@ -619,6 +677,8 @@ const addDays = (date, days) => {
         </>}
       </Paper>
 
+      <ExamFeeCollection profile={profile} students={students} location={location} />
+
       <Dialog open={Boolean(selectedMember)} onClose={closePayment} fullWidth maxWidth="sm" fullScreen={false}
         PaperProps={{ sx: { borderRadius: { xs: 2, sm: 3 }, m: { xs: 1.5, sm: 4 }, width: { xs: "calc(100% - 24px)", sm: "100%" } } }}>
         <Box component="form" onSubmit={submitPayment}>
@@ -632,19 +692,22 @@ const addDays = (date, days) => {
             {formError && <Alert severity="error" sx={{ mb: 2 }}>{formError}</Alert>}
             <Stack spacing={2} sx={{ pt: 1 }}>
               <TextField select label="Loại học phí" value={period} onChange={(e) => setPeriod(e.target.value)} fullWidth disabled={saving}>
-                <MenuItem value="Tháng">Tháng</MenuItem><MenuItem value="Quý">Quý</MenuItem>
+                <MenuItem value="Ngày">Ngày</MenuItem><MenuItem value="Tháng">Tháng</MenuItem><MenuItem value="Quý">Quý</MenuItem>
               </TextField>
-              <Alert severity="info">Nhập mức học phí gốc của kỳ theo điểm tập. Hệ thống chưa có bảng giá cấu hình nên không tự suy đoán mức thu. Phiên bản này chỉ lưu kỳ đã thanh toán đủ.</Alert>
-              <TextField label="Học phí gốc (VNĐ)" type="number" value={baseFee} onChange={(e) => setBaseFee(e.target.value)} slotProps={{ htmlInput: { min: 1, step: 1 } }} required fullWidth disabled={saving} />
+              {profile?.role !== "admin" && <Alert severity="warning">Cần bổ sung Firestore Rules an toàn để HLV được ghi nhận khoản thu. Hiện chỉ Admin có thể lưu.</Alert>}
+              <Alert severity={rateWarning ? "warning" : "info"}>{rateWarning || "Mức học phí gốc được tự động lấy từ Cài đặt → Quản lý điểm tập. Hệ thống cộng dồn các kỳ đến ngày thu và ưu tiên trừ nợ kỳ cũ trước."}</Alert>
+              <TextField label="Học phí gốc (VNĐ)" type="number" value={baseFee} slotProps={{ htmlInput: { min: 1, step: 1 }, input: { readOnly: true } }} required fullWidth disabled={saving || !rateReady} />
               <Alert severity="info">{policyLoading ? "Đang tải chính sách..." : `Chính sách: ${memberPolicy?.loai || "binh_thuong"}. Áp dụng theo ngày bắt đầu kỳ ${dateVN(previewStart)}.`}</Alert>
               <Paper variant="outlined" sx={{p:1.5,borderRadius:2}}>
                 <Typography>Miễn/giảm theo hồ sơ: {policyPreview ? money(policyPreview.soTienGiam) : "—"}</Typography>
-                <Typography fontWeight={800}>Phải đóng: {policyPreview ? money(policyPreview.soTienPhaiDong) : "—"}</Typography>
+                <Typography fontWeight={800}>Tổng cần thu (gồm nợ cũ và các kỳ đến ngày thu): {previewLedger && !previewLedger.error ? money(previewLedger.debt) : "—"}</Typography>
+                {previewLedger?.error && <Alert severity="warning">{previewLedger.error}</Alert>}
+                <Typography variant="body2">Số kỳ theo dõi: {previewLedger?.ledger?.length ?? 0} · Còn nợ sau khoản thu: {previewLedger && !previewLedger.error && validMoney(amount) ? money(Math.max(0,previewLedger.debt-Number(amount))) : "—"}</Typography>
                 {policyPreview?.loaiChinhSach === "mien_100" && <Typography variant="caption">Kỳ miễn 100% được ghi nhận riêng, không cộng vào doanh thu thực thu.</Typography>}
               </Paper>
               <TextField label="Số tiền thực thu (VNĐ)" type="number" value={amount} onChange={(e)=>setAmount(e.target.value)}
                 slotProps={{htmlInput:{min:0,step:1}}} required fullWidth disabled={saving || policyLoading}
-                helperText="Nhập đúng số phải đóng; với kỳ miễn 100% nhập 0." />
+                helperText="Có thể đóng một phần; số còn lại được ghi nợ và ưu tiên thanh toán kỳ cũ." />
               <TextField label="Ngày thu" type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }} required fullWidth disabled={saving} />
               <TextField label="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)}
@@ -653,7 +716,7 @@ const addDays = (date, days) => {
           </DialogContent>
           <DialogActions sx={{ p: 2.5, pt: 0 }}>
             <Button onClick={closePayment} disabled={saving}>Hủy</Button>
-            <Button type="submit" variant="contained" color="success" disabled={saving || policyLoading || !memberPolicy} startIcon={saving ? <CircularProgress size={16} /> : <PaymentsRounded />}>
+            <Button type="submit" variant="contained" color="success" disabled={saving || policyLoading || !memberPolicy || !rateReady || amount === "" || !!previewLedger?.error || profile?.role !== "admin"} startIcon={saving ? <CircularProgress size={16} /> : <PaymentsRounded />}>
               {saving ? "Đang lưu..." : "Lưu khoản thu"}
             </Button>
           </DialogActions>

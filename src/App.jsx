@@ -1,4 +1,5 @@
 import GoogleLogin from "./GoogleLogin";
+import MemberSelfPortal from "./MemberSelfPortal";
 import {
   collection,
   onSnapshot,
@@ -49,12 +50,12 @@ const theme = createTheme({
 })
 
 const navItems = [
-  { label: 'Tổng quan', icon: <DashboardRounded /> },
-  { label: 'Hội viên', icon: <GroupsRounded /> },
-  { label: 'Học phí', icon: <PaymentsRounded /> },
-  { label: 'Thi cấp', icon: <EmojiEventsRounded /> },
-  { label: 'Điểm danh', icon: <FactCheckRounded /> },
-  { label: 'Báo cáo', icon: <AssessmentRounded /> },
+  { label: 'Tổng quan', module: 'dashboard', icon: <DashboardRounded /> },
+  { label: 'Hội viên', module: 'members', icon: <GroupsRounded /> },
+  { label: 'Học phí', module: 'tuition', icon: <PaymentsRounded /> },
+  { label: 'Thi cấp', module: 'exams', icon: <EmojiEventsRounded /> },
+  { label: 'Điểm danh', module: 'attendance', icon: <FactCheckRounded /> },
+  { label: 'Báo cáo', module: 'reports', icon: <AssessmentRounded /> },
 ]
 
 const locations = ['Tất cả điểm tập', 'Lê Văn Tám', 'Nghĩa Trung', 'Đồng Tâm', 'Thôn 6', 'Phước Sơn', 'Minh Hưng']
@@ -105,7 +106,24 @@ const [students, setStudents] = useState([]);
 const [membersLoading, setMembersLoading] = useState(true);
 const [membersError, setMembersError] = useState('');
 
-const canCreateMember = profile?.role === 'admin' || (profile?.role === 'hlv' && profile?.permissions?.members?.create === true);
+// Kiểm tra quyền từ Firestore; không dùng vai trò HLV làm quyền mặc định.
+const hasPermission = (module, action = 'view') =>
+  profile?.role === 'admin' ||
+  (profile?.role === 'hlv' && profile?.permissions?.[module]?.view === true &&
+    (action === 'view' || profile?.permissions?.[module]?.[action] === true));
+const visibleNavItems = navItems.filter(item => hasPermission(item.module));
+const allowedPages = [...visibleNavItems.map(item => item.label), ...(profile?.role === 'admin' ? ['Cài đặt'] : [])];
+// Dùng trang có quyền ngay trong lần render đầu tiên khi quyền thay đổi.
+const activePage = allowedPages.includes(selected) ? selected : (allowedPages[0] || '');
+const navigate = (page) => {
+  if (!allowedPages.includes(page)) return;
+  setEditingMember(null);
+  setShowAddMember(false);
+  setSelected(page);
+  setMobileOpen(false);
+};
+const canCreateMember = hasPermission('members', 'create');
+const canEditMember = hasPermission('members', 'edit');
 
 const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -137,6 +155,11 @@ useEffect(() => {
 
   if (profile.role !== 'admin' && profile.role !== 'hlv') {
     setMembersError('Tài khoản chưa có vai trò hợp lệ để xem hội viên.');
+    setMembersLoading(false);
+    return;
+  }
+
+  if (profile.role === 'hlv' && !['members', 'tuition', 'exams', 'attendance', 'reports', 'dashboard'].some(key => profile.permissions?.[key]?.view === true)) {
     setMembersLoading(false);
     return;
   }
@@ -242,6 +265,9 @@ useEffect(() => {
 
   // Giữ phần return giao diện Dashboard hiện tại ở phía dưới.
 
+  // Võ sinh chỉ xem hồ sơ riêng. Không render menu và danh sách HLV/Admin.
+  if (profile.role === 'member') return <MemberSelfPortal profile={profile} />;
+
   const drawerContent = (
     <Box className="sidebar-inner">
       <Box className="brand">
@@ -253,11 +279,11 @@ useEffect(() => {
       </Box>
       <Box className="sidebar-section-label">MENU CHÍNH</Box>
       <List className="nav-list">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <ListItemButton
             key={item.label}
-            selected={selected === item.label}
-            onClick={() => { setSelected(item.label); setMobileOpen(false) }}
+            selected={activePage === item.label}
+            onClick={() => navigate(item.label)}
             className="nav-item"
           >
             <ListItemIcon>{item.icon}</ListItemIcon>
@@ -276,11 +302,8 @@ useEffect(() => {
     <List className="nav-list">
       <ListItemButton
         className="nav-item"
-        selected={selected === "Cài đặt"}
-        onClick={() => {
-          setSelected("Cài đặt");
-          setMobileOpen(false);
-        }}
+        selected={activePage === "Cài đặt"}
+        onClick={() => navigate("Cài đặt")}
       >
         <ListItemIcon>
           <SettingsRounded />
@@ -350,7 +373,7 @@ useEffect(() => {
               {isMobile && <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon /></IconButton>}
               <Box sx={{ flexGrow: 1 }}>
                 <Typography className="topbar-eyebrow">TKD GREEN CLUB / QUẢN LÝ</Typography>
-                <Typography className="topbar-title">{selected}</Typography>
+                <Typography className="topbar-title">{activePage || "Chưa được cấp quyền"}</Typography>
               </Box>
               
 <IconButton className="notification-button" aria-label="Thông báo">
@@ -372,7 +395,7 @@ useEffect(() => {
                 <Typography className="welcome-description">Theo dõi hoạt động và tình hình câu lạc bộ tại một nơi.</Typography>
               </Box>
               {canCreateMember && <Button variant="contained" startIcon={<AddRounded />} className="add-student-button" onClick={() => {
-  setSelected('Hội viên');
+  navigate('Hội viên');
   setShowAddMember(true);
 }}>
                 Thêm hội viên
@@ -393,7 +416,9 @@ useEffect(() => {
               </Stack>
             </Paper>
 
-            {selected === 'Tổng quan' ? (
+            {!activePage ? (
+              <Paper sx={{ p: 3 }}><Typography>Chưa được cấp quyền sử dụng chức năng nào. Vui lòng liên hệ Admin.</Typography></Paper>
+            ) : activePage === 'Tổng quan' ? (
               <>
                 <Box className="stats-grid">
                   <StatCard title="Tổng hội viên" value={students.length.toLocaleString("vi-VN")} note="Theo dữ liệu được phân quyền" icon={<GroupsRounded />} />
@@ -431,8 +456,8 @@ useEffect(() => {
                       { label: 'Quản lý hội viên', desc: 'Danh sách và hồ sơ võ sinh', icon: <GroupsRounded />, target: 'Hội viên' },
                       { label: 'Thu học phí', desc: 'Ghi nhận khoản thu và công nợ', icon: <PaymentsRounded />, target: 'Học phí' },
                       { label: 'Đăng ký thi cấp', desc: 'Danh sách và kết quả thi', icon: <EmojiEventsRounded />, target: 'Thi cấp' },
-                    ].map((item) => (
-                      <Button key={item.label} className="quick-link" onClick={() => setSelected(item.target)} fullWidth>
+                    ].filter(item => allowedPages.includes(item.target)).map((item) => (
+                      <Button key={item.label} className="quick-link" onClick={() => navigate(item.target)} fullWidth>
                         <Box className="quick-link-icon">{item.icon}</Box>
                         <Box className="quick-link-copy">
                           <Typography className="quick-link-title">{item.label}</Typography>
@@ -485,12 +510,12 @@ useEffect(() => {
                       </Box>
                     )) : <Typography className="empty-state">Không tìm thấy hội viên phù hợp.</Typography>}
                   </Box>
-                  <Button className="view-all-button" endIcon={<ArrowForwardRounded />} onClick={() => setSelected('Hội viên')}>Xem danh sách hội viên</Button>
+                  <Button className="view-all-button" endIcon={<ArrowForwardRounded />} onClick={() => navigate('Hội viên')}>Xem danh sách hội viên</Button>
                 </Paper>
               </>
                           
 
-) : selected === 'Hội viên' && editingMember ? (
+) : activePage === 'Hội viên' && editingMember && canEditMember ? (
   <EditMember
     member={editingMember}
     profile={profile}
@@ -503,7 +528,7 @@ useEffect(() => {
       setEditingMember(null);
     }}
   />
-) : selected === 'Hội viên' && showAddMember ? (
+) : activePage === 'Hội viên' && showAddMember && canCreateMember ? (
   <AddMember
     profile={profile}
     onSaved={() => {
@@ -511,7 +536,7 @@ useEffect(() => {
       setSelected('Hội viên');
     }}
   />
-) : selected === 'Hội viên' ? (
+) : activePage === 'Hội viên' ? (
   <MemberList
     profile={profile}
     students={students}
@@ -520,17 +545,17 @@ useEffect(() => {
     location={location}
     onLocationChange={setLocation}
     locations={availableLocations}
-    onAdd={() => {
+    onAdd={canCreateMember ? () => {
       setEditingMember(null);
       setShowAddMember(true);
-    }}
-    onEdit={(member) => {
+    } : undefined}
+    onEdit={canEditMember ? (member) => {
       setShowAddMember(false);
       setEditingMember(member);
-    }}
+    } : undefined}
   />
 
-) : selected === 'Học phí' ? (
+) : activePage === 'Học phí' ? (
   <TuitionManagement
     students={students}
     profile={profile}
@@ -541,7 +566,7 @@ useEffect(() => {
     locations={availableLocations}
   />
 
-  ) : selected === "Thi cấp" ? (
+  ) : activePage === "Thi cấp" ? (
   <ExamManagement
     students={students}
     profile={profile}
@@ -549,13 +574,13 @@ useEffect(() => {
     error={membersError}
     location={location}
   />
-) : selected === "Điểm danh" ? (
+) : activePage === "Điểm danh" ? (
   <AttendanceManagement
     students={students}
     profile={profile}
     loading={membersLoading}
   />
-) : selected === "Cài đặt" && profile.role === "admin" ? (
+) : activePage === "Cài đặt" && profile.role === "admin" ? (
   <SettingsManagement profile={profile} />
 ) : (
   
@@ -563,15 +588,15 @@ useEffect(() => {
     <Box className="module-placeholder-icon">
       <ShieldRounded />
     </Box>
-    <Typography variant="h5">{selected}</Typography>
+    <Typography variant="h5">{activePage}</Typography>
     <Typography className="module-placeholder-text">
-      Khu vực {selected.toLocaleLowerCase('vi')} đã có mục điều hướng.
+      Khu vực {activePage.toLocaleLowerCase('vi')} đã có mục điều hướng.
       Bước tiếp theo sẽ xây dựng chức năng và kết nối dữ liệu Firebase
       cho phân hệ này.
     </Typography>
     <Button
       variant="contained"
-      onClick={() => setSelected('Tổng quan')}
+      onClick={() => navigate(allowedPages[0])}
     >
       Quay về tổng quan
     </Button>
