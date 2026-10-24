@@ -32,6 +32,7 @@ import ExamManagement from "./ExamManagement";
 import AttendanceManagement from "./AttendanceManagement";
 import SettingsManagement from "./SettingsManagement";
 import './App.css'
+import HeaderAccount from "./HeaderAccount";
 
 const drawerWidth = 256
 
@@ -182,7 +183,7 @@ function MemberPortalLayout({ profile, user }) {
     <Box className="main-area"><AppBar position="sticky" elevation={0} className="topbar"><Toolbar className="topbar-toolbar">
       {mobile && <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon/></IconButton>}
       <Box sx={{ flexGrow: 1 }}><Typography className="topbar-eyebrow">TKD GREEN CLUB / VÕ SINH</Typography>
-      <Typography className="topbar-title">{visiblePage || 'Chưa được mở chức năng'}</Typography></Box><Box className="topbar-wordmark"><img src="/branding/green-wordmark.png" alt="Green Taekwondo logo" /></Box><GoogleLogin/>
+      <Typography className="topbar-title">{visiblePage || 'Chưa được mở chức năng'}</Typography></Box><HeaderAccount />
     </Toolbar></AppBar><Box component="main" className="page-content">
       {memberError && <Alert severity="error" sx={{ mb: 2 }}>{memberError}</Alert>}
       {locationError && <Alert severity="warning" sx={{ mb: 2 }}>{locationError}</Alert>}
@@ -480,13 +481,13 @@ useEffect(() => {
                 <Typography className="topbar-title">{activePage || "Chưa được cấp quyền"}</Typography>
               </Box>
               
-<IconButton className="notification-button" aria-label="Thông báo">
+<IconButton className="notification-button" aria-label="Thông báo" title="Thông báo">
   <Badge variant="dot" color="error">
     <NotificationsNoneRounded />
   </Badge>
 </IconButton>
 
-<Box className="topbar-wordmark"><img src="/branding/green-wordmark.png" alt="Green Taekwondo logo" /></Box><GoogleLogin />
+<HeaderAccount />
 
             </Toolbar>
           </AppBar>
