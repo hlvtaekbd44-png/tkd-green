@@ -84,3 +84,51 @@ html,body,#root{color-scheme:light;background:#f4f8f5;color:#183529}
 .MuiFormLabel-root{color:#537264!important}
 .MuiCircularProgress-root{color:#0d8b55}
 @media(max-width:900px){.page-content{padding:18px 14px!important}.topbar-toolbar{padding:10px 15px!important}}
+/* TKD GREEN - SUA MENU DIEN THOAI
+   Nen trang, chu xanh dam de doc
+*/
+
+@media (max-width: 900px) {
+
+  /* Drawer menu */
+  .MuiDrawer-paper {
+    background-color: #ffffff !important;
+  }
+
+  /* Cac muc menu chua duoc chon */
+  .MuiDrawer-paper .MuiListItemButton-root:not(.Mui-selected) {
+    color: #183b2b !important;
+  }
+
+  .MuiDrawer-paper .MuiListItemButton-root:not(.Mui-selected)
+  .MuiListItemText-primary {
+    color: #183b2b !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+  }
+
+  /* Icon menu chua chon */
+  .MuiDrawer-paper .MuiListItemButton-root:not(.Mui-selected)
+  .MuiListItemIcon-root,
+  .MuiDrawer-paper .MuiListItemButton-root:not(.Mui-selected)
+  .MuiSvgIcon-root {
+    color: #327d58 !important;
+    opacity: 1 !important;
+  }
+
+  /* Muc dang chon */
+  .MuiDrawer-paper .MuiListItemButton-root.Mui-selected {
+    background-color: #087d4b !important;
+    color: #ffffff !important;
+  }
+
+  .MuiDrawer-paper .MuiListItemButton-root.Mui-selected
+  .MuiListItemText-primary,
+  .MuiDrawer-paper .MuiListItemButton-root.Mui-selected
+  .MuiListItemIcon-root,
+  .MuiDrawer-paper .MuiListItemButton-root.Mui-selected
+  .MuiSvgIcon-root {
+    color: #ffffff !important;
+    opacity: 1 !important;
+  }
+}
