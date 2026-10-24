@@ -122,7 +122,7 @@ export default function ExamManagement({
   const [deletePeriodSummary, setDeletePeriodSummary] = useState(null);
   const [checkingDelete, setCheckingDelete] = useState(false);
   const [togglingRegistration, setTogglingRegistration] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
 
   // name chính là mã đợt thi: Q1-2026, Q2-2026...
   const [periodName, setPeriodName] = useState("");
@@ -583,7 +583,7 @@ export default function ExamManagement({
     if (!isAdmin || !selectedPeriodData || busy) return;
     setCheckingDelete(true);
     setDeletePeriodSummary(null);
-    setDeleteConfirmation("");
+    setDeleteConfirmed(false);
     setDeletePeriodDialog(true);
     try {
       const inspection = await inspectPeriodDeletion(selectedPeriodData.id);
@@ -608,7 +608,8 @@ export default function ExamManagement({
     if (!isAdmin || !selectedPeriodData || !deletePeriodSummary || busy) return;
     const periodId = selectedPeriodData.id;
     const code = String(selectedPeriodData.name || "");
-    if (deleteConfirmation.trim() !== code) return;
+    if (!deleteConfirmed || deletePeriodSummary.blocked || checkingDelete) return;
+    if (!window.confirm(`XÁC NHẬN XÓA VĨNH VIỄN đợt thi ${code} và toàn bộ đăng ký liên quan? Thao tác không thể hoàn tác.`)) return;
     setBusy(true);
     try {
       const inspection = await inspectPeriodDeletion(periodId);
@@ -630,7 +631,7 @@ export default function ExamManagement({
       setMessage(`Đã xóa vĩnh viễn đợt ${code} và ${inspection.total} đăng ký liên quan.`);
       setMessageType("success");
       setDeletePeriodDialog(false);
-      setDeleteConfirmation("");
+      setDeleteConfirmed(false);
       setSelectedPeriod("");
     } catch (err) {
       console.error("Xóa đợt thi thất bại:", err);
@@ -738,9 +739,19 @@ export default function ExamManagement({
                     Xóa vĩnh viễn đợt thi và toàn bộ {deletePeriodSummary.total} đăng ký
                     (kể cả đăng ký đã hủy). Thao tác này không thể hoàn tác.
                   </Alert>
-                  <TextField fullWidth label="Nhập chính xác mã đợt thi để xác nhận"
-                    value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)}
-                    placeholder={selectedPeriodData?.name || ""} />
+                  <Stack direction="row" alignItems="flex-start" spacing={1}>
+                    <Checkbox
+                      checked={deleteConfirmed}
+                      onChange={(e) => setDeleteConfirmed(e.target.checked)}
+                      disabled={busy}
+                      inputProps={{ "aria-label": "Xác nhận xóa vĩnh viễn đợt thi" }}
+                      sx={{ pt: 0.25, color: "error.main", "&.Mui-checked": { color: "error.main" } }}
+                    />
+                    <Typography variant="body2" sx={{ pt: 1 }}>
+                      Tôi đã kiểm tra và xác nhận muốn xóa vĩnh viễn đợt thi này cùng
+                      {` ${deletePeriodSummary.total} `}đăng ký liên quan.
+                    </Typography>
+                  </Stack>
                 </>
               )}
             </Stack>
@@ -749,7 +760,7 @@ export default function ExamManagement({
         <DialogActions>
           <Button onClick={() => setDeletePeriodDialog(false)} disabled={busy}>Đóng</Button>
           <Button variant="contained" color="error" onClick={confirmDeletePeriod}
-            disabled={busy || checkingDelete || !deletePeriodSummary || deletePeriodSummary.blocked || deleteConfirmation.trim() !== String(selectedPeriodData?.name || "")}>
+            disabled={busy || checkingDelete || !deletePeriodSummary || deletePeriodSummary.blocked || !deleteConfirmed}>
             {busy ? "Đang xóa..." : "Xóa vĩnh viễn cả dữ liệu"}
           </Button>
         </DialogActions>
