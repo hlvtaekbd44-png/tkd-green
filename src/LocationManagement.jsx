@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { collection, doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { Alert, Box, Button, Checkbox, CircularProgress, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography, Divider } from "@mui/material";
+import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography, Divider } from "@mui/material";
 import { db } from "./firebase";
 import { accountRequest } from "./accountApi";
 
@@ -23,6 +23,8 @@ export default function LocationManagement() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [deleteLocationOpen, setDeleteLocationOpen] = useState(false);
+  const [deleteLocationChecked, setDeleteLocationChecked] = useState(false);
 
   useEffect(() => onSnapshot(collection(db, "locations"), snapshot => {
     setLocations(snapshot.docs.filter(d => d.data().deleted !== true).map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || "").localeCompare(b.name || "", "vi")));
@@ -66,12 +68,12 @@ export default function LocationManagement() {
     const item = locations.find(x => x.id === selectedId);
     if (!item || saving) return;
     const name = item.name;
-    const confirmed = window.prompt(`XÓA ĐIỂM TẬP ${name}\nHội viên sẽ chuyển về Chưa xác định; phân quyền HLV sẽ được gỡ. Lịch sử thu tiền/thi cấp vẫn giữ nguyên.\nNhập đúng tên điểm tập để xác nhận:`);
-    if (confirmed !== name) return;
+    if (!deleteLocationOpen || !deleteLocationChecked) return;
     setSaving(true); setError(""); setSuccess("");
     try {
       const result = await accountRequest("deleteLocation", { locationId: item.id, confirmName: name });
       setSelectedId(""); setCreating(false);
+      setDeleteLocationOpen(false); setDeleteLocationChecked(false);
       setSuccess(`Đã xóa ${name}; chuyển ${result.updatedMembers || 0} hội viên về Chưa xác định và cập nhật ${result.updatedCoaches || 0} tài khoản HLV.`);
     } catch (e) { setError(`Xóa điểm tập thất bại: ${e.message}`); }
     finally { setSaving(false); }
@@ -141,9 +143,23 @@ export default function LocationManagement() {
         {Object.entries(FEE_LABELS).map(([key, label]) => <TextField key={key} fullWidth type="number" label={label} value={form.fees[key] ?? ""} onChange={e => setForm(p => ({ ...p, fees: { ...p.fees, [key]: e.target.value } }))} inputProps={{ min: 0, step: 1000 }} />)}
         <Stack direction={{xs:"column",sm:"row"}} spacing={1}>
           <Button variant="contained" onClick={save} disabled={saving}>{saving ? "Đang xử lý..." : creating ? "Tạo điểm tập" : "Lưu cấu hình điểm tập"}</Button>
-          {!creating && selectedId && <Button variant="outlined" color="error" disabled={saving} onClick={deleteLocation}>Xóa điểm tập</Button>}
+          {!creating && selectedId && <Button variant="outlined" color="error" disabled={saving} onClick={() => { setDeleteLocationChecked(false); setDeleteLocationOpen(true); }}>Xóa điểm tập</Button>}
         </Stack>
       </Stack>
     </Paper>}
+    <Dialog open={deleteLocationOpen && Boolean(selectedId) && !creating} onClose={saving ? undefined : () => setDeleteLocationOpen(false)} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 800 }}>Xóa điểm tập</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography>Điểm tập: <strong>{locations.find(x => x.id === selectedId)?.name || ""}</strong></Typography>
+          <Alert severity="warning">Hội viên của điểm tập này sẽ chuyển về Chưa xác định; quyền điểm tập của HLV sẽ được gỡ. Lịch sử học phí và thi cấp được giữ nguyên theo xử lý hiện tại. Không thể hoàn tác.</Alert>
+          <FormControlLabel control={<Checkbox checked={deleteLocationChecked} disabled={saving} onChange={e => setDeleteLocationChecked(e.target.checked)} />} label="Tôi đã kiểm tra dữ liệu và xác nhận muốn xóa điểm tập này." />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ p: 2 }}>
+        <Button disabled={saving} onClick={() => setDeleteLocationOpen(false)}>Hủy</Button>
+        <Button variant="contained" color="error" disabled={saving || !deleteLocationChecked} onClick={deleteLocation}>{saving ? <CircularProgress size={20} color="inherit" /> : "Xóa điểm tập"}</Button>
+      </DialogActions>
+    </Dialog>
   </Stack>;
 }

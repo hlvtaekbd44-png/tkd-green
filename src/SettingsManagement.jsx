@@ -1,7 +1,7 @@
 import LocationManagement from "./LocationManagement";
 import { useEffect, useMemo, useState } from "react";
 import { collection, doc, onSnapshot, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { Alert, Box, Button, Checkbox, CircularProgress, Divider, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { db, auth } from "./firebase";
 import { accountRequest, normalizeUsername, validUsername } from "./accountApi";
 
@@ -33,6 +33,8 @@ export default function SettingsManagement({ profile }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [newCoach, setNewCoach] = useState({ name: "", username: "", password: "" });
   const [creating, setCreating] = useState(false);
+  const [deleteCoachOpen, setDeleteCoachOpen] = useState(false);
+  const [deleteCoachChecked, setDeleteCoachChecked] = useState(false);
 
   useEffect(() => {
     if (profile?.role !== "admin") return;
@@ -112,12 +114,13 @@ export default function SettingsManagement({ profile }) {
   const deleteCoach = async () => {
     if (!coach || busy) return;
     const label = coach.username || coach.email || coach.uid;
-    const confirmText = window.prompt(`XÓA VĨNH VIỄN tài khoản HLV ${label}\nNhập chính xác tên đăng nhập để xác nhận:`);
-    if (confirmText !== label) return;
+    if (!deleteCoachOpen || !deleteCoachChecked) return;
     setBusy(true); setError(""); setSuccess("");
     try {
       await accountRequest("deleteCoach", { uid: coach.uid, confirmUsername: label });
       setSelectedUid("");
+      setDeleteCoachOpen(false);
+      setDeleteCoachChecked(false);
       setSuccess(`Đã xóa tài khoản HLV ${label}. Lịch sử nghiệp vụ của HLV vẫn được giữ.`);
     } catch (e) { setError(`Không xóa được HLV: ${e.message}`); }
     finally { setBusy(false); }
@@ -207,9 +210,24 @@ export default function SettingsManagement({ profile }) {
           </Stack><Divider />
         </Box>)}
       </Paper>
-      <Button color="error" variant="outlined" disabled={busy} onClick={deleteCoach} sx={{ mr: 1 }}>Xóa vĩnh viễn tài khoản HLV</Button>
+      <Button color="error" variant="outlined" disabled={busy} onClick={() => { setDeleteCoachChecked(false); setDeleteCoachOpen(true); }} sx={{ mr: 1 }}>Xóa vĩnh viễn tài khoản HLV</Button>
       <Button variant="contained" size="large" disabled={!dirty || busy} onClick={save}>{busy ? "Đang lưu..." : "Lưu phân quyền"}</Button>
     </>}
     </>}
+    <Dialog open={deleteCoachOpen && Boolean(coach)} onClose={busy ? undefined : () => setDeleteCoachOpen(false)} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ fontWeight: 800 }}>Xóa vĩnh viễn tài khoản HLV</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography>HLV: <strong>{coach?.tenHienThi || coach?.displayName || coach?.username || coach?.email}</strong></Typography>
+          <Typography variant="body2" color="text.secondary">Tài khoản: {coach?.username || coach?.email || coach?.uid}</Typography>
+          <Alert severity="error">Tài khoản HLV sẽ bị xóa vĩnh viễn và không thể đăng nhập. Lịch sử nghiệp vụ được giữ lại theo xử lý hiện tại.</Alert>
+          <FormControlLabel control={<Checkbox checked={deleteCoachChecked} disabled={busy} onChange={e => setDeleteCoachChecked(e.target.checked)} />} label="Tôi xác nhận muốn xóa vĩnh viễn tài khoản HLV này." />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={() => setDeleteCoachOpen(false)} disabled={busy}>Hủy</Button>
+        <Button color="error" variant="contained" disabled={busy || !deleteCoachChecked} onClick={deleteCoach}>{busy ? <CircularProgress size={20} color="inherit" /> : "Xóa tài khoản"}</Button>
+      </DialogActions>
+    </Dialog>
   </Stack>;
 }
