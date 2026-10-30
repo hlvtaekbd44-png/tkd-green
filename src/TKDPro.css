@@ -1,0 +1,104 @@
+/* TKD GREEN · Professional Light 2026
+ * Append-only design layer; keeps the existing app structure and permissions.
+ * Imported after App.css. No modification to Firebase or APIs.
+ */
+:root { --tkd-bg:#f3f7f4; --tkd-surface:#fff; --tkd-surface-2:#f8fbf9;
+ --tkd-border:#dce9e0; --tkd-text:#17362a; --tkd-muted:#597669;
+ --tkd-accent:#087f4d; --tkd-glow:rgba(12,112,69,.10); color-scheme:light; }
+html,body,#root { background:#f3f7f4!important; color:#17362a; }
+body { font-family:Inter,'Segoe UI',Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+.app-shell { background:#f3f7f4!important; min-height:100vh; }
+/* NAVIGATION */
+.app-shell .MuiDrawer-paper { background:linear-gradient(173deg,#063e2e,#084a37 57%,#07362b)!important; color:#f2fff7!important; border-right:1px solid #1d6046!important; box-shadow:3px 0 18px rgba(10,55,35,.08)!important; }
+.sidebar-inner { padding:20px 13px 16px; }
+.brand { margin-bottom:18px; padding:5px 7px 19px; border-bottom-color:rgba(230,255,241,.19)!important; }
+.brand-mark { border-radius:14px; width:49px;height:49px;box-shadow:none; }
+.brand-title { font-size:16px!important; color:#fff!important; letter-spacing:.3px; }
+.brand-subtitle { color:#c5ebd6!important;letter-spacing:1.4px!important; }
+.sidebar-section-label { color:#b0d9bf!important; font-size:10px!important; letter-spacing:1.5px; }
+.nav-item,.app-shell .MuiDrawer-paper .nav-item { color:#e4f8eb!important; border-radius:11px!important; min-height:45px!important; margin:3px 0!important; }
+.nav-item .MuiListItemText-primary { color:inherit!important; opacity:1!important; font-size:13px!important; font-weight:650!important; }
+.nav-item .MuiListItemIcon-root,.nav-item svg { color:inherit!important; opacity:1!important; }
+.nav-item:hover { background:rgba(255,255,255,.10)!important; color:#fff!important; transform:none!important; }
+.nav-item.Mui-selected,.nav-item.Mui-selected:hover { background:#e3f5e9!important; color:#075c38!important; box-shadow:inset 4px 0 #86d5a7!important; }
+.nav-item.Mui-selected .MuiListItemText-primary,.nav-item.Mui-selected .MuiListItemIcon-root,.nav-item.Mui-selected svg { color:#075c38!important; }
+.nav-count { background:rgba(255,255,255,.16); color:#fff; font-weight:750!important; }
+.nav-item.Mui-selected .nav-count { background:#c1e9cf!important; color:#075b37!important; }
+.coach-card { background:rgba(255,255,255,.08)!important; border-color:rgba(255,255,255,.19)!important; }
+.coach-name { color:#fff!important; }.coach-role { color:#bedfcb!important; }
+.sidebar-version { color:#a6d4b6!important; }
+/* TOPBAR */
+.main-area { min-width:0; }
+.topbar { background:rgba(255,255,255,.97)!important; border-bottom:1px solid #dce9df!important; box-shadow:0 3px 17px rgba(28,77,46,.035)!important; }
+.topbar-toolbar { min-height:72px!important; padding:10px clamp(15px,2.5vw,34px)!important; display:flex; align-items:center; gap:12px; }
+.topbar-eyebrow { font-size:10px!important;letter-spacing:1.3px!important;color:#56836a!important; }
+.topbar-title { font-size:19px!important;color:#153e2b!important;font-weight:850!important; }
+.topbar .MuiIconButton-root { flex-shrink:0; }
+.topbar .tkd-header-account { padding:3px!important; border:1px solid #d6e7db!important; border-radius:50%!important; }
+.notification-button { border:1px solid #d9e7dd!important; background:#f7faf8!important;color:#17613f!important; width:40px;height:40px; }
+.topbar-wordmark { border-color:#e1ece4!important; }
+/* SPACING / PAGE */
+.page-content { max-width:1580px; padding:clamp(16px,2.5vw,34px); }
+.welcome-row { margin-bottom:22px; gap:14px; }
+.welcome-kicker { color:#087d4b!important; }.welcome-title { color:#163c2a!important; }
+.welcome-description { color:#5e7868!important; }
+.filter-bar { background:#fff!important; border:1px solid #dce8df!important; border-radius:16px!important; box-shadow:none!important; }
+.filter-label { color:#365b43!important; }.period-chip { background:#e8f6ed!important;color:#0c7245!important; }
+/* DASHBOARD */
+.stats-grid { gap:16px; }.stat-card { background:#fff!important; border:1px solid #dce8df!important; border-radius:18px!important; min-height:134px; box-shadow:0 6px 18px rgba(20,73,40,.035)!important; }
+.stat-card:hover { border-color:#a8d5b9!important; box-shadow:0 9px 25px rgba(20,73,40,.075)!important; }
+.stat-card-accent { background:#ecf8f0!important; border-color:#b5dfc4!important; }
+.stat-title,.stat-card-accent .stat-title { color:#527463!important; }
+.stat-value,.stat-card-accent .stat-value { color:#153b28!important; font-size:clamp(24px,2.4vw,34px)!important; }
+.stat-note,.stat-card-accent .stat-note { color:#5f856d!important; }
+.stat-icon,.stat-card-accent .stat-icon { background:#e1f4e7!important;color:#087b4b!important; }
+.panel,.students-panel { background:#fff!important; border:1px solid #dce8e0!important; box-shadow:0 7px 25px rgba(25,71,43,.04)!important; border-radius:18px!important; }
+.panel-title { color:#193e2b!important; }.panel-subtitle { color:#617b6a!important; }
+.chart-wrap { min-height:250px; }
+.quick-link { background:#f7faf8!important; border:1px solid #e0ede4!important; color:#183e2b!important; }
+.quick-link-title { color:#1b482f!important; }.quick-link-desc { color:#627e6b!important; }
+.student-table-head,.page-content .MuiTableHead-root { background:#edf7f0!important; }
+.student-table-row:hover,.page-content .MuiTableRow-root:hover .MuiTableCell-body { background:#f2faf5!important; }
+.student-table-wrap,.page-content .MuiTableContainer-root { border-color:#dce9df!important; }
+/* SUBMODULES: readability across Admin / coach / member */
+.page-content .MuiPaper-root:not(.stat-card):not(.stat-card-accent),.page-content .MuiCard-root { background-color:#fff; border-color:#dce8df; }
+.page-content .MuiTypography-root { overflow-wrap:break-word; }
+.page-content .MuiButton-containedPrimary { background:#087f4d;color:#fff!important; }
+.page-content .MuiButton-outlined { border-color:#bddbc7; }
+.page-content .MuiChip-outlined { background:#fff; }
+.page-content .MuiTableCell-head { color:#2e5a3d!important; font-weight:800!important; }
+.MuiMenu-paper,.MuiPopover-paper { background:#fff!important; color:#1b3b2b!important; border:1px solid #e0e9e2!important; box-shadow:0 18px 50px rgba(13,54,31,.12)!important; }
+.MuiMenu-paper .MuiMenuItem-root,.MuiPopover-paper .MuiMenuItem-root { color:#1c3c2b!important; }
+.MuiDialog-paper { background:#fff!important; color:#1a3a29!important; border-radius:17px!important; box-shadow:0 25px 80px rgba(18,55,33,.18)!important; }
+.MuiDialogTitle-root { border-bottom:1px solid #e6eee8!important; }.MuiDialogActions-root { border-top:1px solid #e6eee8!important; }
+.MuiFormLabel-root { color:#526c5d!important; }
+.MuiAlert-root { border-radius:11px!important; }
+.footer { border-top-color:#e0ece4; }
+/* RESPONSIVE: layout and touch targets */
+@media(max-width:899px){
+  .app-shell .MuiDrawer-paper { background:linear-gradient(170deg,#073f30,#0a503b)!important; }
+  .nav-item,.app-shell .MuiDrawer-paper .nav-item { color:#f4fff8!important; }
+  .nav-item.Mui-selected,.nav-item.Mui-selected:hover { color:#075c38!important; background:#dff4e8!important; }
+  .nav-item.Mui-selected .MuiListItemText-primary,.nav-item.Mui-selected .MuiListItemIcon-root,.nav-item.Mui-selected svg { color:#075c38!important; }
+  .topbar-toolbar { min-height:64px!important; gap:8px; padding:8px 13px!important; }
+  .topbar-title { font-size:18px!important; }.topbar-eyebrow { font-size:9px!important; }
+  .page-content { padding:16px 12px 24px; }
+  .notification-button { height:38px;width:38px; }
+  .stats-grid { gap:10px; }.stat-card { min-height:110px; padding:14px!important; }
+  .page-content .MuiButton-root { min-height:36px; }
+  .MuiDialog-paper { margin:14px!important; width:calc(100% - 28px)!important; }
+}
+@media(max-width:550px){
+  .page-content { padding:13px 10px 26px; }.topbar-toolbar { padding:7px 10px!important; }
+  .topbar-title { font-size:17px!important; }.topbar-eyebrow { letter-spacing:.7px!important; }
+  .welcome-title { font-size:23px!important; }
+  .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr));gap:9px; }
+  .stat-card { padding:12px!important; }.stat-value { font-size:23px!important; }
+  .panel { padding:15px!important; }
+  .page-content .MuiPaper-root { max-width:100%; }
+  .page-content .MuiDialogContent-root { padding:15px!important; }
+  .footer { font-size:10px; }
+}
+@media(prefers-reduced-motion:reduce){
+  .nav-item,.stat-card,.quick-link { transition:none!important; transform:none!important; }
+}

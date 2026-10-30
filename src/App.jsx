@@ -32,6 +32,7 @@ import ExamManagement from "./ExamManagement";
 import AttendanceManagement from "./AttendanceManagement";
 import SettingsManagement from "./SettingsManagement";
 import './App.css'
+import './TKDPro.css'
 import HeaderAccount from "./HeaderAccount";
 
 const drawerWidth = 256
@@ -80,11 +81,17 @@ function assignedLocations(profile) {
   return [];
 }
 
-const chartData = [
-  { month: 'T5', members: 720 }, { month: 'T6', members: 765 },
-  { month: 'T7', members: 810 }, { month: 'T8', members: 864 },
-  { month: 'T9', members: 927 }, { month: 'T10', members: 1008 },
-]
+// Số liệu biểu đồ được tổng hợp từ danh sách hội viên đã được phân quyền.
+function getLocationChartData(members) {
+  const counts = new Map();
+  members.forEach(member => {
+    const name = member.location || 'Chưa xác định';
+    counts.set(name, (counts.get(name) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .map(([location, members]) => ({ location, members }))
+    .sort((a, b) => b.members - a.members);
+}
 
 function StatCard({ title, value, note, icon, accent = false }) {
   return (
@@ -325,6 +332,10 @@ useEffect(() => {
 }, [profile?.role, assignedKey, profile?.uid]);
 
 
+  const locationChartData = useMemo(() => getLocationChartData(
+    students.filter(s => location === 'Tất cả điểm tập' || s.location === location)
+  ), [students, location]);
+
   const filteredStudents = useMemo(() => students.filter((student) => {
     const matchesLocation =
       location === 'Tất cả điểm tập' || student.location === location;
@@ -498,7 +509,7 @@ useEffect(() => {
               <Box className="welcome-row">
                 <Box>
                   <Typography className="welcome-kicker">HỆ THỐNG QUẢN LÝ CLB TAEKWONDO</Typography>
-                  <Typography variant="h5" className="welcome-title">Xin chào, HLV Nguyễn Hữu Tài 👋</Typography>
+                  <Typography variant="h5" className="welcome-title">Xin chào, {user.displayName || profile?.tenHienThi || (profile?.role === 'admin' ? 'Quản trị viên' : 'Huấn luyện viên')} 👋</Typography>
                   <Typography className="welcome-description">Theo dõi hoạt động và tình hình câu lạc bộ tại một nơi.</Typography>
                 </Box>
                 {canCreateMember && <Button variant="contained" startIcon={<AddRounded />} className="add-student-button" onClick={() => {
@@ -540,21 +551,25 @@ useEffect(() => {
                   <Paper className="panel chart-panel" elevation={0}>
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
                       <Box>
-                        <Typography className="panel-title">Tăng trưởng hội viên</Typography>
-                        <Typography className="panel-subtitle">Số lượng hội viên trong 6 tháng gần nhất</Typography>
+                        <Typography className="panel-title">Hội viên theo điểm tập</Typography>
+                        <Typography className="panel-subtitle">Dữ liệu thực tế theo điểm tập được phân quyền</Typography>
                       </Box>
-                      <Chip label="2026" className="chart-year-chip" />
+                      <Chip label={`${locationChartData.reduce((sum, row) => sum + row.members, 0).toLocaleString("vi-VN")} hội viên`} className="chart-year-chip" />
                     </Stack>
                     <Box className="chart-wrap">
+                      {locationChartData.length === 0 ? (
+                        <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', color: 'text.secondary' }}>Chưa có dữ liệu hội viên để thống kê</Box>
+                      ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 18, right: 8, left: -18, bottom: 0 }}>
+                        <BarChart data={locationChartData} margin={{ top: 18, right: 8, left: -18, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e9efeb" />
-                          <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#78867d', fontSize: 12 }} />
+                          <XAxis dataKey="location" interval={0} angle={-20} textAnchor="end" height={62} axisLine={false} tickLine={false} tick={{ fill: '#78867d', fontSize: 12 }} />
                           <YAxis axisLine={false} tickLine={false} tick={{ fill: '#78867d', fontSize: 12 }} />
                           <Tooltip cursor={{ fill: '#edf5ef' }} />
-                          <Bar dataKey="members" name="Hội viên" fill="#176b45" radius={[6, 6, 0, 0]} maxBarSize={42} />
+                          <Bar dataKey="members" name="Hội viên" fill="#087d4b" radius={[6, 6, 0, 0]} maxBarSize={42} />
                         </BarChart>
                       </ResponsiveContainer>
+                      )}
                     </Box>
                   </Paper>
 
