@@ -1,0 +1,57 @@
+/* TKD GREEN • PUBLIC TYPOGRAPHY V3
+   Chỉ áp dụng khi App.jsx bọc trang công khai bằng .tkd-public-readability.
+   Không ảnh hưởng phần bản đồ nhúng (iframe). */
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
+
+.tkd-public-readability {
+  font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif !important;
+  font-size: 15px !important;
+  line-height: 1.65 !important;
+  color: #203d32;
+}
+
+/* Ghi đè các font do Material UI và sx inline đặt trên các thành phần con. */
+.tkd-public-readability :is(*, *::before, *::after):not(iframe):not(svg):not(path) {
+  font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif !important;
+}
+
+/* Cỡ chữ hợp lý; áp dụng ngay cả khi JSX dùng Typography sx fontSize. */
+.tkd-public-readability :is(.MuiTypography-body1,.MuiTypography-body2,p,li) {
+  font-size: 14.5px !important;
+  line-height: 1.7 !important;
+  font-weight: 400 !important;
+}
+.tkd-public-readability :is(.MuiTypography-caption,.MuiListItemText-secondary,small) {
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  font-weight: 400 !important;
+}
+.tkd-public-readability :is(.MuiTypography-h4,.MuiTypography-h5,h1,h2) {
+  font-size: clamp(21px,2vw,26px) !important;
+  line-height: 1.35 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+.tkd-public-readability :is(.MuiTypography-h6,h3,h4) {
+  font-size: 19px !important;
+  line-height: 1.4 !important;
+  font-weight: 700 !important;
+}
+.tkd-public-readability :is(.MuiTypography-subtitle1,.MuiListItemText-primary) {
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  line-height: 1.5 !important;
+}
+.tkd-public-readability :is(.MuiTypography-subtitle2,strong,b) {
+  font-weight: 650 !important;
+}
+.tkd-public-readability :is(.MuiButton-root,.MuiInputBase-input) {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+.tkd-public-readability .MuiListItemButton-root { min-height: 56px; }
+@media(max-width:650px){
+  .tkd-public-readability :is(.MuiTypography-body1,.MuiTypography-body2,p,li) {font-size:14px!important;}
+  .tkd-public-readability :is(.MuiTypography-caption,.MuiListItemText-secondary,small) {font-size:12.5px!important;}
+}

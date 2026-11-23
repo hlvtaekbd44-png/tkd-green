@@ -47,6 +47,7 @@ import './App.css'
 import './TKDPro.css'
 import './TKDFontReadability.css'
 import HeaderAccount from "./HeaderAccount";
+import "./TKDPublicReadability.css";
 
 const drawerWidth = 256
 
@@ -231,7 +232,7 @@ function MemberPortalLayout({ profile, user }) {
       {visiblePage === 'Tổng quan'
         ? <MemberDashboard member={member} profile={profile} navigate={setPage} enabled={Object.fromEntries(items.map(x => [x.label, true]))} />
         : visiblePage === 'Giới thiệu'
-        ? <MemberContentFrame title="Giới thiệu"><PublicLocationIntroduction embedded /></MemberContentFrame>
+        ? <MemberContentFrame title="Giới thiệu"><Box className="tkd-public-readability"><PublicLocationIntroduction embedded /></Box></MemberContentFrame>
         : visiblePage === 'Báo cáo'
         ? <MemberDashboard member={member} profile={profile} navigate={setPage} enabled={Object.fromEntries(items.map(x => [x.label, true]))} />
         : visiblePage === 'Thành tích'
@@ -414,7 +415,7 @@ useEffect(() => {
   }
 
   if (!user) {
-    return <PublicHome />;
+    return <Box className="tkd-public-readability"><PublicHome /></Box>;
   }
 
   if (!profile) {
@@ -599,7 +600,7 @@ useEffect(() => {
             )}
 
             {activePage === 'Giới thiệu' ? (
-              <PublicLocationIntroduction embedded />
+              <Box className="tkd-public-readability"><PublicLocationIntroduction embedded /></Box>
             ) : activePage === 'Thành tích' ? (
               <AchievementManagement profile={profile} students={students} />
             ) : activePage === 'Sự kiện' || activePage === 'Đào tạo' ? (
