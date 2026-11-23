@@ -232,7 +232,7 @@ function MemberPortalLayout({ profile, user }) {
       {visiblePage === 'Tổng quan'
         ? <MemberDashboard member={member} profile={profile} navigate={setPage} enabled={Object.fromEntries(items.map(x => [x.label, true]))} />
         : visiblePage === 'Giới thiệu'
-        ? <MemberContentFrame title="Giới thiệu"><Box className="tkd-public-readability"><PublicLocationIntroduction embedded /></Box></MemberContentFrame>
+        ? <MemberContentFrame title="Giới thiệu"><PublicLocationIntroduction embedded /></MemberContentFrame>
         : visiblePage === 'Báo cáo'
         ? <MemberDashboard member={member} profile={profile} navigate={setPage} enabled={Object.fromEntries(items.map(x => [x.label, true]))} />
         : visiblePage === 'Thành tích'
@@ -296,10 +296,29 @@ const assignedPoints = useMemo(() => {
   }))];
 }, [profile, clubLocations]);
 const assignedKey = assignedPoints.join('\u0001');
-const availableLocations = useMemo(() => [
-  'Tất cả điểm tập',
-  ...namesForProfile(clubLocations, profile, { activeOnly: false }),
-], [clubLocations, profile]);
+// TKD_GREEN_ADMIN_LOCATION_FILTER_FIX
+// Admin phải nhìn thấy mọi điểm tập đang quản lý, kể cả điểm tập chưa có hội viên.
+// Nếu danh sách locations thiếu/sai quyền đọc, bổ sung tên điểm tập từ hồ sơ hội viên
+// đã được Admin đọc, tránh bộ lọc chỉ còn "Tất cả điểm tập".
+// Không dùng dữ liệu hội viên của Admin làm nguồn cho HLV: HLV vẫn theo phân quyền.
+const availableLocations = useMemo(() => {
+  if (profile?.role === 'admin') {
+    const fromConfig = (Array.isArray(clubLocations) ? clubLocations : [])
+      .filter(item => item && item.deleted !== true)
+      .map(item => typeof item === 'string' ? item : item.name)
+      .filter(name => typeof name === 'string' && name.trim())
+      .map(name => name.trim());
+    const fromMembers = students
+      .map(item => item.location)
+      .filter(name => typeof name === 'string' && name.trim())
+      .map(name => name.trim());
+    const uniqueNames = [...new Set([...fromConfig, ...fromMembers])]
+      .sort((a, b) => a.localeCompare(b, 'vi'));
+    return ['Tất cả điểm tập', ...uniqueNames];
+  }
+  return ['Tất cả điểm tập',
+    ...namesForProfile(clubLocations, profile, { activeOnly: false })];
+}, [clubLocations, profile, students]);
 
 // Không giữ bộ lọc điểm tập cũ khi chuyển sang tài khoản HLV khác.
 useEffect(() => {
@@ -415,7 +434,7 @@ useEffect(() => {
   }
 
   if (!user) {
-    return <Box className="tkd-public-readability"><PublicHome /></Box>;
+    return <PublicHome />;
   }
 
   if (!profile) {
@@ -600,7 +619,7 @@ useEffect(() => {
             )}
 
             {activePage === 'Giới thiệu' ? (
-              <Box className="tkd-public-readability"><PublicLocationIntroduction embedded /></Box>
+              <PublicLocationIntroduction embedded />
             ) : activePage === 'Thành tích' ? (
               <AchievementManagement profile={profile} students={students} />
             ) : activePage === 'Sự kiện' || activePage === 'Đào tạo' ? (
