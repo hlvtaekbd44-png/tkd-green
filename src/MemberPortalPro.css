@@ -1,0 +1,24 @@
+/* TKD GREEN - Member / Parent Portal 2026. Scope isolated to portal. */
+.tkdm-portal{display:grid;gap:18px;font-family:Inter,"Segoe UI",Arial,sans-serif;color:#193B2B;min-width:0;padding-bottom:18px}
+.tkdm-portal .tkdm-hero{background:linear-gradient(115deg,#064631 0%,#087B50 78%,#109B69 100%);padding:28px 30px;border-radius:22px;overflow:hidden;position:relative;color:white;box-shadow:0 14px 34px #0b664421}
+.tkdm-portal .tkdm-hero-pattern{position:absolute;width:270px;height:270px;right:-60px;top:-90px;border:45px solid #ffffff10;border-radius:50%;pointer-events:none}
+.tkdm-portal .tkdm-eyebrow{font-size:11px;letter-spacing:1.8px;font-weight:800;color:#BCE8D2;position:relative}
+.tkdm-portal .tkdm-avatar{height:64px;width:64px;background:#ffffff29;border:2px solid #ffffff6b;font-weight:900;font-size:27px;color:white;flex-shrink:0}
+.tkdm-portal .tkdm-hero-name{font-size:clamp(21px,3vw,31px);font-weight:850;line-height:1.22;color:white;overflow-wrap:anywhere}
+.tkdm-portal .tkdm-hero-note{margin-top:19px;position:relative;font-size:13px;color:#DEF2E7;max-width:650px}
+.tkdm-portal .tkdm-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.tkdm-portal .tkdm-cards-two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tkdm-portal .tkdm-metric,.tkdm-portal .tkdm-panel{padding:24px;border:1px solid #DFEAE2;background:#fff;border-radius:18px;box-shadow:0 5px 20px #163a2807;background-image:none}
+.tkdm-portal .tkdm-metric-head{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#527261;font-size:13px;font-weight:750}
+.tkdm-portal .tkdm-metric-head svg{color:#098356;font-size:24px}
+.tkdm-portal .tkdm-metric-value{font-size:clamp(18px,2.3vw,24px);line-height:1.3;margin:14px 0 5px;font-weight:850;color:#153E2B;overflow-wrap:anywhere}
+.tkdm-portal .tkdm-panel-icon{display:grid;place-items:center;width:40px;height:40px;background:#E9F6EE;color:#087D4B;border-radius:12px;flex-shrink:0}
+.tkdm-portal .tkdm-section-title{font-size:18px;font-weight:850;color:#183F2C}
+.tkdm-portal .tkdm-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tkdm-portal .tkdm-info-cell{background:#F6FAF7;border:1px solid #E8F0E9;border-radius:12px;padding:13px 15px;min-width:0;overflow-wrap:anywhere}
+.tkdm-portal .tkdm-history-item{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border:1px solid #DFE9E2;background:#FCFEFD;border-radius:12px;padding:16px;margin:10px 0}
+.tkdm-portal .tkdm-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;min-height:130px;background:#F7FBF8;border:1px dashed #CFDFD4;border-radius:13px;color:#698172;padding:16px}
+.tkdm-portal .tkdm-empty svg{font-size:34px;color:#70AD8B}
+@media(max-width:900px){.tkdm-portal .tkdm-info-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.tkdm-portal{gap:12px}.tkdm-portal .tkdm-hero{border-radius:17px;padding:22px 18px}.tkdm-portal .tkdm-avatar{height:54px;width:54px;font-size:23px}.tkdm-portal .tkdm-cards,.tkdm-portal .tkdm-cards-two{grid-template-columns:1fr;gap:11px}.tkdm-portal .tkdm-metric,.tkdm-portal .tkdm-panel{padding:18px;border-radius:15px}.tkdm-portal .tkdm-info-grid{grid-template-columns:1fr 1fr;gap:9px}.tkdm-portal .tkdm-info-cell{padding:11px}.tkdm-portal .tkdm-history-item{align-items:flex-start}}
+@media(max-width:360px){.tkdm-portal .tkdm-info-grid{grid-template-columns:1fr}}

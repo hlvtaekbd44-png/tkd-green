@@ -1,369 +1,152 @@
+import { auth, db } from './firebase';
+import { collection, doc, getDocs, query, where, runTransaction, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { createMemberWithAutoId } from './memberIdService';
+import { getBeltAppearance, normalizeBeltLevel } from './BeltBadge';
+import { normalizeEducationLevel } from './educationLevels';
 
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { db } from "./firebase";
-import { createMemberWithAutoId } from "./memberIdService";
-
-export const IMPORT_COLUMNS = [
-  "Họ và tên",
-  "Ngày sinh",
-  "Giới tính",
-  "Mã VTF",
-  "Điểm tập",
-  "Cấp đai",
-  "Màu đai",
-  "SĐT phụ huynh",
-  "Ngày bắt đầu",
-  "Ngày hết hạn",
-  "Loại học phí",
-  "Trạng thái",
-  "Ghi chú",
-];
-
-const LOCATIONS = [
-  "Lê Văn Tám",
-  "Nghĩa Trung",
-  "Đồng Tâm",
-  "Thôn 6",
-  "Phước Sơn",
-  "Minh Hưng",
-];
-
-const TUITION_TYPES = ["Ngày", "Tháng", "Quý"];
-
-const MEMBER_STATUSES = [
-  "Đang học",
-  "Tạm nghỉ",
-  "Nghỉ học",
-];
-
-export function normalizeText(value) {
-  return String(value ?? "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLocaleLowerCase("vi");
-}
-
+export const OPTIONAL_IMPORT_COLUMNS = ['Mã VTF','SĐT phụ huynh','Ngày bắt đầu','Ngày hết hạn','Loại học phí'];
+export const IMPORT_COLUMNS = ['Họ và tên','Ngày sinh','Giới tính','Trình độ văn hóa','Mã VTF','Điểm tập','Cấp đai','SĐT phụ huynh','Ngày bắt đầu','Ngày hết hạn','Loại học phí','Trạng thái','Ghi chú'];
+const FIELD_MAP = {
+  'Họ và tên':'hoTen', 'Ngày sinh':'ngaySinh', 'Giới tính':'gioiTinh',
+  'Trình độ văn hóa':'trinhDoVanHoa', 'Mã VTF':'maHV', 'Điểm tập':'diemTap',
+  'Cấp đai':'capDaiDang', 'SĐT phụ huynh':'soDienThoaiPhuHuynh',
+  'Ngày bắt đầu':'ngayBatDau','Ngày hết hạn':'ngayHetHan',
+  'Loại học phí':'loaiHocPhi','Trạng thái':'trangThai','Ghi chú':'ghiChu',
+};
+const DATE_FIELDS = new Set(['ngaySinh','ngayBatDau','ngayHetHan']);
+const TEXT_FIELDS = Object.keys(FIELD_MAP).map(k=>FIELD_MAP[k]);
+export const LABELS = Object.fromEntries(Object.entries(FIELD_MAP).map(([k,v])=>[v,k]));
+export const normalizeText = v => String(v ?? '').trim().replace(/\s+/g,' ').toLocaleLowerCase('vi');
 export function normalizeDate(value) {
-  if (value === null || value === undefined || value === "") {
-    return "";
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value < 1 || value > 2958465) return 'Ngày không hợp lệ';
+    return new Date(Date.UTC(1899,11,30)+Math.floor(value)*86400000).toISOString().slice(0,10);
   }
-
-  // Ngày Excel dạng số.
-  if (typeof value === "number") {
-    if (
-      !Number.isFinite(value) ||
-      value < 1 ||
-      value > 2958465
-    ) {
-      return "Ngày không hợp lệ";
-    }
-
-    const date = new Date(
-      Date.UTC(1899, 11, 30) +
-      Math.floor(value) * 86400000
-    );
-
-    return date.toISOString().slice(0, 10);
-  }
-
-  // Ngày dạng đối tượng Date.
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) {
-      return "Ngày không hợp lệ";
-    }
-
-    return [
-      value.getFullYear(),
-      String(value.getMonth() + 1).padStart(2, "0"),
-      String(value.getDate()).padStart(2, "0"),
-    ].join("-");
-  }
-
-  const text = String(value).trim();
-
-  // Ngày Việt Nam: dd/mm/yyyy.
-  const matchVN = text.match(
-    /^(\d{2})\/(\d{2})\/(\d{4})$/
-  );
-
-  if (matchVN) {
-    const [, day, month, year] = matchVN;
-    return `${year}-${month}-${day}`;
-  }
-
-  // Ngày ISO: yyyy-mm-dd.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    return text;
-  }
-
-  return text;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? 'Ngày không hợp lệ' : [value.getFullYear(),String(value.getMonth()+1).padStart(2,'0'),String(value.getDate()).padStart(2,'0')].join('-');
+  const s = String(value).trim();
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}` : s;
 }
-
-export function formatDateVN(value) {
-  if (!value) return "";
-
-  const normalized = normalizeDate(value);
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-    const [year, month, day] = normalized.split("-");
-    return `${day}/${month}/${year}`;
+export function formatDateVN(v) { const s=normalizeDate(v); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split('-').reverse().join('/') : String(v||''); }
+function validDate(s){if(!s)return true;if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const d=new Date(s+'T00:00:00Z');return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===s;}
+const key = (vtf,loc) => `${normalizeText(vtf)}\u0001${normalizeText(loc)}`;
+const identityKey = (m) => `${normalizeText(m.hoTen||m.name)}\u0001${normalizeDate(m.ngaySinh)}\u0001${normalizeText(m.diemTap||m.location)}`;
+const valueFor = (field,v) => DATE_FIELDS.has(field) ? normalizeDate(v) : normalizeText(v);
+function parseMember(raw) {
+  const supplied = {};
+  const member = {};
+  for (const [column,field] of Object.entries(FIELD_MAP)) {
+    const rawValue=raw[column];
+    supplied[field] = rawValue !== null && rawValue !== undefined && String(rawValue).trim() !== '';
+    member[field] = DATE_FIELDS.has(field) ? normalizeDate(rawValue) : String(rawValue ?? '').trim();
   }
-
-  return String(value);
+  member.trinhDoVanHoa = supplied.trinhDoVanHoa ? normalizeEducationLevel(raw['Trình độ văn hóa']) : '';
+  member.capDaiDang = supplied.capDaiDang ? (normalizeBeltLevel(raw['Cấp đai']) || String(raw['Cấp đai']).trim()) : '';
+  return {member,supplied};
 }
-
-function validDate(value) {
-  if (!value) return true;
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const date = new Date(`${value}T00:00:00Z`);
-
-  return (
-    !Number.isNaN(date.getTime()) &&
-    date.toISOString().slice(0, 10) === value
-  );
+function compare(existing, member, supplied){
+  return TEXT_FIELDS.filter(field => field !== 'diemTap' && field !== 'maHV' && supplied[field] && valueFor(field,existing[field]) !== valueFor(field,member[field])).map(field=>({field,label:LABELS[field],before:String(existing[field]??''),after:String(member[field]??'')}));
 }
-
-export function makeIdentity(member) {
-  return [
-    normalizeText(member.hoTen ?? member.name),
-    normalizeDate(member.ngaySinh),
-  ].join("|");
+// Lấy hồ sơ nguyên bản từ Firestore (không dùng students rút gọn của App.jsx).
+// HLV: chỉ truy vấn những điểm tập được cấp quyền; Rules cần cho phép read/list.
+export async function loadExistingForImport(profile, allowedLocations){
+  if(!profile?.role) throw new Error('Chưa xác định tài khoản.');
+  if(profile.role==='admin') {
+    const snap=await getDocs(collection(db,'members'));
+    return snap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+  if(profile.role!=='hlv') throw new Error('Không được nhập hội viên.');
+  const allowed=[...new Set(allowedLocations)];
+  const all=[];
+  for(let i=0;i<allowed.length;i+=30){
+    const snap=await getDocs(query(collection(db,'members'),where('diemTap','in',allowed.slice(i,i+30))));
+    snap.docs.forEach(d=>all.push({id:d.id,...d.data()}));
+  }
+  return all;
 }
-
-// Kiểm tra quyền thêm hội viên.
-// Đây là kiểm tra phía giao diện;
-// Firestore Rules vẫn phải xác thực quyền ghi.
-export function canImportAtLocation(profile, location) {
-  if (!profile) return false;
-
-  if (profile.role === "admin") {
-    return true;
+export function validateImportRows(rawRows, existingMembers=[], locationNames=[]){
+  const allowed=new Map(locationNames.map(n=>[normalizeText(n),n]));
+  const vtfMap=new Map(), identityMap=new Map();
+  for(const x of existingMembers){
+    if(x.maHV){const k=normalizeText(x.maHV);vtfMap.set(k,[...(vtfMap.get(k)||[]),x]);}
+    if(x.hoTen && x.ngaySinh){const k=identityKey(x);identityMap.set(k,[...(identityMap.get(k)||[]),x]);}
   }
-
-  if (profile.role !== "hlv") {
-    return false;
-  }
-
-  if (profile.permissions?.members?.create !== true) {
-    return false;
-  }
-
-  const assignedLocations = Array.isArray(profile.diemTap)
-    ? profile.diemTap
-    : [];
-
-  if (!assignedLocations.includes(location)) {
-    return false;
-  }
-
-  const locationPermissions =
-    profile.locationPermissions?.members;
-
-  // Nếu cấu hình quyền theo điểm tập chưa được xác định,
-  // không tự động cấp thêm quyền.
-  if (!locationPermissions) {
-    return false;
-  }
-
-  if (Array.isArray(locationPermissions)) {
-    return locationPermissions.includes(location);
-  }
-
-  if (typeof locationPermissions === "object") {
-    const value = locationPermissions[location];
-
-    return (
-      value === true ||
-      value?.create === true
-    );
-  }
-
-  return false;
-}
-
-export function validateImportRows(
-  rawRows,
-  existingMembers = [],
-  profile = null
-) {
-  const existingVtf = new Set();
-  const existingIdentity = new Set();
-
-  existingMembers.forEach((member) => {
-    const vtf = normalizeText(member.maHV);
-
-    if (vtf) {
-      existingVtf.add(vtf);
-    }
-
-    if (member.hoTen || member.name) {
-      existingIdentity.add(makeIdentity(member));
-    }
-  });
-
-  const seenVtf = new Set();
-  const seenIdentity = new Set();
-
-  return rawRows.map((raw, index) => {
-    const member = {
-      hoTen: String(raw["Họ và tên"] ?? "").trim(),
-      ngaySinh: normalizeDate(raw["Ngày sinh"]),
-      gioiTinh: String(raw["Giới tính"] ?? "").trim(),
-      maHV: String(raw["Mã VTF"] ?? "").trim(),
-      diemTap: String(raw["Điểm tập"] ?? "").trim(),
-      capDaiDang:
-        String(raw["Cấp đai"] ?? "").trim() || "Cấp 10",
-      mauDai:
-        String(raw["Màu đai"] ?? "").trim() || "Trắng",
-      soDienThoaiPhuHuynh: String(
-        raw["SĐT phụ huynh"] ?? ""
-      ).trim(),
-      ngayBatDau: normalizeDate(raw["Ngày bắt đầu"]),
-      ngayHetHan: normalizeDate(raw["Ngày hết hạn"]),
-      loaiHocPhi: String(
-        raw["Loại học phí"] ?? ""
-      ).trim(),
-      trangThai:
-        String(raw["Trạng thái"] ?? "").trim() ||
-        "Đang học",
-      ghiChu: String(raw["Ghi chú"] ?? "").trim(),
-    };
-
-    const errors = [];
-    const vtf = normalizeText(member.maHV);
-    const identity = makeIdentity(member);
-
-    if (!member.hoTen) {
-      errors.push("Thiếu họ tên");
-    }
-
-    if (!LOCATIONS.includes(member.diemTap)) {
-      errors.push("Điểm tập không hợp lệ");
-    }
-
-    if (!member.ngayBatDau) {
-      errors.push("Thiếu ngày bắt đầu");
-    }
-
-    for (const field of [
-      "ngaySinh",
-      "ngayBatDau",
-      "ngayHetHan",
-    ]) {
-      if (!validDate(member[field])) {
-        errors.push(`Ngày không hợp lệ: ${field}`);
+  const seenVtf=new Set(),seenIdentity=new Set();
+  return rawRows.map((raw,index)=>{
+    const {member,supplied}=parseMember(raw);
+    const errors=[];
+    if(!member.hoTen)errors.push('Thiếu họ và tên');
+    if(!allowed.has(normalizeText(member.diemTap)))errors.push('Điểm tập không hoạt động hoặc không được cấp quyền');
+    else member.diemTap=allowed.get(normalizeText(member.diemTap));
+    if(member.trinhDoVanHoa===null)errors.push('Trình độ văn hóa không hợp lệ');
+    if(supplied.capDaiDang && !getBeltAppearance(member.capDaiDang))errors.push('Cấp đai không hợp lệ');
+    for(const f of DATE_FIELDS)if(!validDate(member[f])) errors.push(`Ngày không hợp lệ: ${LABELS[f]}`);
+    if(supplied.loaiHocPhi && !['Ngày','Tháng','Quý'].includes(member.loaiHocPhi))errors.push('Loại học phí chỉ nhận Ngày, Tháng, Quý');
+    const v=normalizeText(member.maHV);
+    const idKey=identityKey(member);
+    if(v && seenVtf.has(v))errors.push('Mã VTF xuất hiện nhiều lần trong file; chỉ giữ một dòng');
+    if(!v && member.ngaySinh && seenIdentity.has(idKey))errors.push('Hồ sơ không có VTF bị lặp trong file');
+    if(v)seenVtf.add(v);
+    if(member.ngaySinh)seenIdentity.add(idKey);
+    const candidates=v?(vtfMap.get(v)||[]):(member.ngaySinh?(identityMap.get(idKey)||[]):[]);
+    let action='create',existingId='',changes=[];
+    if(candidates.length>1)errors.push('Có nhiều hồ sơ trùng khóa trong Firebase; cần xử lý thủ công');
+    else if(candidates.length===1){
+      const old=candidates[0];
+      if(normalizeText(old.diemTap||old.location)!==normalizeText(member.diemTap)) errors.push('Mã VTF đã thuộc điểm tập khác; không tự chuyển điểm tập');
+      else if(!v) errors.push('Trùng họ tên/ngày sinh nhưng chưa có VTF; kiểm tra thủ công');
+      else {
+        existingId=old.id;
+        changes=compare(old,member,supplied);
+        action=changes.length?'update':'skip';
       }
+    } else if(member.ngaySinh && (identityMap.get(idKey)||[]).length>0){
+      errors.push('Trùng họ tên/ngày sinh với hồ sơ khác; đối chiếu mã VTF trước');
     }
-
-    if (
-      member.ngayBatDau &&
-      member.ngayHetHan &&
-      validDate(member.ngayBatDau) &&
-      validDate(member.ngayHetHan) &&
-      member.ngayHetHan < member.ngayBatDau
-    ) {
-      errors.push("Ngày hết hạn trước ngày bắt đầu");
-    }
-
-    if (
-      !TUITION_TYPES.includes(member.loaiHocPhi)
-    ) {
-      errors.push(
-        "Loại học phí phải là Ngày, Tháng hoặc Quý"
-      );
-    }
-
-    if (
-      !MEMBER_STATUSES.includes(member.trangThai)
-    ) {
-      errors.push("Trạng thái không hợp lệ");
-    }
-
-    if (
-      vtf &&
-      (existingVtf.has(vtf) || seenVtf.has(vtf))
-    ) {
-      errors.push("Trùng mã VTF");
-    }
-
-    if (
-      member.hoTen &&
-      member.ngaySinh &&
-      (
-        existingIdentity.has(identity) ||
-        seenIdentity.has(identity)
-      )
-    ) {
-      errors.push("Trùng họ tên và ngày sinh");
-    }
-
-    if (vtf) {
-      seenVtf.add(vtf);
-    }
-
-    if (member.hoTen && member.ngaySinh) {
-      seenIdentity.add(identity);
-    }
-
-    if (
-      profile &&
-      !canImportAtLocation(profile, member.diemTap)
-    ) {
-      errors.push(
-        "Không có quyền thêm hội viên tại điểm tập này"
-      );
-    }
-
-    return {
-      rowNumber: index + 2,
-      member,
-      errors,
-      valid: errors.length === 0,
-    };
+    if(errors.length) action='error';
+    return {rowNumber:index+2,member,supplied,existingId,changes,action,errors,valid:action!=='error'};
   });
 }
-
-export async function importOneMember(
-  member,
-  profile = null
-) {
-  // Kiểm tra quyền trước khi ghi.
-  if (
-    profile &&
-    !canImportAtLocation(profile, member.diemTap)
-  ) {
-    throw new Error(
-      "Tài khoản không có quyền thêm hội viên tại " +
-      member.diemTap
-    );
+export async function importOneMember(member, profile){
+  if (!auth.currentUser?.uid) throw new Error('Bạn cần đăng nhập để nhập hội viên');
+  if (profile?.role !== 'admin' && !(profile?.role === 'hlv' && profile?.permissions?.members?.create === true)) {
+    throw new Error('Tài khoản chưa có quyền thêm hội viên');
   }
-
-  // Kiểm tra lại mã VTF trước khi ghi.
-  if (member.maHV) {
-    const existing = await getDocs(
-      query(
-        collection(db, "members"),
-        where("maHV", "==", member.maHV)
-      )
-    );
-
-    if (!existing.empty) {
-      throw new Error(
-        `Mã VTF ${member.maHV} đã tồn tại.`
-      );
-    }
+  // Đối chiếu lại trước khi tạo vì dữ liệu có thể đổi sau lúc xem trước.
+  // Với HLV chỉ được đọc đúng phạm vi Rules; để chặn trùng mã toàn hệ thống
+  // khi HLV không có quyền đọc điểm khác cần kiểm tra duy nhất ở backend.
+  if(member.maHV){
+    const matches=await getDocs(profile?.role === 'hlv'
+      ? query(collection(db,'members'),where('diemTap','==',member.diemTap))
+      : query(collection(db,'members'),where('maHV','==',member.maHV)));
+    if(matches.docs.some(d=>normalizeText(d.data().maHV)===normalizeText(member.maHV)))throw new Error('Mã VTF đã tồn tại sau bước xem trước; hãy tải lại file và đối chiếu.');
   }
-
-  // Giữ nguyên cơ chế cấp mã nội bộ hiện tại.
-  return createMemberWithAutoId(member);
+  return createMemberWithAutoId({
+    ...member, capDaiDang:member.capDaiDang||'Cấp 10',
+    trangThai:member.trangThai||'Đang học',
+    ...(member.capDaiDang ? {mauDai:getBeltAppearance(member.capDaiDang)?.name||''} : {}),
+  });
+}
+export async function updateExistingFromImport(row, allowedLocations, profile){
+  if(row.action!=='update'||!row.existingId)throw new Error('Dòng không hợp lệ để cập nhật');
+  if(!auth.currentUser?.uid)throw new Error('Bạn cần đăng nhập');
+  if(profile?.role !== 'admin' && !(profile?.role === 'hlv' && profile?.permissions?.members?.edit === true)) throw new Error('Tài khoản chưa có quyền sửa Hội viên');
+  const ref=doc(db,'members',row.existingId);
+  return runTransaction(db,async tx=>{
+    const snap=await tx.get(ref);
+    if(!snap.exists())throw new Error('Hồ sơ hội viên không còn tồn tại');
+    const old=snap.data();
+    if(!allowedLocations.some(n=>normalizeText(n)===normalizeText(old.diemTap)) || normalizeText(old.diemTap)!==normalizeText(row.member.diemTap)) throw new Error('Điểm tập đã thay đổi hoặc ngoài phạm vi quyền');
+    if(normalizeText(old.maHV)!==normalizeText(row.member.maHV))throw new Error('Mã VTF đã thay đổi trong lúc xử lý; hãy tải lại');
+    const changes=compare(old,row.member,row.supplied);
+    if(!changes.length)return {action:'skip',id:ref.id};
+    const patch=Object.fromEntries(changes.map(c=>[c.field,row.member[c.field]]));
+    if(changes.some(c=>c.field==='capDaiDang'))patch.mauDai=getBeltAppearance(row.member.capDaiDang)?.name||old.mauDai||'';
+    const event={type:'excel_import',at:new Date().toISOString(),byUid:auth.currentUser.uid,
+      byEmail:auth.currentUser.email||'',vtf:old.maHV||'',fileRow:row.rowNumber,
+      fields:changes.map(c=>({field:c.field,label:c.label,before:c.before,after:c.after}))};
+    tx.update(ref,{...patch,updatedAt:serverTimestamp(),lichSuDieuChinh:arrayUnion(event)});
+    return {action:'update',id:ref.id,changes};
+  });
 }

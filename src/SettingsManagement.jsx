@@ -1,4 +1,6 @@
+import AccountManagement from "./AccountManagement";
 import LocationManagement from "./LocationManagement";
+import PrintNoticeSettings from "./PrintNoticeSettings";
 import { useEffect, useMemo, useState } from "react";
 import { collection, doc, onSnapshot, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
@@ -11,10 +13,12 @@ const MODULES = [
   { key: "members", label: "Hội viên", actions: [["view", "Xem"], ["create", "Thêm"], ["edit", "Sửa"], ["delete", "Xóa"]] },
   { key: "tuition", label: "Học phí", actions: [["view", "Xem"], ["collect", "Thu học phí"]] },
   { key: "exams", label: "Thi cấp", actions: [["view", "Xem"], ["manage", "Quản lý"]] },
+  { key: "dan", label: "Thi đẳng", actions: [["view", "Xem"], ["manage", "Quản lý"]] },
+  { key: "achievements", label: "Thành tích", actions: [["view", "Xem"], ["create", "Thêm"], ["edit", "Sửa"], ["delete", "Xóa"]] },
   { key: "attendance", label: "Điểm danh", actions: [["view", "Xem"], ["manage", "Điểm danh"]] },
   { key: "reports", label: "Báo cáo", actions: [["view", "Xem"]] },
 ];
-const LOCATION_MODULES = ["members", "tuition", "exams", "attendance", "reports"];
+const LOCATION_MODULES = ["members", "tuition", "exams", "dan", "achievements", "attendance", "reports"];
 const blankPermissions = () => Object.fromEntries(MODULES.map(m => [m.key, Object.fromEntries(m.actions.map(([action]) => [action, false]))]));
 const blankLocations = () => Object.fromEntries(LOCATION_MODULES.map(key => [key, []]));
 
@@ -131,7 +135,7 @@ export default function SettingsManagement({ profile }) {
     setBusy(true); setError(""); setSuccess("");
     try {
       const allowed = Object.fromEntries(LOCATION_MODULES.map(key => [key, locationPermissions[key].filter(x => locationNames.includes(x))]));
-      const p = structuredClone(permissions);
+      const p = { ...(coach.permissions || {}), ...structuredClone(permissions) };
       // Quyền xem là điều kiện tiên quyết cho quyền thao tác.
       for (const m of MODULES) if (!p[m.key].view) for (const action of Object.keys(p[m.key])) p[m.key][action] = false;
       // App.jsx đọc profile.diemTap để truy vấn collection members.
@@ -158,8 +162,10 @@ export default function SettingsManagement({ profile }) {
     <Stack direction="row" spacing={1}>
       <Button variant={settingsTab === "locations" ? "contained" : "outlined"} onClick={() => setSettingsTab("locations")}>Quản lý điểm tập</Button>
       <Button variant={settingsTab === "coaches" ? "contained" : "outlined"} onClick={() => setSettingsTab("coaches")}>Phân quyền HLV</Button>
+      <Button variant={settingsTab === "accounts" ? "contained" : "outlined"} onClick={() => setSettingsTab("accounts")}>Quản lý tài khoản</Button>
+      <Button variant={settingsTab === "print" ? "contained" : "outlined"} onClick={() => setSettingsTab("print")}>Thông tin phiếu in</Button>
     </Stack>
-    {settingsTab === "locations" ? <LocationManagement /> : <>
+    {settingsTab === "locations" ? <LocationManagement /> : settingsTab === "accounts" ? <AccountManagement profile={profile} /> : settingsTab === "print" ? <PrintNoticeSettings profile={profile} /> : <>
     <Alert severity="info">Tạo HLV bằng tên đăng nhập và mật khẩu; tài khoản mới chưa có quyền nào cho đến khi Admin cấp. Chức năng phân quyền cần được bảo vệ bằng Firestore Rules.</Alert>
     <Paper sx={{ p: 3, borderRadius: 3 }}>
       <Button variant="outlined" onClick={() => setCreateOpen(v => !v)} disabled={creating}>

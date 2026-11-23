@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import useRetainedFilter from "./useRetainedFilter";
+import { useMemo, useState } from "react";
 import {
-  Alert, Avatar, Box, Button, Chip, Divider, FormControl, InputAdornment,
-  IconButton, Menu, MenuItem, Pagination, Paper, Select, Stack, TextField, Tooltip, Typography,
+  Alert, Avatar, Box, Button, Chip, Divider, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Menu, Tooltip,
+  MenuItem, Paper, Stack, TextField, Typography,
 } from "@mui/material";
 import AddRounded from "@mui/icons-material/AddRounded";
 import EditRounded from "@mui/icons-material/EditRounded";
@@ -14,15 +15,19 @@ import PauseCircleOutlineRounded from "@mui/icons-material/PauseCircleOutlineRou
 import PersonOffRounded from "@mui/icons-material/PersonOffRounded";
 import FilterAltOffRounded from "@mui/icons-material/FilterAltOffRounded";
 import MemberProfile from "./MemberProfile";
-import ImportMembers from "./ImportMembers";
-import MemberAccountDialog from "./MemberAccountDialog";
-import DeleteMemberDialog from "./DeleteMemberDialog";
-import PersonAddAlt1Rounded from "@mui/icons-material/PersonAddAlt1Rounded";
+import PaymentsRounded from "@mui/icons-material/PaymentsRounded";
 import MoreVertRounded from "@mui/icons-material/MoreVertRounded";
+import ManageAccountsRounded from "@mui/icons-material/ManageAccountsRounded";
 import DeleteForeverRounded from "@mui/icons-material/DeleteForeverRounded";
+import { accountRequest } from "./accountApi";
+import MemberAccountDialog from "./MemberAccountDialog";
 import BeltBadge from "./BeltBadge";
+import ImportMembers from "./ImportMembers";
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const isQuitMember = m => ['nghi hoc','da nghi','nghi','ngung hoc'].includes(
+  String(m?.status ?? m?.trangThai ?? '').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ')
+);
 const ALL = "Tất cả";
 const cellSx = { minWidth: 0, overflowWrap: "anywhere" };
 
@@ -65,18 +70,48 @@ export default function MemberList({
   locations = [],
   onAdd,
   onEdit,
+  onCollectTuition,
   profile,
 }) {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState(ALL);
-  const [beltFilter, setBeltFilter] = useState(ALL);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useRetainedFilter(`tkd-green:${profile?.uid || profile?.email || 'guest'}:members:search`, "");
+  const [statusFilter, setStatusFilter] = useRetainedFilter(`tkd-green:${profile?.uid || profile?.email || 'guest'}:members:statusFilter`, ALL);
+  const [beltFilter, setBeltFilter] = useRetainedFilter(`tkd-green:${profile?.uid || profile?.email || 'guest'}:members:beltFilter`, ALL);
   const [viewMember, setViewMember] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [actionMenu, setActionMenu] = useState(null);
   const [accountMember, setAccountMember] = useState(null);
   const [deleteMember, setDeleteMember] = useState(null);
-  const [actionMenu, setActionMenu] = useState({ anchorEl: null, member: null });
+  const [confirmCode, setConfirmCode] = useState("");
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteSuccess, setDeleteSuccess] = useState("");
+  const isAdmin = profile?.role === "admin";
+  const closeMenu = () => setActionMenu(null);
+  const openAccount = (student) => { closeMenu(); if (isAdmin) setAccountMember(student); };
+  const openDelete = (student) => {
+    closeMenu();
+    if (!isAdmin) return;
+    setDeleteMember(student);
+    setConfirmCode(""); setConfirmChecked(false); setDeleteError("");
+  };
+  const memberConfirmCode = deleteMember ? String(
+    deleteMember.maHoiVienNoiBo || deleteMember.maHV || deleteMember.id || ""
+  ).trim() : "";
+  const executeDelete = async () => {
+    if (!isAdmin || deleteBusy || !deleteMember || !confirmChecked || confirmCode.trim() !== memberConfirmCode) return;
+    setDeleteBusy(true); setDeleteError("");
+    try {
+      await accountRequest("deleteMemberForever", {
+        memberDocId: deleteMember.id,
+        confirmCode: memberConfirmCode,
+      });
+      setDeleteSuccess(`Đã xử lý yêu cầu xóa hội viên ${deleteMember.name}. Danh sách sẽ cập nhật từ Firebase.`);
+      setDeleteMember(null);
+    } catch (err) {
+      setDeleteError(`Không thể xóa hội viên: ${err.message || "Lỗi không xác định"}`);
+    } finally { setDeleteBusy(false); }
+  };
 
   const canCreateMember = profile?.role === "admin" ||
     (profile?.role === "hlv" && profile?.permissions?.members?.create === true);
@@ -113,13 +148,7 @@ export default function MemberList({
     inactive: locationStudents.filter((s) => memberStatus(s.status) === "Nghỉ học").length,
   }), [locationStudents]);
 
-  useEffect(() => { setPage(1); }, [search, location, statusFilter, beltFilter, pageSize]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const pageStudents = filteredStudents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const from = filteredStudents.length ? (currentPage - 1) * pageSize + 1 : 0;
-  const to = Math.min(currentPage * pageSize, filteredStudents.length);
+  // Hiển thị toàn bộ dữ liệu ĐÃ được giới hạn quyền và lọc, không cắt theo trang.
 
   const clearFilters = () => {
     setSearch("");
@@ -128,33 +157,25 @@ export default function MemberList({
     if (locations.includes("Tất cả điểm tập")) onLocationChange?.("Tất cả điểm tập");
   };
 
-  const openActions = (event, student) => {
-    setActionMenu({ anchorEl: event.currentTarget, member: student });
-  };
-  const closeActions = () => setActionMenu({ anchorEl: null, member: null });
-  const runAction = (callback) => {
-    const selectedMember = actionMenu.member;
-    closeActions();
-    if (selectedMember) callback(selectedMember);
-  };
-
   const memberActions = (student, compact = false) => (
-    <Stack direction="row" spacing={0.75} alignItems="center"
-      sx={{ width: compact ? "100%" : "auto", minWidth: 0, justifyContent: compact ? "flex-end" : "flex-start" }}>
-      <Button size="small" variant="outlined" startIcon={<VisibilityRounded fontSize="small" />}
-        onClick={() => setViewMember(student)}
-        sx={{ borderRadius: 2, height: 34, minWidth: 68, px: 1, fontWeight: 700, whiteSpace: "nowrap" }}>
-        Xem
-      </Button>
-      {(canEditMember || profile?.role === "admin") && (
-        <Tooltip title="Thao tác khác">
-          <IconButton size="small" aria-label={`Thao tác với ${student.name || "hội viên"}`}
-            aria-haspopup="menu" onClick={(event) => openActions(event, student)}
-            sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, width: 34, height: 34 }}>
-            <MoreVertRounded fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      )}
+    <Stack direction="row" spacing={0.4} alignItems="center" justifyContent={compact ? "flex-end" : "flex-start"}
+      sx={{ minWidth: 0, width: compact ? "100%" : "auto" }}>
+      <Tooltip title="Xem hồ sơ">
+        <IconButton aria-label={`Xem hồ sơ ${student.name}`} size="small" color="primary" onClick={() => setViewMember(student)}>
+          <VisibilityRounded fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      {onEdit && canEditMember && <Tooltip title="Sửa hồ sơ">
+        <IconButton aria-label={`Sửa hồ sơ ${student.name}`} size="small" onClick={() => onEdit(student)}>
+          <EditRounded fontSize="small" />
+        </IconButton>
+      </Tooltip>}
+      {(onCollectTuition || isAdmin) && <Tooltip title="Thêm thao tác">
+        <IconButton size="small" aria-label={`Thao tác với ${student.name}`} aria-haspopup="menu"
+          onClick={e => setActionMenu({ anchor: e.currentTarget, student })}>
+          <MoreVertRounded fontSize="small" />
+        </IconButton>
+      </Tooltip>}
     </Stack>
   );
 
@@ -214,7 +235,7 @@ export default function MemberList({
         <>
           {/* Điện thoại: thẻ hội viên, không phải cuộn bảng ngang */}
           <Box sx={{ display: { xs: "grid", md: "none" }, gap: 1.5 }}>
-            {pageStudents.map((student) => (
+            {filteredStudents.map((student) => (
               <Paper key={student.id} elevation={0} sx={{ p: 1.75, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <Avatar sx={{ width: 45, height: 45, bgcolor: "success.dark", color: "common.white", fontWeight: 800 }}>{getInitial(student.name)}</Avatar>
@@ -227,7 +248,7 @@ export default function MemberList({
                 <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="caption" color="text.secondary">{student.location || "Chưa có điểm tập"}</Typography>
-                    <BeltBadge level={student.belt} compact />
+                    <BeltBadge level={student.belt} showName compact />
                   </Box>
                   <Chip size="small" variant="outlined" color={getStatusColor(student.status)} label={memberStatus(student.status)} />
                 </Stack>
@@ -239,14 +260,14 @@ export default function MemberList({
           {/* Máy tính: bảng rõ ràng, có dòng hover */}
           <Paper elevation={0} sx={{ display: { xs: "none", md: "block" }, borderRadius: 3, overflow: "hidden", border: "1px solid", borderColor: "divider" }}>
             <Box sx={{ overflowX: "auto" }}>
-              <Box sx={{ minWidth: 810 }}>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1.15fr 1.65fr 1fr 1fr .9fr 126px", gap: 1.5, px: 2, py: 1.8, bgcolor: "action.hover" }}>
+              <Box sx={{ minWidth: 660 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "minmax(105px,1.15fr) minmax(135px,1.6fr) minmax(90px,1fr) minmax(95px,1fr) minmax(94px,0.9fr) 98px", gap: 1.5, px: 2, py: 1.8, bgcolor: "action.hover" }}>
                   {["Mã nội bộ / VTF", "Họ và tên", "Điểm tập", "Cấp đai", "Trạng thái", "Thao tác"].map((title) => (
                     <Typography key={title} variant="caption" fontWeight={900} sx={cellSx}>{title}</Typography>
                   ))}
                 </Box>
-                {pageStudents.map((student) => (
-                  <Box key={student.id} sx={{ display: "grid", gridTemplateColumns: "1.15fr 1.65fr 1fr 1fr .9fr 126px", gap: 1.5, px: 2, py: 1.6, alignItems: "center", borderTop: "1px solid", borderColor: "divider", "&:hover": { bgcolor: "action.hover" } }}>
+                {filteredStudents.map((student) => (
+                  <Box key={student.id} sx={{ display: "grid", gridTemplateColumns: "minmax(105px,1.15fr) minmax(135px,1.6fr) minmax(90px,1fr) minmax(95px,1fr) minmax(94px,0.9fr) 98px", gap: 1.5, px: 2, py: 1.6, alignItems: "center", borderTop: "1px solid", borderColor: "divider", "&:hover": { bgcolor: "action.hover" } }}>
                     <Box sx={cellSx}>
                       <Typography variant="body2" fontWeight={800} color="success.main">{student.maHoiVienNoiBo || "Chưa cấp ID"}</Typography>
                       <Typography variant="caption" color="text.secondary">VTF: {student.maHV || "Chưa cấp"}</Typography>
@@ -268,53 +289,50 @@ export default function MemberList({
       )}
 
       {!loading && filteredStudents.length > 0 && (
-        <Paper elevation={0} sx={{ px: 2, py: 1.5, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
-          <Stack direction={{ xs: "column", sm: "row" }} alignItems="center" justifyContent="space-between" spacing={1.5}>
-            <Typography variant="caption" color="text.secondary">Hiển thị {from}–{to} / {filteredStudents.length.toLocaleString("vi-VN")} hội viên</Typography>
-            <Pagination count={totalPages} page={currentPage} onChange={(_, value) => setPage(value)} color="primary" size="small" siblingCount={0} />
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="caption" color="text.secondary">Số dòng/trang</Typography>
-              <FormControl size="small">
-                <Select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} sx={{ minWidth: 74 }}>
-                  {PAGE_SIZE_OPTIONS.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Stack>
-          </Stack>
-        </Paper>
+        <Typography variant="body2" color="text.secondary" sx={{ px: 1 }}>
+          Đang hiển thị tất cả {filteredStudents.length.toLocaleString("vi-VN")} hội viên phù hợp · Không chia trang
+        </Typography>
       )}
 
-      <Menu
-        anchorEl={actionMenu.anchorEl}
-        open={Boolean(actionMenu.anchorEl)}
-        onClose={closeActions}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { mt: 0.75, minWidth: 205, borderRadius: 2, boxShadow: "0 12px 30px rgba(0,0,0,.24)" } } }}
-      >
-        {canEditMember && onEdit && (
-          <MenuItem onClick={() => runAction((member) => onEdit(member))}>
-            <EditRounded fontSize="small" sx={{ mr: 1.5 }} /> Sửa hồ sơ
-          </MenuItem>
-        )}
-        {profile?.role === "admin" && (
-          <MenuItem onClick={() => runAction(setAccountMember)}>
-            <PersonAddAlt1Rounded fontSize="small" sx={{ mr: 1.5 }} /> Tài khoản
-          </MenuItem>
-        )}
-        {profile?.role === "admin" && (
-          <>
-            <Divider />
-            <MenuItem onClick={() => runAction(setDeleteMember)} sx={{ color: "error.main" }}>
-              <DeleteForeverRounded fontSize="small" sx={{ mr: 1.5 }} /> Xóa hội viên
-            </MenuItem>
-          </>
-        )}
+      {deleteSuccess && <Alert severity="success" onClose={() => setDeleteSuccess("")}>{deleteSuccess}</Alert>}
+      <Menu anchorEl={actionMenu?.anchor || null} open={Boolean(actionMenu)} onClose={closeMenu}>
+        {onCollectTuition && <MenuItem onClick={() => {
+          const selected = actionMenu?.student; closeMenu();
+          if (selected) { setViewMember(null); onCollectTuition(selected); }
+        }}><PaymentsRounded fontSize="small" sx={{ mr: 1.2 }} />{isQuitMember(actionMenu?.student) ? "Thu nợ cũ" : "Thu học phí"}</MenuItem>}
+        {isAdmin && <MenuItem onClick={() => openAccount(actionMenu?.student)}>
+          <ManageAccountsRounded fontSize="small" sx={{ mr: 1.2 }} />Tài khoản
+        </MenuItem>}
+        {isAdmin && <Divider />}
+        {isAdmin && <MenuItem sx={{ color: "error.main" }} onClick={() => openDelete(actionMenu?.student)}>
+          <DeleteForeverRounded fontSize="small" sx={{ mr: 1.2 }} />Xóa hội viên
+        </MenuItem>}
       </Menu>
-
-      <DeleteMemberDialog open={Boolean(deleteMember)} member={deleteMember} onClose={() => setDeleteMember(null)} />
-      <MemberAccountDialog open={Boolean(accountMember)} member={accountMember} onClose={() => setAccountMember(null)} />
-      <MemberProfile open={Boolean(viewMember)} onClose={() => setViewMember(null)} member={viewMember} profile={profile} />
+      <MemberAccountDialog open={Boolean(accountMember)} member={accountMember}
+        onClose={() => setAccountMember(null)} />
+      <Dialog open={Boolean(deleteMember)} onClose={deleteBusy ? undefined : () => setDeleteMember(null)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 800, color: "error.main" }}>Xóa vĩnh viễn hội viên</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Alert severity="error">Thao tác này có thể xóa hồ sơ, tài khoản đăng nhập và dữ liệu liên quan, bao gồm lịch sử học phí, thi và điểm danh. Không thể hoàn tác. Chỉ thực hiện sau khi sao lưu và đối soát.</Alert>
+            <Typography>Hội viên: <strong>{deleteMember?.name || ""}</strong></Typography>
+            <Typography variant="body2">Mã xác nhận: <strong>{memberConfirmCode}</strong></Typography>
+            <TextField fullWidth label="Nhập chính xác mã hội viên" value={confirmCode} disabled={deleteBusy}
+              onChange={e => setConfirmCode(e.target.value)} />
+            <Button variant={confirmChecked ? "contained" : "outlined"} color={confirmChecked ? "error" : "inherit"}
+              onClick={() => setConfirmChecked(v => !v)} disabled={deleteBusy}>
+              {confirmChecked ? "Đã xác nhận xóa vĩnh viễn" : "Tôi hiểu việc xóa không thể hoàn tác"}
+            </Button>
+            {deleteError && <Alert severity="error">{deleteError}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button disabled={deleteBusy} onClick={() => setDeleteMember(null)}>Hủy</Button>
+          <Button variant="contained" color="error" disabled={deleteBusy || !confirmChecked || confirmCode.trim() !== memberConfirmCode}
+            onClick={executeDelete}>{deleteBusy ? "Đang xóa..." : "Xóa vĩnh viễn"}</Button>
+        </DialogActions>
+      </Dialog>
+      <MemberProfile open={Boolean(viewMember)} onClose={() => setViewMember(null)} member={viewMember} profile={profile} onCollectTuition={onCollectTuition} />
       <ImportMembers open={importOpen && canCreateMember} onClose={() => setImportOpen(false)} students={students} profile={profile} />
     </Box>
   );

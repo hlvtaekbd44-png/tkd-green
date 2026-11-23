@@ -1,0 +1,14 @@
+// THÊM block này vào BÊN TRONG match /databases/{database}/documents
+// của firestore.rules hiện tại, KHÔNG thay thế toàn bộ bộ rules đang chạy.
+// Ghi chú: doc publicLocations chỉ chứa dữ liệu giới thiệu do Admin xuất bản.
+// Danh sách được phép đọc công khai: query phải có where('published','==',true)
+// nếu sử dụng rule chỉ cho phép get/list published=true.
+// Để giữ dễ dùng với onSnapshot(collection(..)), đoạn rules dưới đây cho phép
+// đọc toàn bộ doc trong publicLocations; vì thế TUYỆT ĐỐI không lưu dữ liệu riêng tư.
+match /publicLocations/{locationId} {
+  allow read: if true;
+  allow create, update, delete: if request.auth != null
+    && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+}

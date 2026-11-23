@@ -1,0 +1,80 @@
+/* TKD GREEN LOGIN — isolated styles, no impact on admin/HLV screens */
+.tkdg-login-page{min-height:100dvh;padding:28px;display:grid;place-items:center;background:radial-gradient(circle at 10% 10%,#dcf2e5 0%,transparent 36%),linear-gradient(135deg,#eff7f2,#f7faf8);font-family:Inter,"Segoe UI",Arial,sans-serif;color:#173b29}
+.tkdg-login-shell{width:min(1100px,100%);min-height:650px;display:grid;grid-template-columns:1fr 1fr;background:#fff;border:1px solid #dfeae2;border-radius:27px;overflow:hidden;box-shadow:0 26px 85px rgba(7,48,29,.12)}
+.tkdg-login-brand-panel{padding:42px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(150deg,#06432e 0%,#0b6845 56%,#087e51 100%);color:#fff;position:relative;overflow:hidden}
+.tkdg-login-brand-panel:after{content:"";position:absolute;right:-100px;bottom:110px;width:330px;height:330px;border:55px solid rgba(255,255,255,.055);border-radius:50%;pointer-events:none}
+.tkdg-login-brand{display:flex;align-items:center;gap:14px;position:relative;z-index:1}
+.tkdg-login-logo{width:64px;height:64px;padding:6px;border-radius:16px;background:#fff;display:grid;place-items:center}
+.tkdg-login-logo img{width:100%;height:100%;object-fit:contain}
+.tkdg-login-brand-title{font-size:22px!important;font-weight:900!important;letter-spacing:.04em!important;color:#fff}
+.tkdg-login-brand-sub{font-size:10px!important;letter-spacing:.16em!important;color:#c6eed7}
+.tkdg-login-brand-copy{position:relative;z-index:1;padding:16px 0}
+.tkdg-login-line{width:56px;height:5px;border-radius:10px;background:#9ce2b4;margin-bottom:27px}
+.tkdg-login-hero{font-size:clamp(32px,3vw,47px)!important;line-height:1.15!important;font-weight:850!important;letter-spacing:-.035em!important;color:#fff}
+.tkdg-login-desc{margin-top:22px!important;font-size:15px!important;line-height:1.8!important;max-width:380px;color:#d6f0e1}
+.tkdg-login-brand-footer{display:flex;align-items:center;gap:10px;font-size:12px;color:#c1e8d2;position:relative;z-index:1}
+.tkdg-login-form-panel{padding:35px clamp(24px,5vw,75px);display:flex;flex-direction:column;justify-content:space-between}
+.tkdg-login-form-content{width:100%;max-width:390px;margin:auto}
+.tkdg-login-kicker{letter-spacing:.16em!important;color:#148153;font-size:11px!important;font-weight:900!important}
+.tkdg-login-heading{font-weight:900!important;color:#153b29!important;font-size:clamp(27px,2.4vw,36px)!important;letter-spacing:-.03em!important;margin:12px 0 10px!important}
+.tkdg-login-help{color:#6b7f72!important;font-size:14px!important;line-height:1.7!important}
+.tkdg-login-form-content .MuiOutlinedInput-root{border-radius:12px!important;background:#fff!important}
+.tkdg-login-form-content .MuiOutlinedInput-root.Mui-focused fieldset{border-color:#087d4b!important}
+.tkdg-login-form-content .MuiInputAdornment-root{color:#608473}
+.tkdg-login-submit{height:49px!important;background:#087d4b!important;color:#fff!important;border-radius:12px!important;font-size:15px!important;font-weight:800!important}
+.tkdg-login-submit:hover{background:#06653d!important}
+.tkdg-login-google{min-height:48px!important;border:1px solid #d3e2d9!important;border-radius:12px!important;color:#284c36!important;font-weight:750!important}
+.tkdg-login-divider{display:flex;align-items:center;gap:14px;margin:23px 0;color:#81958b;font-size:13px}
+.tkdg-login-divider:before,.tkdg-login-divider:after{content:"";height:1px;background:#dce7df;flex:1}
+.tkdg-login-note{margin-top:20px!important;text-align:center;color:#73877a!important;font-size:12px!important;line-height:1.6!important}
+.tkdg-login-copyright{text-align:center;color:#91a39a!important;font-size:10px!important;letter-spacing:.07em!important}
+.tkdg-login-mobile-brand{display:none}
+@media(max-width:780px){.tkdg-login-page{padding:12px;min-height:100dvh}.tkdg-login-shell{display:block;min-height:calc(100dvh - 24px);border-radius:20px}.tkdg-login-brand-panel{display:none}.tkdg-login-form-panel{min-height:calc(100dvh - 24px);padding:25px 22px;gap:36px}.tkdg-login-mobile-brand{display:flex;align-items:center;gap:10px;color:#087d4b;letter-spacing:.08em;font-size:17px}.tkdg-login-mobile-brand img{height:42px;width:42px;object-fit:contain}.tkdg-login-form-content{margin:auto}.tkdg-login-heading{font-size:28px!important}.tkdg-login-copyright{margin-top:10px}}
+@media(prefers-reduced-motion:reduce){.tkdg-login-page *{transition:none!important}}
+
+
+/* FONT FIX 2026: override MUI and any global heading rules. Vietnamese friendly. */
+.tkdg-login-page,
+.tkdg-login-page .MuiTypography-root,
+.tkdg-login-page .MuiButton-root,
+.tkdg-login-page .MuiInputBase-root,
+.tkdg-login-page .MuiInputLabel-root,
+.tkdg-login-page input,
+.tkdg-login-page .MuiAlert-root,
+.tkdg-login-page strong {
+  font-family: "Segoe UI", Arial, "Helvetica Neue", sans-serif !important;
+  font-style: normal !important;
+  text-transform: none;
+}
+.tkdg-login-page .tkdg-login-hero {
+  font-family: "Segoe UI", Arial, sans-serif !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.7px !important;
+  line-height: 1.2 !important;
+}
+.tkdg-login-page .tkdg-login-heading {
+  font-family: "Segoe UI", Arial, sans-serif !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.5px !important;
+  line-height: 1.25 !important;
+}
+.tkdg-login-page .tkdg-login-brand-title { font-weight: 800 !important; }
+.tkdg-login-page .tkdg-login-submit,
+.tkdg-login-page .tkdg-login-google { font-weight: 700 !important; }
+@media (max-width: 780px) {
+  .tkdg-login-page .tkdg-login-heading { font-size: 27px !important; }
+}
+
+/* Thong tin CLB: hien desktop o panel xanh, mobile duoi form */
+.tkdg-login-club-info {position:relative;z-index:1;display:flex;flex-direction:column;gap:5px;font-family:"Segoe UI",Arial,sans-serif;line-height:1.6}
+.tkdg-login-club-info .MuiTypography-root{font-size:13px!important;line-height:1.6!important;font-family:"Segoe UI",Arial,sans-serif!important}
+.tkdg-login-club-info .tkdg-login-club-name{font-weight:800!important;letter-spacing:.055em!important;font-size:14px!important}
+.tkdg-login-club-info a{color:inherit;text-decoration:none;font-weight:700;white-space:nowrap}
+.tkdg-login-club-info a:hover{text-decoration:underline}
+.tkdg-login-club-info-desktop{color:#effcf4;margin-top:auto;margin-bottom:22px}
+.tkdg-login-club-info-mobile{display:none}
+@media(max-width:780px){
+  .tkdg-login-club-info-mobile{display:flex;text-align:center;margin-top:18px;padding:16px 8px 0;border-top:1px solid #e0ece3;color:#2c6148}
+  .tkdg-login-club-info-mobile .tkdg-login-club-name{color:#087d4b!important}
+  .tkdg-login-club-info-mobile .MuiTypography-root{font-size:12px!important}
+}

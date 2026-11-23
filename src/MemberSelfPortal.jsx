@@ -1,16 +1,32 @@
 import { useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, doc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
-import { Alert, Avatar, Box, Button, Chip, CircularProgress, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
-import { PersonRounded, SchoolRounded, PlaceRounded, CreditCardRounded, EmojiEventsRounded, CalendarTodayRounded, VerifiedUserRounded } from '@mui/icons-material';
-import BeltBadge from './BeltBadge';
+import { addDoc, collection, doc, getDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
+import { Alert, Box, Button, Chip, CircularProgress, Divider, Paper, Stack, TextField, Typography } from '@mui/material';
 import { db, auth } from './firebase';
 import GoogleLogin from './GoogleLogin';
+import BeltBadge from './BeltBadge';
+import { useExamPeriodNames, examPeriodLabel } from './examPeriodNames';
+import { MemberPhotoAvatar } from './MemberPhoto';
+import { AccountCircleRounded, AccountBalanceWalletRounded, CalendarMonthRounded, EmojiEventsRounded, FactCheckRounded, SchoolRounded, CheckCircleRounded, ReceiptLongRounded, PersonRounded, ArrowForwardRounded, HistoryRounded, CreditCardRounded, ShieldRounded, TrendingUpRounded } from '@mui/icons-material';
 
+const money = (v) => Number(v || 0).toLocaleString('vi-VN') + ' đ';
 const show = (v) => v === null || v === undefined || v === '' ? 'Chưa cập nhật' : String(v);
 const dateISO = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+
+function PortalHero({eyebrow, title, subtitle, icon, aside}) {
+ return <Box className="tkdp-hero"><Box><Typography className="tkdp-eyebrow">{eyebrow || 'TKD GREEN · HỘI VIÊN / PHỤ HUYNH'}</Typography>
+   <Typography component="h1" className="tkdp-title">{title}</Typography><Typography className="tkdp-subtitle">{subtitle}</Typography></Box>
+   <Box className="tkdp-hero-right">{aside || icon || <SchoolRounded sx={{fontSize:52}}/>}</Box></Box>;
+}
+function Metric({icon,label,value,note,tone='green'}) {return <Paper elevation={0} className={'tkdp-metric tkdp-'+tone}>
+ <Box className="tkdp-metric-icon">{icon}</Box><Box sx={{minWidth:0}}><Typography className="tkdp-metric-label">{label}</Typography><Typography className="tkdp-metric-value">{value}</Typography>{note&&<Typography className="tkdp-metric-note">{note}</Typography>}</Box></Paper>}
+function Section({title, subtitle, children, aside, className=''}) {return <Paper className={'tkdp-section '+className} elevation={0}>
+ <Stack direction={{xs:'column',sm:'row'}} justifyContent="space-between" alignItems={{xs:'flex-start',sm:'center'}} gap={1} className="tkdp-section-header"><Box><Typography className="tkdp-section-title">{title}</Typography>{subtitle&&<Typography className="tkdp-section-subtitle">{subtitle}</Typography>}</Box>{aside}</Stack>{children}</Paper>}
+function formatDate(x){return /^\d{4}-\d{2}-\d{2}/.test(String(x||'')) ? String(x).slice(0,10).split('-').reverse().join('/') : show(x)}
+const feeDue = x => {const f=x?.lePhiThi;if(!f)return null; const n=Number(f.conNo ?? (Number(f.phaiThu||0)-Number(f.daThu||0)));return Number.isFinite(n)?Math.max(0,n):null};
+
 function Info({ label, value }) {
   return <Box><Typography variant="caption" color="text.secondary">{label}</Typography>
     <Typography fontWeight={600}>{show(value)}</Typography></Box>;
@@ -73,7 +89,15 @@ function LeaveForm({ member, profile }) {
     } finally { setBusy(false); }
   };
 
-  return <Stack spacing={2}>
+  return <Stack spacing={3}>
+    <PortalHero title="Xin phép nghỉ" subtitle="Gửi đơn trực tuyến và theo dõi trạng thái xét duyệt của HLV/Admin." icon={<CalendarMonthRounded sx={{fontSize:52}}/>}/>
+    <Box className="tkdp-metrics">
+      <Metric icon={<HistoryRounded/>} label="Tổng số đơn" value={requests.length} />
+      <Metric icon={<CalendarMonthRounded/>} label="Chờ duyệt" value={requests.filter(x=>x.trangThai==='Chờ duyệt').length} tone="amber"/>
+      <Metric icon={<CheckCircleRounded/>} label="Đã duyệt" value={requests.filter(x=>x.trangThai==='Đã duyệt').length} />
+      <Metric icon={<ShieldRounded/>} label="Từ chối" value={requests.filter(x=>x.trangThai==='Từ chối').length} tone="rose"/>
+    </Box>
+    <Section title="Tạo đơn xin nghỉ mới" subtitle="Điền thời gian và lý do, sau đó gửi HLV phụ trách xét duyệt.">
     <Alert severity="info">Đơn xin nghỉ chỉ được gửi cho điểm tập hiện tại. HLV/Admin sẽ xem xét và duyệt.</Alert>
     {error && <Alert severity="error">{error}</Alert>}
     {message && <Alert severity="success">{message}</Alert>}
@@ -88,8 +112,8 @@ function LeaveForm({ member, profile }) {
         {busy ? 'Đang gửi...' : 'Gửi đơn xin phép nghỉ'}
       </Button>
     </Stack></Box>
-    <Divider />
-    <Typography fontWeight={800}>Lịch sử đơn xin nghỉ</Typography>
+    </Section>
+    <Section title="Lịch sử đơn xin nghỉ" subtitle="Tất cả yêu cầu của hội viên và trạng thái xử lý.">
     {historyError && <Alert severity="warning">{historyError}</Alert>}
     {!ordered.length && <Typography color="text.secondary">Chưa có đơn xin nghỉ.</Typography>}
     {ordered.map(item => <Paper key={item.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
@@ -99,10 +123,86 @@ function LeaveForm({ member, profile }) {
       </Stack>
       <Typography sx={{ mt: 1 }}>{item.lyDo}</Typography>
     </Paper>)}
+    </Section>
   </Stack>;
 }
 
-export default function MemberSelfPortal({ profile, embedded = false, view = 'Hội viên', leaveEnabled = false }) {
+
+// Chỉ xem học phí của chính hội viên; Firestore Rules vẫn quyết định quyền đọc.
+function MemberTuition({ member, memberId }) {
+  const [payments, setPayments] = useState([]);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!memberId) { setBusy(false); return undefined; }
+    setBusy(true);
+    return onSnapshot(query(collection(db, 'tuitionPayments'), where('memberId', '==', memberId)),
+      snap => { setPayments(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setBusy(false); setError(''); },
+      err => { setBusy(false); setError(err?.code === 'permission-denied'
+        ? 'Tài khoản chưa được cấp quyền xem lịch sử thu học phí của chính mình.'
+        : 'Không tải được lịch sử thu học phí.'); });
+  }, [memberId]);
+  const sorted = useMemo(() => [...payments].sort((a,b) => String(b.ngayThu||'').localeCompare(String(a.ngayThu||''))), [payments]);
+  const unpaid = Number(member?.conNo ?? member?.no ?? member?.noHocPhi ?? 0);
+  const debtRaw=member?.conNo ?? member?.no ?? member?.noHocPhi;
+  const debtKnown=debtRaw!==undefined && debtRaw!==null && debtRaw!=='' && Number.isFinite(Number(debtRaw)) && Number(debtRaw)>=0;
+  const totalPaid=sorted.reduce((sum,x)=>sum+(Number.isFinite(Number(x.soTien))?Number(x.soTien):0),0);
+  return <Stack spacing={3}>
+    <PortalHero title="Học phí của tôi" subtitle="Theo dõi học phí, công nợ và các giao dịch đã được câu lạc bộ ghi nhận." icon={<AccountBalanceWalletRounded sx={{fontSize:52}}/>}/>
+    <Box className="tkdp-metrics">
+      <Metric icon={<CreditCardRounded/>} label="Loại học phí" value={show(member?.loaiHocPhi)} />
+      <Metric icon={<CalendarMonthRounded/>} label="Đã thanh toán đến" value={formatDate(member?.ngayHetHan)} />
+      <Metric icon={<AccountBalanceWalletRounded/>} label="Công nợ trong hồ sơ" value={debtKnown?money(Number(debtRaw)):'Chưa đối soát'} tone={debtKnown&&Number(debtRaw)>0?'rose':'green'} />
+      <Metric icon={<CheckCircleRounded/>} label="Tổng đã thu trong lịch sử" value={busy?'Đang tải...':error?'Chưa thể xem':money(totalPaid)} />
+    </Box>
+    <Section title="Lịch sử thanh toán" subtitle="Các khoản thu đã được xác nhận trên hệ thống." aside={<Chip label={`${sorted.length} giao dịch`} color="success" variant="outlined"/>}>
+      {busy&&<CircularProgress size={25}/>} {error&&<Alert severity="warning">{error}</Alert>}
+      {!busy&&!error&&!sorted.length&&<Box className="tkdp-empty"><ReceiptLongRounded sx={{fontSize:42}}/><Typography fontWeight={800}>Chưa có giao dịch được ghi nhận</Typography><Typography color="text.secondary">Khi HLV/Admin cập nhật khoản thu, lịch sử sẽ xuất hiện tại đây.</Typography></Box>}
+      {!error&&sorted.length>0&&<Box className="tkdp-table-scroll"><table className="tkdp-table"><thead><tr><th>Ngày thu</th><th>Khoản thu</th><th>Đợt / Ghi chú</th><th className="num">Số tiền</th></tr></thead><tbody>{sorted.map(item=><tr key={item.id}><td>{formatDate(item.ngayThu)}</td><td><b>{show(item.loaiHocPhi || item.loaiGiaoDich || 'Học phí')}</b></td><td>{show(item.periodId || item.kyHocPhi || item.ghiChu)}</td><td className="num"><b>{money(item.soTien)}</b></td></tr>)}</tbody></table></Box>}
+    </Section>
+    <Alert severity="info">Số liệu chỉ có giá trị tham khảo khi hệ thống đã đối soát. Nếu chưa khớp, vui lòng liên hệ HLV phụ trách; việc xem trang không ghi nhận thanh toán.</Alert>
+  </Stack>;
+}
+
+const attendancePrefix = {'Lê Văn Tám':'LVTA','Nghĩa Trung':'NGTR','Đồng Tâm':'DOTM','Thôn 6':'T6','Phước Sơn':'PHSo','Minh Hưng':'MIHU'};
+function MemberAttendance({member, memberId}) {
+  const [rows,setRows]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState('');
+  useEffect(()=>{
+    const prefix=attendancePrefix[member?.diemTap];
+    if (!memberId || !prefix) {setLoading(false);setRows([]);setError('Chưa xác định mã điểm tập để tra cứu điểm danh.');return undefined;}
+    let cancelled=false;
+    const dates=Array.from({length:31},(_,i)=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-i);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;});
+    setLoading(true);setError('');setRows([]);
+    Promise.all(dates.map(async day=>{
+      try {const snap=await getDoc(doc(db,'attendanceSessions',`${prefix}_${day}`,'records',memberId));return snap.exists()?{id:day,...snap.data()}:null;}
+      catch(e){if(e?.code==='permission-denied')throw e;return null;}
+    })).then(results=>{if(cancelled)return;setRows(results.filter(Boolean));setLoading(false);})
+      .catch(e=>{if(cancelled)return;setLoading(false);setError(e?.code==='permission-denied'?'Chưa được phép xem lịch sử điểm danh cá nhân. Kiểm tra Firestore Rules.':'Không tải được điểm danh.');});
+    return ()=>{cancelled=true;};
+  },[memberId,member?.diemTap]);
+  const count=label=>rows.filter(x=>x.trangThai===label).length;
+  const present=count('Có mặt'), withLeave=count('Vắng có phép'), absent=count('Vắng không phép');
+  const decided=present+withLeave+absent, percent=decided?Math.round(present*100/decided):null;
+  return <Stack spacing={3}>
+    <PortalHero title="Điểm danh của tôi" subtitle={`Theo dõi chuyên cần và lịch sử 31 ngày gần nhất tại ${show(member?.diemTap)}.`} icon={<FactCheckRounded sx={{fontSize:52}}/>}/>
+    <Box className="tkdp-metrics">
+      <Metric icon={<CalendarMonthRounded/>} label="Buổi đã ghi nhận" value={decided} />
+      <Metric icon={<CheckCircleRounded/>} label="Có mặt" value={present}/>
+      <Metric icon={<CalendarMonthRounded/>} label="Vắng có phép" value={withLeave} tone="amber"/>
+      <Metric icon={<ShieldRounded/>} label="Vắng không phép" value={absent} tone="rose"/>
+    </Box>
+    <Box className="tkdp-split"><Section title="Tỷ lệ chuyên cần" subtitle="Tính trên các buổi đã có trạng thái điểm danh."><Box className="tkdp-attendance-center"><Box className="tkdp-attendance-ring" style={{'--tkdp-attendance-percent':`${percent||0}%`}}><Box><b>{percent===null?'—':`${percent}%`}</b><small>{present} / {decided} buổi</small></Box></Box><Typography color="text.secondary">Ngày chưa có dữ liệu không được coi là vắng học.</Typography></Box></Section>
+    <Section title="Lịch sử điểm danh" subtitle="Các buổi tập gần nhất đã được lưu.">
+      {loading&&<CircularProgress size={25}/>} {error&&<Alert severity="warning">{error}</Alert>}
+      {!loading&&!error&&!rows.length&&<Box className="tkdp-empty"><FactCheckRounded sx={{fontSize:42}}/><Typography fontWeight={800}>Chưa có bản ghi điểm danh</Typography><Typography color="text.secondary">Dữ liệu sẽ xuất hiện khi HLV lưu điểm danh.</Typography></Box>}
+      {!error&&rows.map(r=><Box key={r.id} className="tkdp-list-line"><Box><Typography fontWeight={800}>{formatDate(r.id)}</Typography>{r.ghiChu&&<Typography variant="body2" color="text.secondary">{r.ghiChu}</Typography>}</Box><Chip size="small" label={show(r.trangThai)} color={r.trangThai==='Có mặt'?'success':r.trangThai==='Vắng có phép'?'warning':r.trangThai==='Vắng không phép'?'error':'default'}/></Box>)}
+    </Section></Box>
+  </Stack>;
+}
+
+export default function MemberSelfPortal({ profile, embedded = false, view = 'Hội viên', leaveEnabled = false, examAccess = true }) {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -113,7 +213,7 @@ export default function MemberSelfPortal({ profile, embedded = false, view = 'H�
   // Chỉ đọc đăng ký thi gắn với chính hồ sơ đã xác thực.
   useEffect(() => {
     const memberId = profile?.memberDocId || profile?.memberId;
-    if (!memberId) { setExams([]); setExamsLoading(false); return undefined; }
+    if (!memberId || !examAccess || !['Thi cấp','Thi đẳng'].includes(view)) { setExams([]); setExamsLoading(false); return undefined; }
     setExamsLoading(true);
     setExams([]);
     setExamsError('');
@@ -122,21 +222,49 @@ export default function MemberSelfPortal({ profile, embedded = false, view = 'H�
       setExams(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
       setExamsLoading(false);
     }, err => {
-      console.error('Không đọc được lịch sử thi cấp:', err);
+      console.error('Không đọc được lịch sử thi:', err);
       setExamsError(err?.code === 'permission-denied'
-        ? 'Chưa có quyền đọc lịch sử thi cấp. Cần cập nhật Firestore Rules cho truy vấn của chính võ sinh.'
-        : 'Không tải được lịch sử thi cấp.');
+        ? 'Chưa có quyền đọc lịch sử thi. Kiểm tra Firestore Rules cho tài khoản hội viên.'
+        : 'Không tải được lịch sử thi.');
       setExamsLoading(false);
     });
-  }, [profile?.memberDocId, profile?.memberId]);
+  }, [profile?.memberDocId, profile?.memberId, view, examAccess]);
 
-  const visibleExams = useMemo(() => exams.filter(item =>
+  const activeExams = useMemo(() => exams.filter(item =>
     !['Không dự thi', 'Đã hủy', 'Đã huỷ', 'Hủy', 'Huỷ'].includes(String(item.status || item.trangThai || '').trim())
+    && item.deleted !== true && item.archived !== true
   ).sort((a, b) => {
     const dateA = a.createdAt?.seconds || a.createdAt?.toMillis?.() / 1000 || 0;
     const dateB = b.createdAt?.seconds || b.createdAt?.toMillis?.() / 1000 || 0;
     return dateB - dateA || String(b.periodId || '').localeCompare(String(a.periodId || ''));
   }), [exams]);
+
+  // Dữ liệu cũ không có examType được xem là Thi cấp, tránh trộn vào Thi đẳng.
+  const isDan = item => item.examType === 'dan';
+  const visibleExams = useMemo(() => activeExams.filter(item =>
+    view === 'Thi đẳng' ? isDan(item) : !isDan(item)
+  ), [activeExams, view]);
+  const isExamView = view === 'Thi cấp' || view === 'Thi đẳng';
+  const examPeriodState = useExamPeriodNames(exams, isExamView && examAccess);
+
+  function ExamHistory({ records, title }) {
+    const totalFees=records.reduce((sum,x)=>sum+(feeDue(x)||0),0);
+    const completed=records.filter(x=>String(x.ketQua||x.ketqua||'').toLowerCase().includes('đạt')).length;
+    return <Stack spacing={3}>
+      <PortalHero title={title} subtitle={title==='Thi đẳng'?'Theo dõi quá trình thăng đẳng, đăng ký dự thi, kết quả và lệ phí.':'Quản lý lịch sử đăng ký thi cấp, kết quả và các khoản lệ phí.'} icon={<EmojiEventsRounded sx={{fontSize:52}}/>}/>
+      <Box className="tkdp-metrics">
+        <Metric icon={<EmojiEventsRounded/>} label="Số đăng ký còn hiệu lực" value={records.length} />
+        <Metric icon={<CheckCircleRounded/>} label="Kết quả đạt được ghi nhận" value={completed} />
+        <Metric icon={<CreditCardRounded/>} label="Lệ phí còn phải đóng" value={money(totalFees)} tone={totalFees>0?'rose':'green'}/>
+      </Box>
+      <Section title={`Lịch sử ${title.toLowerCase()}`} subtitle="Chỉ hiển thị đăng ký của hội viên đã liên kết; các đăng ký đã hủy được ẩn." aside={<Chip label={`${records.length} đăng ký`} variant="outlined"/>}>
+        {examsLoading&&<CircularProgress size={24}/>}
+        {examsError&&<Alert severity="warning">{examsError}</Alert>}
+        {!examsLoading&&!examsError&&!records.length&&<Box className="tkdp-empty"><EmojiEventsRounded sx={{fontSize:42}}/><Typography fontWeight={800}>Chưa có đăng ký {title.toLowerCase()}</Typography><Typography color="text.secondary">Khi HLV/Admin thêm đăng ký, thông tin sẽ hiển thị tại đây.</Typography></Box>}
+        {!examsError&&records.length>0&&<Box className="tkdp-table-scroll"><table className="tkdp-table"><thead><tr><th>Đợt thi</th><th>Nội dung dự thi</th><th>Trạng thái</th><th>Kết quả</th><th className="num">Phí còn nợ</th></tr></thead><tbody>{records.map(item=><tr key={item.id}><td><b>{examPeriodLabel(item, examPeriodState)}</b></td><td>{show(item.dangDuThi||item.dangDuThiCap)}</td><td><Chip size="small" label={show(item.status||item.trangThai)}/></td><td><Chip size="small" label={show(item.ketQua||item.ketqua)} color={String(item.ketQua||item.ketqua||'').toLowerCase().includes('đạt')?'success':'default'}/></td><td className="num"><b>{feeDue(item)===null?'Chưa cấu hình':money(feeDue(item))}</b></td></tr>)}</tbody></table></Box>}
+      </Section>
+    </Stack>;
+  }
 
   useEffect(() => {
     const memberId = profile?.memberDocId || profile?.memberId;
@@ -149,80 +277,25 @@ export default function MemberSelfPortal({ profile, embedded = false, view = 'H�
     }, e => { console.error(e); setError('Không có quyền đọc hồ sơ cá nhân. Kiểm tra Firestore Rules.'); setLoading(false); });
   }, [profile?.memberDocId, profile?.memberId]);
 
-  const infoItems = member ? [
-    ['Mã VTF', member.maHV], ['Mã hội viên nội bộ', member.maHoiVienNoiBo],
-    ['Ngày sinh', member.ngaySinh], ['Giới tính', member.gioiTinh],
-    ['Điểm tập', member.diemTap], ['Loại học phí', member.loaiHocPhi],
-    ['Đã thanh toán đến', member.ngayHetHan],
-  ] : [];
-
-  const content = <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%', display: 'grid', gap: 2.5 }}>
-    {loading && <Paper sx={{ p: 5, textAlign: 'center', borderRadius: 3 }}><CircularProgress /></Paper>}
+  const content = <Box className="tkdp-page">
+    {loading && <CircularProgress />}
     {error && <Alert severity="error">{error}</Alert>}
     {member && (view === 'Xin phép nghỉ' ? (
-      <Paper elevation={0} sx={{ p: { xs: 2, md: 3.5 }, borderRadius: 3, border: '1px solid #DFEBE3' }}>
-        <Typography variant="h5" fontWeight={900} sx={{ mb: 2 }}>Xin phép nghỉ học</Typography>
-        {leaveEnabled ? <LeaveForm member={member} profile={profile} />
-          : <Alert severity="warning">Điểm tập chưa mở chức năng Xin phép nghỉ.</Alert>}
-      </Paper>
-    ) : <>
-      <Paper elevation={0} sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, color: '#fff', border: 0,
-        background: 'linear-gradient(115deg, #065C3B 0%, #088153 68%, #119668 100%)', p: { xs: 2.5, md: 4 } }}>
-        <Box sx={{ position: 'absolute', right: -55, top: -95, width: 300, height: 300, borderRadius: '50%', border: '45px solid rgba(255,255,255,.07)', pointerEvents: 'none' }} />
-        <Typography sx={{ fontSize: 11, fontWeight: 900, letterSpacing: 2, opacity: .8 }}>TKD GREEN • HỒ SƠ VÕ SINH</Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={2.5} sx={{ mt: 2 }}>
-          <Avatar sx={{ width: 66, height: 66, bgcolor: 'rgba(255,255,255,.18)', color: '#fff', fontWeight: 900, fontSize: 27, border: '2px solid rgba(255,255,255,.65)' }}>
-            {String(member.hoTen || 'V').trim().slice(-1).toUpperCase()}
-          </Avatar>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="h4" fontWeight={900} sx={{ fontSize: { xs: 25, md: 32 }, overflowWrap: 'anywhere' }}>{show(member.hoTen)}</Typography>
-            <Typography sx={{ opacity: .9, mt: .5 }}>{show(member.diemTap)} • {show(member.maHoiVienNoiBo)}</Typography>
-          </Box>
-          <Chip label={show(member.trangThai)} sx={{ bgcolor: '#E7F8EE', color: '#08613F', fontWeight: 800 }} />
-        </Stack>
-        <Typography variant="body2" sx={{ mt: 2.5, opacity: .85 }}>Chào mừng đến với cổng thông tin võ sinh. Theo dõi hồ sơ và tiến độ tập luyện của bạn tại đây.</Typography>
-      </Paper>
+      leaveEnabled ? <LeaveForm member={member} profile={profile} />
+        : <Alert severity="warning">Điểm tập chưa mở chức năng Xin phép nghỉ.</Alert>
+    ) : view === 'Học phí' ? <MemberTuition member={member} memberId={member.id} />
+      : view === 'Điểm danh' ? <MemberAttendance member={member} memberId={member.id} />
+      : isExamView ? <ExamHistory records={visibleExams} title={view} /> : <Stack spacing={3}>
+      <PortalHero title="Hồ sơ hội viên" subtitle="Thông tin chính thức của hội viên tại Câu lạc bộ Taekwondo Green." icon={<AccountCircleRounded sx={{fontSize:52}}/>}/>
+      <Box className="tkdp-profile-hero"><Box className="tkdp-profile-avatar"><MemberPhotoAvatar member={member} size={112} /></Box><Box sx={{flex:1}}><Typography variant="h4" fontWeight={900}>{show(member.hoTen)}</Typography><Typography color="text.secondary">Mã VTF: <b>{show(member.maHV)}</b> · Mã nội bộ: <b>{show(member.maHoiVienNoiBo)}</b></Typography><Stack direction="row" flexWrap="wrap" gap={1} sx={{mt:2}}><Chip color="success" label={show(member.trangThai)}/><Chip variant="outlined" label={show(member.diemTap)}/><Box className="tkdp-belt"><BeltBadge level={member.capDaiDang} compact/></Box></Stack></Box></Box>
+      <Box className="tkdp-split"><Section title="Thông tin cá nhân" subtitle="Dữ liệu được ghi nhận trong hồ sơ hội viên."><Box className="tkdp-detail-grid">
+        <Info label="Họ và tên" value={member.hoTen}/><Info label="Mã VTF" value={member.maHV}/><Info label="Mã nội bộ" value={member.maHoiVienNoiBo}/><Info label="Ngày sinh" value={formatDate(member.ngaySinh)}/><Info label="Giới tính" value={member.gioiTinh}/><Info label="Số điện thoại phụ huynh" value={member.soDienThoaiPhuHuynh}/></Box></Section>
+      <Section title="Thông tin tập luyện" subtitle="Cấp đai và thời hạn học phí."><Box className="tkdp-detail-grid"><Info label="Điểm tập" value={member.diemTap}/><Info label="Cấp đai hiện tại" value={member.capDaiDang}/><Info label="Loại học phí" value={member.loaiHocPhi}/><Info label="Ngày bắt đầu" value={formatDate(member.ngayBatDau)}/><Info label="Đã thanh toán đến" value={formatDate(member.ngayHetHan)}/><Info label="Trạng thái" value={member.trangThai}/></Box></Section></Box>
+      <Alert severity="info">Tài khoản chỉ xem được hồ sơ đã liên kết. Nếu thông tin chưa chính xác, vui lòng liên hệ HLV hoặc Admin để xác minh.</Alert>
+    </Stack>)}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
-        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #DDEAE1' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start"><Typography color="text.secondary" fontWeight={700} variant="body2">Cấp đai hiện tại</Typography><SchoolRounded sx={{ color: '#087D4B' }} /></Stack>
-          <Box sx={{ mt: 2 }}><BeltBadge level={member.capDaiDang} showName /></Box>
-        </Paper>
-        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #DDEAE1' }}>
-          <Stack direction="row" justifyContent="space-between"><Typography color="text.secondary" fontWeight={700} variant="body2">Điểm tập</Typography><PlaceRounded sx={{ color: '#087D4B' }} /></Stack>
-          <Typography sx={{ mt: 2, fontSize: 21, fontWeight: 900 }}>{show(member.diemTap)}</Typography>
-        </Paper>
-        <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #DDEAE1' }}>
-          <Stack direction="row" justifyContent="space-between"><Typography color="text.secondary" fontWeight={700} variant="body2">Học phí đến ngày</Typography><CreditCardRounded sx={{ color: '#087D4B' }} /></Stack>
-          <Typography sx={{ mt: 2, fontSize: 21, fontWeight: 900 }}>{show(member.ngayHetHan)}</Typography>
-          <Typography variant="caption" color="text.secondary">Loại: {show(member.loaiHocPhi)}</Typography>
-        </Paper>
-      </Box>
-
-      <Paper elevation={0} sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, border: '1px solid #DDEAE1' }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2.5 }}><PersonRounded sx={{ color: '#087D4B' }}/><Typography variant="h6" fontWeight={900}>Thông tin cá nhân</Typography></Stack>
-        <Divider sx={{ mb: 2.5 }} />
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 2.5 }}>
-          {infoItems.map(([label, value]) => <Box key={label} sx={{ p: 1.5, borderRadius: 2, bgcolor: '#F7FAF8' }}><Info label={label} value={value} /></Box>)}
-        </Box>
-      </Paper>
-
-      <Paper elevation={0} sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, border: '1px solid #DDEAE1' }}>
-        <Stack direction="row" spacing={1} alignItems="center"><EmojiEventsRounded sx={{ color: '#087D4B' }}/><Typography variant="h6" fontWeight={900}>Lịch sử thi cấp</Typography></Stack>
-        <Typography sx={{ mt: .5, mb: 2 }} variant="body2" color="text.secondary">Đăng ký thi cấp của chính võ sinh; các đăng ký đã hủy được ẩn.</Typography>
-        {examsLoading && <CircularProgress size={24} />}
-        {examsError && <Alert severity="warning">{examsError}</Alert>}
-        {!examsLoading && !examsError && visibleExams.length === 0 && <Typography color="text.secondary">Chưa có đăng ký thi cấp còn hiệu lực.</Typography>}
-        {!examsError && visibleExams.map(item => <Box key={item.id} sx={{ px: 2, py: 1.5, border: '1px solid #E1EAE4', borderRadius: 2, mb: 1 }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1} alignItems={{ sm: 'center' }}>
-            <Box><Typography fontWeight={800}>{show(item.dangDuThi || item.dangDuThiCap)}</Typography><Typography variant="body2" color="text.secondary">Đợt: {show(item.periodName || item.periodId)} • Kết quả: {show(item.ketQua || item.ketqua)}</Typography></Box>
-            <Chip size="small" label={show(item.status || item.trangThai)} sx={{ fontWeight: 800 }} />
-          </Stack>
-        </Box>)}
-      </Paper>
-      {!leaveEnabled && <Alert severity="info" sx={{ borderRadius: 2 }}>Xin phép nghỉ sẽ xuất hiện khi điểm tập được bật chức năng và hồ sơ đã liên kết locationId hợp lệ.</Alert>}
-    </>)}
   </Box>;
+
   if (embedded) return content;
   return <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', p: { xs: 2, md: 4 } }}>
     <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ maxWidth: 1000, mx: 'auto', mb: 2 }}>

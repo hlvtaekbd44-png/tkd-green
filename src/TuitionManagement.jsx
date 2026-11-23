@@ -13,6 +13,8 @@ import {
   Box,
   Button,
   Chip,
+  Checkbox,
+  FormControlLabel,
   Avatar,
   Divider,
   InputAdornment,
@@ -48,6 +50,8 @@ import {
 import { db } from "./firebase";
 import { calculateTuitionPolicy } from "./tuitionPolicy";
 import ExamFeeCollection from "./ExamFeeCollection";
+import { printTuitionNoticesA5 } from "./TuitionNoticeA5";
+import { loadOutstandingExamFees } from "./examFeesForPrint";
 
 const dateVN = (value) => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value || "—";
@@ -64,6 +68,13 @@ const money = (value) =>
 
 // Tạo các kỳ còn thiếu và phân bổ khoản thu theo thứ tự kỳ cũ trước.
 // Không tự suy diễn kỳ đã đóng khi lịch sử cũ thiếu thông tin.
+// Nghỉ học: không lập kỳ mới, vẫn giữ nợ của các kỳ đã ghi nhận.
+const isQuitMember = member => {
+  const raw = String(member?.trangThai ?? member?.status ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().toLowerCase().replace(/\s+/g, ' ');
+  return ['nghi hoc', 'da nghi', 'nghi', 'ngung hoc'].includes(raw);
+};
 const validMoney = v => Number.isSafeInteger(Number(v)) && Number(v) >= 0;
 const cycleOwed = c => Number(c.soTienPhaiDong ?? c.soTien ?? 0);
 const cyclePaid = c => Number(c.daThu ?? c.soTien ?? 0);
@@ -90,6 +101,17 @@ const prepareLedger = (member, type, rate, untilISO) => {
   const cycles = normalizeCycles(old).sort((a,b)=>a.ngayBatDau.localeCompare(b.ngayBatDau));
   if (cycles.some(c=>c.daThu>c.soTienPhaiDong)) throw new Error('Lịch sử có số đã thu lớn hơn phải đóng. Cần đối soát.');
   for(let i=1;i<cycles.length;i++) if(cycles[i].ngayBatDau<=cycles[i-1].ngayHetHan) throw new Error('Lịch sử kỳ thu bị trùng. Cần đối soát.');
+  // Chỉ thu lại các kỳ nợ đã hình thành khi võ sinh ngừng học.
+  // Không tự tính thêm phí tháng/quý kể từ ngày nghỉ đến ngày thu.
+  if (isQuitMember(member)) {
+    const debt = cycles.reduce((sum, cycle) => sum + cycleDebt(cycle), 0);
+    const storedRaw = member.noHocPhi ?? member.conNo;
+    if (storedRaw !== undefined && storedRaw !== null && storedRaw !== '' &&
+        (!validMoney(storedRaw) || Number(storedRaw) !== debt)) {
+      throw new Error('Công nợ lưu trong hồ sơ và lịch sử kỳ thu chưa khớp. Cần đối soát trước khi thu.');
+    }
+    return cycles;
+  }
   const last = cycles[cycles.length-1];
   if (last && member.ngayHetHan && member.ngayHetHan > last.ngayHetHan) throw new Error('Ngày đã thanh toán đến không khớp lịch sử. Cần đối soát.');
   if (!last && member.ngayHetHan) throw new Error('Hồ sơ có ngày đã thanh toán đến nhưng thiếu lịch sử kỳ thu. Cần đối soát.');
@@ -136,6 +158,8 @@ export default function TuitionManagement({
   location,
   onLocationChange,
   locations = [],
+  focusMemberId = "",
+  onFocusHandled,
 }) {
   const [locationRates, setLocationRates] = useState([]);
   const [ratesLoading, setRatesLoading] = useState(true);
@@ -152,6 +176,15 @@ export default function TuitionManagement({
 
   const [period, setPeriod] = useState("Tháng");
   const [selectedMember, setSelectedMember] = useState(null);
+  const [bulkDialog,setBulkDialog] = useState(false);
+  const [selectedPrintIds,setSelectedPrintIds] = useState([]);
+  const [printLocation, setPrintLocation] = useState('Tất cả điểm tập');
+  const [printSearch, setPrintSearch] = useState('');
+  const [printing,setPrinting] = useState(false);
+  const [printBatchIndex,setPrintBatchIndex] = useState(0);
+  const PRINT_BATCH_SIZE = 50;
+  const [printIssue,setPrintIssue] = useState('');
+  const [handledFocus, setHandledFocus] = useState("");
   const [amount, setAmount] = useState("");
   const [baseFee, setBaseFee] = useState("");
   const [discount, setDiscount] = useState("0");
@@ -249,6 +282,12 @@ const addDays = (date, days) => {
       setBaseFee(""); setAmount("");
       return;
     }
+    if (isQuitMember(selectedMember)) {
+      setRateReady(true);
+      setRateWarning('Hội viên đã nghỉ học: chỉ thu nợ các kỳ đã ghi nhận, không lập kỳ hoặc tính phí mới.');
+      setBaseFee('0');
+      return;
+    }
     const result = getRate(selectedMember, period);
     if (result.error) {
       setRateReady(false); setRateWarning(result.error); setBaseFee(""); setAmount("");
@@ -319,7 +358,8 @@ const addDays = (date, days) => {
 
   const dueCounts = useMemo(() => {
     const scoped = students.filter((student) =>
-      !location || location === "Tất cả điểm tập" || (student.location || student.diemTap) === location
+      !isQuitMember(student) &&
+      (!location || location === "Tất cả điểm tập" || (student.location || student.diemTap) === location)
     );
     const count = (category) => scoped.filter(
       (student) => dueInfo.get(student.id)?.category === category
@@ -336,6 +376,9 @@ const addDays = (date, days) => {
     const keyword = search.trim().toLocaleLowerCase("vi");
 
     return students.filter((student) => {
+      // Hội viên nghỉ học không nằm trong danh sách ĐỀ XUẤT thu.
+      // Khoản nợ vẫn tồn tại và được truy cập riêng qua hồ sơ hội viên.
+      if (isQuitMember(student)) return false;
       const matchLocation =
         location === "Tất cả điểm tập" ||
         (student.location || student.diemTap) === location;
@@ -357,6 +400,112 @@ const addDays = (date, days) => {
       return matchLocation && matchSearch && matchFee && matchDue;
     });
   }, [students, location, search, feeFilter, dueFilter, dueInfo]);
+
+  // Danh sách in hàng loạt có bộ lọc riêng, độc lập với bộ lọc đề xuất thu.
+  // Chỉ dùng students đã được App.jsx giới hạn theo quyền; KHÔNG đọc thêm điểm tập khác.
+  // Hội viên Nghỉ học không được đề xuất in hàng loạt, nhưng vẫn có thể in từ hồ sơ.
+  const printLocations = useMemo(() => [
+    'Tất cả điểm tập',
+    ...[...new Set(students.filter(s => !isQuitMember(s))
+      .map(s => String(s.location || s.diemTap || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')),
+  ], [students]);
+  const bulkCandidates = useMemo(() => {
+    const keyword = printSearch.trim().toLocaleLowerCase('vi');
+    return students.filter(s => {
+      if (isQuitMember(s)) return false;
+      const point = String(s.location || s.diemTap || '').trim();
+      if (printLocation !== 'Tất cả điểm tập' && point !== printLocation) return false;
+      if (!keyword) return true;
+      return `${s.name || ''} ${s.maHoiVienNoiBo || ''} ${s.maHV || ''} ${point}`
+        .toLocaleLowerCase('vi').includes(keyword);
+    });
+  }, [students, printLocation, printSearch]);
+  const eligiblePrintIds = new Set(bulkCandidates.map(x => x.id));
+  const chosenPrintIds = selectedPrintIds.filter(id => eligiblePrintIds.has(id));
+  const selectedPrintMembers = bulkCandidates.filter(x=>chosenPrintIds.includes(x.id));
+  const printBatchCount = Math.ceil(selectedPrintMembers.length / PRINT_BATCH_SIZE);
+  const activePrintBatch = Math.min(printBatchIndex, Math.max(0, printBatchCount-1));
+  const batchMembers = selectedPrintMembers.slice(activePrintBatch*PRINT_BATCH_SIZE,(activePrintBatch+1)*PRINT_BATCH_SIZE);
+  const openBulkPrint = () => {
+    const preferred = location && printLocations.includes(location) ? location : 'Tất cả điểm tập';
+    setPrintLocation(preferred);
+    setPrintSearch('');
+    setSelectedPrintIds([]);
+    setPrintBatchIndex(0);
+    setPrintIssue('');
+    setBulkDialog(true);
+  };
+  const doBulkPrint = async () => {
+    if (printing || chosenPrintIds.length===0) return;
+    if (!batchMembers.length) {setPrintIssue('Chưa có hội viên trong đợt in này.');return;}
+    // Mở cửa sổ ngay trong click để trình duyệt không chặn do tác vụ async.
+    const popup = window.open('', '_blank', 'width=830,height=960');
+    if (!popup) {setPrintIssue('Trình duyệt chặn cửa sổ in. Hãy cho phép pop-up.');return;}
+    popup.document.write('<!doctype html><html lang="vi"><meta charset="utf-8"><body style="font-family:Arial;padding:28px">Đang đối chiếu dữ liệu kỳ học phí...</body></html>');
+    popup.document.close();
+    setPrinting(true);setPrintIssue('');
+    try {
+      if (ratesLoading || ratesError) throw new Error(ratesError || 'Chưa tải xong bảng giá điểm tập.');
+      const date = todayISO();
+      const candidates=batchMembers;
+      const documents = await Promise.all(candidates.map(async student => {
+        const snap=await getDoc(doc(db,'members',student.id));
+        if (!snap.exists()) throw new Error(`Không tìm thấy hội viên: ${student.name}`);
+        const data=snap.data();
+        if (String(data.diemTap || '') !== String(student.location || student.diemTap || '')) throw new Error(`Điểm tập của ${student.name} vừa thay đổi. Hãy tải lại trang.`);
+        const member={id:snap.id,...data};
+        const feeType=['Ngày','Tháng','Quý'].includes(member.loaiHocPhi)?member.loaiHocPhi:'Tháng';
+        const config=locationRates.filter(x=>x.name===member.diemTap);
+        if(config.length!==1) throw new Error(`Điểm tập ${member.diemTap} chưa có cấu hình duy nhất.`);
+        const rate=getRate(member,feeType);
+        if(!isQuitMember(member) && rate.error) throw new Error(`${student.name}: ${rate.error}`);
+        const cycles=prepareLedger(member,feeType,isQuitMember(member)?0:rate.value,date);
+        const totalDebt=cycles.reduce((n,c)=>n+cycleDebt(c),0);
+        return {member,locationInfo:config[0],cycles,totalDebt};
+      }));
+      const examMap = await loadOutstandingExamFees(documents.map(x=>x.member),profile);
+      const withFees=documents.map(x=>({...x,examFees:examMap[x.member.id] || []}));
+      const due=withFees.filter(x=>x.totalDebt>0 || x.examFees.length>0);
+      if(!due.length) throw new Error('Không có khoản học phí hoặc lệ phí thi còn phải đóng trong đợt in này.');
+      printTuitionNoticesA5(due,{date,targetWindow:popup});
+      const skipped=withFees.length-due.length;
+      const next=activePrintBatch+1;
+      setPrintIssue(`Đã mở ${due.length} phiếu ở đợt ${next}/${printBatchCount}. ${skipped ? `Bỏ qua ${skipped} hội viên không còn khoản phải đóng. ` : ''}${next<printBatchCount?'Chọn đợt tiếp theo để tiếp tục in.':'Đã chuẩn bị hết các đợt đã chọn.'}`);
+      if(next<printBatchCount) setPrintBatchIndex(next);
+    }catch(e){
+      setPrintIssue(e.message || 'Không chuẩn bị được danh sách in.');
+      try {popup.document.open();popup.document.write('<!doctype html><html lang="vi"><meta charset="utf-8"><body style="font-family:Arial;padding:28px"><h3>Đã dừng in do có hồ sơ cần đối chiếu.</h3><p>Quay về TKD Green để xem thông báo lỗi. Không có dữ liệu nào được thay đổi.</p></body></html>');popup.document.close();}catch(_){}
+    }finally{setPrinting(false);}
+  };
+
+  const handleSingleNoticePrint = async () => {
+    if (!selectedMember?.id || !previewLedger || previewLedger.error || printing) return;
+    const popup=window.open('','_blank','width=830,height=960');
+    if (!popup) {setFormError('Trình duyệt chặn cửa sổ in. Hãy cho phép pop-up.');return;}
+    popup.document.write('<!doctype html><html lang="vi"><meta charset="utf-8"><body style="font-family:Arial;padding:24px">Đang đối chiếu học phí và lệ phí thi...</body></html>');
+    popup.document.close();
+    setPrinting(true);setFormError('');
+    try {
+      const snap=await getDoc(doc(db,'members',selectedMember.id));
+      if(!snap.exists()) throw new Error('Hồ sơ hội viên không còn tồn tại.');
+      const member={id:snap.id,...snap.data()};
+      const point=locationRates.filter(x=>x.name===member.diemTap);
+      if(point.length!==1) throw new Error('Điểm tập chưa có cấu hình duy nhất.');
+      if(String(member.diemTap)!==String(selectedMember.diemTap||selectedMember.location)) throw new Error('Điểm tập đã thay đổi; vui lòng mở lại hồ sơ.');
+      const type=['Ngày','Tháng','Quý'].includes(member.loaiHocPhi)?member.loaiHocPhi:'Tháng';
+      const price=getRate(member,type);
+      if(!isQuitMember(member)&&price.error) throw new Error(price.error);
+      const cycles=prepareLedger(member,type,isQuitMember(member)?0:price.value,todayISO());
+      const totalDebt=cycles.reduce((s,c)=>s+cycleDebt(c),0);
+      const examMap=await loadOutstandingExamFees([member],profile);
+      const examFees=examMap[member.id]||[];
+      if(totalDebt===0&&!examFees.length) throw new Error('Hội viên không còn khoản học phí hoặc lệ phí thi cần đóng.');
+      printTuitionNoticesA5([{member,locationInfo:point[0],cycles,totalDebt,examFees}],{date:todayISO(),targetWindow:popup});
+    } catch(e) {
+      setFormError('Không chuẩn bị được phiếu: '+(e.message||e));
+      try {popup.close();}catch(_){}
+    } finally {setPrinting(false);}
+  };
 
   const orderedPayments = useMemo(() => [...payments].sort((a, b) =>
     (b.ngayThu || "").localeCompare(a.ngayThu || "") ||
@@ -403,6 +552,24 @@ const addDays = (date, days) => {
     setMessage("");
   };
 
+  useEffect(() => { if (!focusMemberId) setHandledFocus(''); }, [focusMemberId]);
+
+  // Mở thu nợ từ Danh sách/Hồ sơ Hội viên, dù hội viên đã nghỉ học.
+  // Chỉ nhận hội viên có trong danh sách đã cấp theo quyền người dùng.
+  useEffect(() => {
+    if (!focusMemberId || focusMemberId === handledFocus || loading) return;
+    const candidate = students.find(s => s.id === focusMemberId);
+    if (!candidate) {
+      setFormError('Không tìm thấy hội viên trong phạm vi được phân quyền.');
+      setHandledFocus(focusMemberId);
+      onFocusHandled?.();
+      return;
+    }
+    setHandledFocus(focusMemberId);
+    void openPayment(candidate);
+    onFocusHandled?.();
+  }, [focusMemberId, handledFocus, loading, students]);
+
   const closePayment = () => {
     if (saving) return;
     setSelectedMember(null);
@@ -410,7 +577,8 @@ const addDays = (date, days) => {
   };
 
   const previewLedger = (() => {
-    if (!selectedMember || !rateReady || !baseFee || policyLoading || !memberPolicy) return null;
+    if (!selectedMember || policyLoading || !memberPolicy ||
+        (!isQuitMember(selectedMember) && (!rateReady || !baseFee))) return null;
     try {
       const ledger = prepareLedger({...selectedMember, chinhSachHocPhi:memberPolicy},period,Number(baseFee),paymentDate);
       return {ledger, debt:ledger.reduce((n,c)=>n+cycleDebt(c),0), error:""};
@@ -424,7 +592,8 @@ const addDays = (date, days) => {
 
   const submitPayment = async event => {
     event.preventDefault(); setMessage(""); setFormError("");
-    if (!selectedMember?.id || !rateReady || ratesLoading || ratesError || policyLoading) {
+    if (!selectedMember?.id || policyLoading ||
+        (!isQuitMember(selectedMember) && (!rateReady || ratesLoading || ratesError))) {
       setFormError('Chưa đủ dữ liệu hồ sơ, bảng giá hoặc chính sách.'); return;
     }
     if (profile?.role !== 'admin') {
@@ -434,6 +603,7 @@ const addDays = (date, days) => {
     if (!Number.isSafeInteger(received) || received < 0 || amount==='') {
       setFormError('Số tiền thực thu phải là số nguyên không âm.');return;
     }
+    if (isQuitMember(selectedMember) && received === 0) { setFormError('Hội viên nghỉ học: chỉ ghi nhận số thực thu để giảm nợ cũ.'); return; }
     if (!parseLocalDate(paymentDate)) {setFormError('Ngày thu không hợp lệ.');return;}
     setSaving(true);
     try {
@@ -449,10 +619,15 @@ const addDays = (date, days) => {
         const configSnap=await tx.get(configRef);
         if(!memberSnap.exists()||!configSnap.exists()) throw new Error('Hồ sơ hoặc điểm tập không tồn tại.');
         const memberData=memberSnap.data(), config=configSnap.data();
-        if(String(memberData.diemTap||'').trim()!==pointName || config.name!==pointName || config.active===false || config.features?.tuition===false)
-          throw new Error('Điểm tập đã thay đổi hoặc chức năng Học phí đã tắt.');
-        const liveRate=Number(config.fees?.[feeKey(period)]);
-        if(!Number.isSafeInteger(liveRate)||liveRate<=0 || liveRate!==Number(baseFee)) throw new Error('Bảng giá đã thay đổi. Đóng và mở lại phiếu thu.');
+        const quitNow = isQuitMember(memberData);
+        if (quitNow !== isQuitMember(selectedMember)) throw new Error('Trạng thái học tập vừa thay đổi. Đóng và mở lại phiếu thu.');
+        if(String(memberData.diemTap||'').trim()!==pointName || config.name!==pointName)
+          throw new Error('Điểm tập đã thay đổi. Hãy mở lại hồ sơ.');
+        if (!quitNow && (config.active === false || config.features?.tuition === false))
+          throw new Error('Điểm tập đã ngừng hoạt động hoặc đã tắt Học phí.');
+        const liveRate = quitNow ? 0 : Number(config.fees?.[feeKey(period)]);
+        if (!quitNow && (!Number.isSafeInteger(liveRate) || liveRate <= 0 || liveRate !== Number(baseFee)))
+          throw new Error('Bảng giá đã thay đổi. Đóng và mở lại phiếu thu.');
         const ledger=prepareLedger(memberData,period,liveRate,paymentDate);
         const totalDebt=ledger.reduce((n,c)=>n+cycleDebt(c),0);
         if(received>totalDebt) throw new Error(`Số tiền thu vượt tổng phải thu ${money(totalDebt)}.`);
@@ -476,7 +651,7 @@ const addDays = (date, days) => {
           ghiChu:note.trim(),nguoiThu:profile?.email||'',createdAt:serverTimestamp(),
         });
         tx.update(memberRef,{
-          loaiHocPhi:period, ngayHetHan:paidThrough,
+          ...(!quitNow ? { loaiHocPhi: period, ngayHetHan: paidThrough } : {}),
           lichSuChuKy:newLedger, noHocPhi:remainingDebt,conNo:remainingDebt,
           tinhTrangHocPhi:remainingDebt>0?'Còn nợ':'Đã đóng',
         });
@@ -579,7 +754,10 @@ const addDays = (date, days) => {
             <Typography fontWeight={900}>Danh sách thu học phí</Typography>
             <Typography variant="caption" color="text.secondary">Chọn hội viên để ghi nhận khoản thu</Typography>
           </Box>
-          <Chip size="small" label={`${filteredStudents.length} hội viên`} />
+          <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
+            <Chip size="small" label={`${filteredStudents.length} hội viên`} />
+            <Button size="small" variant="outlined" startIcon={<ReceiptLongRounded />} onClick={openBulkPrint} disabled={!filteredStudents.length || loading}>In thông báo hàng loạt A5</Button>
+          </Stack>
         </Box>
         <Divider />
         {loading ? <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box> : <>
@@ -677,13 +855,70 @@ const addDays = (date, days) => {
         </>}
       </Paper>
 
+      {printIssue && <Alert severity="warning" onClose={()=>setPrintIssue('')}>{printIssue}</Alert>}
+      <Dialog open={bulkDialog} onClose={()=>!printing && setBulkDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>In thông báo học phí hàng loạt · A5 đen trắng</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1.5}>
+            <Alert severity="info">Chọn hội viên muốn in. Chỉ in các khoản phải đóng đã được đối chiếu từ chính sách học phí. Hội viên Nghỉ học không có trong danh sách đề xuất này.</Alert>
+            {printIssue && <Alert severity="warning">{printIssue}</Alert>}
+            <Box sx={{ display:'grid', gridTemplateColumns:{ xs:'1fr', sm:'minmax(200px, 1fr) minmax(220px, 1.5fr)' }, gap:1.5 }}>
+              <TextField select fullWidth size="small" label="Điểm tập cần in"
+                value={printLocation} disabled={printing}
+                onChange={e => { setPrintLocation(e.target.value); setSelectedPrintIds([]); setPrintBatchIndex(0); setPrintIssue(''); }}>
+                {printLocations.map(point => <MenuItem key={point} value={point}>{point}</MenuItem>)}
+              </TextField>
+              <TextField size="small" fullWidth label="Tìm hội viên để in"
+                placeholder="Tên, mã nội bộ hoặc VTF ID"
+                value={printSearch} disabled={printing}
+                onChange={e => { setPrintSearch(e.target.value); setSelectedPrintIds([]); setPrintBatchIndex(0); setPrintIssue(''); }} />
+            </Box>
+            <Stack direction="row" alignItems="center" spacing={1} useFlexGap flexWrap="wrap">
+              <Chip variant="outlined" color="primary" label={`${bulkCandidates.length} hội viên tại bộ lọc`} />
+              <Chip color="success" variant="outlined" label={`${chosenPrintIds.length} hội viên đã chọn`} />
+              <Button disabled={printing || !bulkCandidates.length}
+                onClick={()=>{setSelectedPrintIds(bulkCandidates.map(x=>x.id));setPrintBatchIndex(0);}}>
+                Chọn tất cả hội viên đang lọc
+              </Button>
+              <Button disabled={printing || !selectedPrintIds.length} onClick={()=>{setSelectedPrintIds([]);setPrintBatchIndex(0);}}>Bỏ chọn</Button>
+            </Stack>
+            <Box sx={{maxHeight:340,overflow:'auto',border:'1px solid',borderColor:'divider',borderRadius:2,p:1}}>
+              {!bulkCandidates.length && <Typography sx={{p:2}} color="text.secondary">Không có hội viên đang học phù hợp với điểm tập hoặc từ khóa tìm kiếm.</Typography>}
+              {bulkCandidates.map(m=><Box key={m.id} sx={{borderBottom:'1px solid',borderColor:'divider'}}>
+                <FormControlLabel control={<Checkbox disabled={printing} checked={chosenPrintIds.includes(m.id)} onChange={e=>{setSelectedPrintIds(old=>e.target.checked?[...old,m.id]:old.filter(id=>id!==m.id));setPrintBatchIndex(0);}}/>} label={`${m.name || 'Chưa có tên'} · ${m.maHoiVienNoiBo || m.maHV || 'Chưa có mã'} · ${m.location || ''}`}/>
+              </Box>)}
+            </Box>
+            {printBatchCount>0 && <Stack direction={{xs:'column',sm:'row'}} spacing={1.5} alignItems={{sm:'center'}}>
+              <TextField select size="small" label="Đợt in (50 hội viên/đợt)" sx={{minWidth:280}}
+                value={activePrintBatch} disabled={printing} onChange={e=>setPrintBatchIndex(Number(e.target.value))}>
+                {Array.from({length:printBatchCount},(_,i)=><MenuItem key={i} value={i}>
+                  Đợt {i+1}/{printBatchCount} · Hội viên {i*PRINT_BATCH_SIZE+1}–{Math.min((i+1)*PRINT_BATCH_SIZE,selectedPrintMembers.length)}
+                </MenuItem>)}
+              </TextField>
+              <Chip label={`${batchMembers.length} hội viên trong đợt đang chọn`} variant="outlined" />
+            </Stack>}
+            <Typography variant="caption">Có thể chọn hơn 100 hội viên. Hệ thống chia mỗi lần in thành 50 hội viên để máy in hoạt động ổn định. Chọn lần lượt Đợt 1, Đợt 2...; mỗi đợt chỉ mở bản in, không ghi thanh toán. Phiếu gồm học phí và lệ phí Thi cấp/Thi đẳng chưa đóng, cộng vào tổng tiền bằng chữ. Các phiếu lấy HLV/ngân hàng/QR riêng theo điểm tập.</Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions><Button disabled={printing} onClick={()=>setBulkDialog(false)}>Đóng</Button><Button variant="contained" disabled={printing || !batchMembers.length} onClick={doBulkPrint}>{printing?'Đang đối chiếu...':`In đợt ${activePrintBatch+1}/${printBatchCount} · ${batchMembers.length} hội viên`}</Button></DialogActions>
+      </Dialog>
+
       <ExamFeeCollection profile={profile} students={students} location={location} />
 
       <Dialog open={Boolean(selectedMember)} onClose={closePayment} fullWidth maxWidth="sm" fullScreen={false}
         PaperProps={{ sx: { borderRadius: { xs: 2, sm: 3 }, m: { xs: 1.5, sm: 4 }, width: { xs: "calc(100% - 24px)", sm: "100%" } } }}>
         <Box component="form" onSubmit={submitPayment}>
-          <DialogTitle sx={{ fontWeight: 900 }}>Ghi nhận thu học phí</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 900, display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:1, alignItems:'center' }}>
+            <span>Ghi nhận thu học phí</span>
+            <Button type="button" variant="outlined" size="small" startIcon={<ReceiptLongRounded />}
+              disabled={!previewLedger || !!previewLedger.error || !selectedMember || policyLoading || saving}
+              onClick={handleSingleNoticePrint}>
+              In thông báo A5
+            </Button>
+          </DialogTitle>
           <DialogContent>
+            {selectedMember && isQuitMember(selectedMember) &&
+              <Alert severity="warning" sx={{mt:1,mb:1}}>Hội viên đã nghỉ học. Phiếu thu này chỉ thanh toán các kỳ nợ có trong lịch sử, không phát sinh học phí mới.</Alert>}
             {selectedMember && <Paper elevation={0} sx={{ ...cardStyle, p: 1.5, mb: 2, mt: 1 }}>
               <Typography fontWeight={800}>{selectedMember.name}</Typography>
               <Typography variant="body2" color="text.secondary">{selectedMember.maHoiVienNoiBo || "—"} · VTF: {selectedMember.maHV || "Chưa cấp"} · {selectedMember.location}</Typography>
@@ -696,7 +931,7 @@ const addDays = (date, days) => {
               </TextField>
               {profile?.role !== "admin" && <Alert severity="warning">Cần bổ sung Firestore Rules an toàn để HLV được ghi nhận khoản thu. Hiện chỉ Admin có thể lưu.</Alert>}
               <Alert severity={rateWarning ? "warning" : "info"}>{rateWarning || "Mức học phí gốc được tự động lấy từ Cài đặt → Quản lý điểm tập. Hệ thống cộng dồn các kỳ đến ngày thu và ưu tiên trừ nợ kỳ cũ trước."}</Alert>
-              <TextField label="Học phí gốc (VNĐ)" type="number" value={baseFee} slotProps={{ htmlInput: { min: 1, step: 1 }, input: { readOnly: true } }} required fullWidth disabled={saving || !rateReady} />
+              <TextField label="Học phí gốc (VNĐ)" type="number" value={baseFee} slotProps={{ htmlInput: { min: 1, step: 1 }, input: { readOnly: true } }} required fullWidth disabled={saving || !rateReady || isQuitMember(selectedMember)} />
               <Alert severity="info">{policyLoading ? "Đang tải chính sách..." : `Chính sách: ${memberPolicy?.loai || "binh_thuong"}. Áp dụng theo ngày bắt đầu kỳ ${dateVN(previewStart)}.`}</Alert>
               <Paper variant="outlined" sx={{p:1.5,borderRadius:2}}>
                 <Typography>Miễn/giảm theo hồ sơ: {policyPreview ? money(policyPreview.soTienGiam) : "—"}</Typography>
@@ -716,7 +951,7 @@ const addDays = (date, days) => {
           </DialogContent>
           <DialogActions sx={{ p: 2.5, pt: 0 }}>
             <Button onClick={closePayment} disabled={saving}>Hủy</Button>
-            <Button type="submit" variant="contained" color="success" disabled={saving || policyLoading || !memberPolicy || !rateReady || amount === "" || !!previewLedger?.error || profile?.role !== "admin"} startIcon={saving ? <CircularProgress size={16} /> : <PaymentsRounded />}>
+            <Button type="submit" variant="contained" color="success" disabled={saving || policyLoading || !memberPolicy || (!isQuitMember(selectedMember) && !rateReady) || amount === "" || !!previewLedger?.error || profile?.role !== "admin"} startIcon={saving ? <CircularProgress size={16} /> : <PaymentsRounded />}>
               {saving ? "Đang lưu..." : "Lưu khoản thu"}
             </Button>
           </DialogActions>

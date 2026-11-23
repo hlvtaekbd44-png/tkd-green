@@ -1,6 +1,12 @@
 import GoogleLogin from "./GoogleLogin";
+import LoginScreen from "./LoginScreen";
+import PublicHome from "./PublicHome";
+import PublicLocationIntroduction from "./PublicLocationIntroduction";
 import useDashboardLiveMetrics from "./useDashboardLiveMetrics";
 import MemberSelfPortal from "./MemberSelfPortal";
+import MemberDashboard from "./MemberDashboard";
+import MemberContentFrame from "./MemberContentFrame";
+import './MemberPortalFullPro.css';
 import {
   collection,
   doc,
@@ -11,6 +17,7 @@ import {
 import { db } from './firebase';
 import { useEffect, useMemo, useState } from "react";
 import useUserRole from "./useUserRole";
+import { useClubLocations, namesForProfile } from "./useClubLocations";
 import {
   Alert, AppBar, Avatar, Badge, Box, Button, Chip, CssBaseline, Divider,
   Drawer, IconButton, InputAdornment, List, ListItemButton, ListItemIcon,
@@ -21,7 +28,7 @@ import {
   Menu as MenuIcon, DashboardRounded, GroupsRounded, PaymentsRounded,
   EmojiEventsRounded, FactCheckRounded, AssessmentRounded, SettingsRounded,
   SearchRounded, NotificationsNoneRounded, AddRounded, TrendingUpRounded,
-  CalendarMonthRounded, ArrowForwardRounded, ShieldRounded,
+  CalendarMonthRounded, ArrowForwardRounded, ShieldRounded, PublicRounded, SchoolRounded,
 } from '@mui/icons-material'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import AddMember from "./AddMember";
@@ -29,10 +36,16 @@ import MemberList from "./MemberList";
 import EditMember from "./EditMember";
 import TuitionManagement from "./TuitionManagement";
 import ExamManagement from "./ExamManagement";
+import BeltBadge from "./BeltBadge";
 import AttendanceManagement from "./AttendanceManagement";
+import LeaveRequestsManagement from "./LeaveRequestsManagement";
 import SettingsManagement from "./SettingsManagement";
+import ClubContentManagement from "./ClubContentManagement";
+import AchievementManagement from "./AchievementManagement";
+import MemberAchievements from "./MemberAchievements";
 import './App.css'
 import './TKDPro.css'
+import './TKDFontReadability.css'
 import HeaderAccount from "./HeaderAccount";
 
 const drawerWidth = 256
@@ -47,8 +60,16 @@ const theme = createTheme({
   },
   shape: { borderRadius: 14 },
   typography: {
-    fontFamily: '"Inter", "Segoe UI", Arial, sans-serif',
-    button: { textTransform: 'none', fontWeight: 700 },
+    fontFamily: '"Segoe UI", "Roboto", Arial, sans-serif',
+    fontSize: 15,
+    button: { textTransform: 'none', fontWeight: 700, fontSize: '0.94rem' },
+    body1: { fontSize: '1rem', lineHeight: 1.65 },
+    body2: { fontSize: '0.94rem', lineHeight: 1.55 },
+    subtitle1: { fontSize: '1.05rem', fontWeight: 700, lineHeight: 1.5 },
+    subtitle2: { fontSize: '0.98rem', fontWeight: 700 },
+    caption: { fontSize: '0.83rem', lineHeight: 1.45 },
+    h6: { fontSize: '1.22rem', fontWeight: 800 },
+    h5: { fontSize: '1.48rem', fontWeight: 800 },
     h5: { fontWeight: 800, letterSpacing: '-0.5px' },
   },
   components: {
@@ -57,21 +78,26 @@ const theme = createTheme({
     MuiTextField: { defaultProps: { size: 'small' } },
     MuiOutlinedInput: { styleOverrides: { root: { borderRadius: 10, backgroundColor: '#ffffff' } } },
     MuiDialog: { styleOverrides: { paper: { backgroundColor: '#ffffff', backgroundImage: 'none', border: '1px solid #dbe9df', borderRadius: 18 } } },
-    MuiTableCell: { styleOverrides: { root: { borderBottom: '1px solid #e6eee8' }, head: { fontWeight: 800, color: '#446b56' } } },
-    MuiChip: { styleOverrides: { root: { fontWeight: 700 } } },
+    MuiTableCell: { styleOverrides: { root: { borderBottom: '1px solid #e6eee8', fontSize: '0.94rem', lineHeight: 1.55 }, head: { fontWeight: 800, color: '#254c35', fontSize: '0.92rem' } } },
+    MuiChip: { styleOverrides: { root: { fontWeight: 700, fontSize: '0.79rem' } } },
   },
 })
 
 const navItems = [
+  { label: 'Giới thiệu', module: 'public', icon: <PublicRounded /> },
   { label: 'Tổng quan', module: 'dashboard', icon: <DashboardRounded /> },
   { label: 'Hội viên', module: 'members', icon: <GroupsRounded /> },
   { label: 'Học phí', module: 'tuition', icon: <PaymentsRounded /> },
   { label: 'Thi cấp', module: 'exams', icon: <EmojiEventsRounded /> },
+  { label: 'Thi đẳng', module: 'dan', icon: <EmojiEventsRounded /> },
   { label: 'Điểm danh', module: 'attendance', icon: <FactCheckRounded /> },
+  { label: 'Duyệt đơn nghỉ', module: 'leaveRequests', icon: <CalendarMonthRounded /> },
   { label: 'Báo cáo', module: 'reports', icon: <AssessmentRounded /> },
+  { label: 'Sự kiện', module: 'content', icon: <CalendarMonthRounded /> },
+  { label: 'Đào tạo', module: 'content', icon: <SchoolRounded /> },
+  { label: 'Thành tích', module: 'achievements', icon: <EmojiEventsRounded /> },
 ]
 
-const locations = ['Tất cả điểm tập', 'Lê Văn Tám', 'Nghĩa Trung', 'Đồng Tâm', 'Thôn 6', 'Phước Sơn', 'Minh Hưng']
 
 // Chuẩn hóa điểm tập được gán; không suy diễn quyền từ các cờ chức năng.
 function assignedLocations(profile) {
@@ -115,7 +141,7 @@ function StatCard({ title, value, note, icon, accent = false }) {
 // Khu vực riêng: chỉ có Hội viên của tôi và Xin phép nghỉ khi điểm tập đã bật.
 // Component tách riêng để các hook của khu vực võ sinh không ảnh hưởng hook của App.
 function MemberPortalLayout({ profile, user }) {
-  const [page, setPage] = useState('Hội viên');
+  const [page, setPage] = useState('Tổng quan');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [member, setMember] = useState(null);
   const [locationDoc, setLocationDoc] = useState(null);
@@ -158,11 +184,18 @@ function MemberPortalLayout({ profile, user }) {
   // Không mặc định bật nếu thiếu cấu hình; quyền được xác định từ Firestore.
   const feature = key => locationDoc?.active === true && locationDoc?.features?.[key] === true;
   const items = [
+    { label: 'Tổng quan', icon: <DashboardRounded /> },
+    { label: 'Giới thiệu', icon: <PublicRounded /> },
     ...(feature('members') ? [{ label: 'Hội viên', icon: <GroupsRounded /> }] : []),
     ...(feature('tuition') ? [{ label: 'Học phí', icon: <PaymentsRounded /> }] : []),
     ...(feature('exams') ? [{ label: 'Thi cấp', icon: <EmojiEventsRounded /> }] : []),
+    ...((locationDoc?.features && Object.prototype.hasOwnProperty.call(locationDoc.features, 'dan')
+      ? feature('dan') : feature('exams')) ? [{ label: 'Thi đẳng', icon: <EmojiEventsRounded /> }] : []),
     ...(feature('attendance') ? [{ label: 'Điểm danh', icon: <FactCheckRounded /> }] : []),
     ...(feature('reports') ? [{ label: 'Báo cáo', icon: <AssessmentRounded /> }] : []),
+    ...(feature('events') ? [{ label: 'Sự kiện', icon: <CalendarMonthRounded /> }] : []),
+    ...(feature('training') ? [{ label: 'Đào tạo', icon: <SchoolRounded /> }] : []),
+    ...(feature('achievements') ? [{ label: 'Thành tích', icon: <EmojiEventsRounded /> }] : []),
     ...(feature('leaveRequests') ? [{ label: 'Xin phép nghỉ', icon: <CalendarMonthRounded /> }] : []),
   ];
   const visiblePage = items.some(x => x.label === page) ? page : (items[0]?.label || '');
@@ -192,20 +225,35 @@ function MemberPortalLayout({ profile, user }) {
       <Box sx={{ flexGrow: 1 }}><Typography className="topbar-eyebrow">TKD GREEN CLUB / VÕ SINH</Typography>
       <Typography className="topbar-title">{visiblePage || 'Chưa được mở chức năng'}</Typography></Box><HeaderAccount />
     </Toolbar></AppBar><Box component="main" className="page-content">
-      {memberError && <Alert severity="error" sx={{ mb: 2 }}>{memberError}</Alert>}
+            {memberError && <Alert severity="error" sx={{ mb: 2 }}>{memberError}</Alert>}
       {locationError && <Alert severity="warning" sx={{ mb: 2 }}>{locationError}</Alert>}
-      {locationLoading ? <Typography>Đang tải cấu hình điểm tập...</Typography> : visiblePage
-        ? <MemberSelfPortal profile={profile} embedded view={visiblePage} leaveEnabled={feature('leaveRequests') && member?.locationId === locationDoc?.id} />
+      <Box className="tkdp-area">
+      {visiblePage === 'Tổng quan'
+        ? <MemberDashboard member={member} profile={profile} navigate={setPage} enabled={Object.fromEntries(items.map(x => [x.label, true]))} />
+        : visiblePage === 'Giới thiệu'
+        ? <MemberContentFrame title="Giới thiệu"><PublicLocationIntroduction embedded /></MemberContentFrame>
+        : visiblePage === 'Báo cáo'
+        ? <MemberDashboard member={member} profile={profile} navigate={setPage} enabled={Object.fromEntries(items.map(x => [x.label, true]))} />
+        : visiblePage === 'Thành tích'
+        ? <MemberContentFrame title="Thành tích"><MemberAchievements memberDocId={memberId} /></MemberContentFrame>
+        : visiblePage === 'Sự kiện' || visiblePage === 'Đào tạo'
+        ? <MemberContentFrame title={visiblePage}><ClubContentManagement kind={visiblePage === 'Sự kiện' ? 'events' : 'training'} profile={profile} /></MemberContentFrame>
+        : locationLoading ? <Typography>Đang tải cấu hình điểm tập...</Typography>
+        : visiblePage ? <MemberSelfPortal profile={profile} embedded view={visiblePage} leaveEnabled={feature('leaveRequests')} examAccess={feature('exams') || (locationDoc?.features && Object.prototype.hasOwnProperty.call(locationDoc.features, 'dan') ? feature('dan') : feature('exams'))} locationId={locationDoc?.id || ''} />
         : <Alert severity="info">Điểm tập chưa bật chức năng nào cho võ sinh. Vui lòng liên hệ Admin.</Alert>}
+      </Box>
       <Box className="footer"><Typography>© 2026 TKD GREEN CLUB</Typography><Typography>CỔNG THÔNG TIN VÕ SINH / PHỤ HUYNH</Typography></Box>
     </Box></Box>
   </Box></ThemeProvider>;
 }
 
 function App() {
+  // TKD_GREEN_DYNAMIC_LOCATION_FILTER_V9
+  const { locations: clubLocations, loadingLocations, locationError } = useClubLocations();
   const { user, profile, loading, error } = useUserRole();
 
-  const [selected, setSelected] = useState('Tổng quan');
+  const [selected, setSelected] = useState('Giới thiệu');
+  const [tuitionFocusMemberId, setTuitionFocusMemberId] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location, setLocation] = useState('Tất cả điểm tập');
   const dashboardMetrics = useDashboardLiveMetrics(profile, location);
@@ -221,7 +269,8 @@ const hasPermission = (module, action = 'view') =>
   profile?.role === 'admin' ||
   (profile?.role === 'hlv' && profile?.permissions?.[module]?.view === true &&
     (action === 'view' || profile?.permissions?.[module]?.[action] === true));
-const visibleNavItems = navItems.filter(item => hasPermission(item.module));
+const canReviewLeave = profile?.role === 'admin' || (profile?.role === 'hlv' && (hasPermission('attendance','manage') || hasPermission('members','edit')));
+const visibleNavItems = navItems.filter(item => ['public', 'content'].includes(item.module) || (item.module === 'leaveRequests' ? canReviewLeave : hasPermission(item.module)));
 const allowedPages = [...visibleNavItems.map(item => item.label), ...(profile?.role === 'admin' ? ['Cài đặt'] : [])];
 // Dùng trang có quyền ngay trong lần render đầu tiên khi quyền thay đổi.
 const activePage = allowedPages.includes(selected) ? selected : (allowedPages[0] || '');
@@ -237,20 +286,26 @@ const canEditMember = hasPermission('members', 'edit');
 
 const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-const assignedPoints = useMemo(() => assignedLocations(profile), [profile]);
+const assignedPoints = useMemo(() => {
+  // HLV có thể được gán theo tên, mã hoặc ID điểm tập. Truy vấn members vẫn dùng tên diemTap.
+  const raw = assignedLocations(profile);
+  return [...new Set(raw.map(value => {
+    const found = clubLocations.find(x => [x.name, x.id, x.code].includes(value));
+    return found?.name || value;
+  }))];
+}, [profile, clubLocations]);
 const assignedKey = assignedPoints.join('\u0001');
-const availableLocations = useMemo(() => (
-  profile?.role === 'admin'
-    ? locations
-    : ['Tất cả điểm tập', ...assignedPoints]
-), [profile?.role, assignedKey]);
+const availableLocations = useMemo(() => [
+  'Tất cả điểm tập',
+  ...namesForProfile(clubLocations, profile, { activeOnly: false }),
+], [clubLocations, profile]);
 
 // Không giữ bộ lọc điểm tập cũ khi chuyển sang tài khoản HLV khác.
 useEffect(() => {
-  if (location !== 'Tất cả điểm tập' && !availableLocations.includes(location)) {
+  if (!loadingLocations && !locationError && location !== 'Tất cả điểm tập' && !availableLocations.includes(location)) {
     setLocation('Tất cả điểm tập');
   }
-}, [location, availableLocations]);
+}, [location, availableLocations, loadingLocations, locationError]);
 
 useEffect(() => {
   if (!profile) {
@@ -269,7 +324,7 @@ useEffect(() => {
     return;
   }
 
-  if (profile.role === 'hlv' && !['members', 'tuition', 'exams', 'attendance', 'reports', 'dashboard'].some(key => profile.permissions?.[key]?.view === true)) {
+  if (profile.role === 'hlv' && !['members', 'tuition', 'exams', 'dan', 'achievements', 'attendance', 'reports', 'dashboard'].some(key => profile.permissions?.[key]?.view === true)) {
     setMembersLoading(false);
     return;
   }
@@ -312,6 +367,7 @@ useEffect(() => {
           lichSuChuKy: Array.isArray(member.lichSuChuKy) ? member.lichSuChuKy : [],
           location: member.diemTap || '',
           belt: member.capDaiDang || 'Chưa cập nhật',
+          mauDai: member.mauDai || '',
           status: member.trangThai || 'Chưa cập nhật',
           fee: member.tinhTrangHocPhi || 'Chưa cập nhật',
         };
@@ -358,13 +414,7 @@ useEffect(() => {
   }
 
   if (!user) {
-    return (
-      <div style={{ padding: 32 }}>
-        <h2>CLB Taekwondo Green</h2>
-        <p>Vui lòng đăng nhập bằng tài khoản được CLB cấp.</p>
-        <Box className="topbar-wordmark"><img src="/branding/green-wordmark.png" alt="Green Taekwondo logo" /></Box><GoogleLogin />
-      </div>
-    );
+    return <PublicHome />;
   }
 
   if (!profile) {
@@ -470,7 +520,8 @@ useEffect(() => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box className="app-shell">
-        <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+        {/* Desktop: menu cố định 256px. Mobile: menu mở/đóng bằng nút trên thanh đầu. */}
+        <Box component="nav" sx={{ width: { xs: 0, md: drawerWidth }, flexShrink: { md: 0 } }}>
           {isMobile ? (
             <Drawer variant="temporary" open={mobileOpen} onClose={() => setMobileOpen(false)}
               ModalProps={{ keepMounted: true }} sx={{ '& .MuiDrawer-paper': { width: drawerWidth } }}>
@@ -483,10 +534,21 @@ useEffect(() => {
           )}
         </Box>
 
-        <Box className="main-area">
+        <Box className="main-area" sx={{ flex: 1, minWidth: 0, width: 0, transition: 'width 220ms ease' }}>
           <AppBar position="sticky" elevation={0} className="topbar">
             <Toolbar className="topbar-toolbar">
-              {isMobile && <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon /></IconButton>}
+              {isMobile && (
+                <IconButton
+                  onClick={() => setMobileOpen(true)}
+                  aria-label="Mở menu điều hướng"
+                  title="Mở menu"
+                  sx={{ mr: 1, width: 44, height: 44, color: '#173b2b',
+                    bgcolor: '#e6f3eb', border: '1px solid #9dc9ad',
+                    '&:hover': { bgcolor: '#d3e9db' } }}
+                >
+                  <MenuIcon sx={{ fontSize: 28 }} />
+                </IconButton>
+              )}
               <Box sx={{ flexGrow: 1 }}>
                 <Typography className="topbar-eyebrow">TKD GREEN CLUB / QUẢN LÝ</Typography>
                 <Typography className="topbar-title">{activePage || "Chưa được cấp quyền"}</Typography>
@@ -536,7 +598,13 @@ useEffect(() => {
               </>
             )}
 
-            {!activePage ? (
+            {activePage === 'Giới thiệu' ? (
+              <PublicLocationIntroduction embedded />
+            ) : activePage === 'Thành tích' ? (
+              <AchievementManagement profile={profile} students={students} />
+            ) : activePage === 'Sự kiện' || activePage === 'Đào tạo' ? (
+              <ClubContentManagement kind={activePage === 'Sự kiện' ? 'events' : 'training'} profile={profile} />
+            ) : !activePage ? (
               <Paper sx={{ p: 3 }}><Typography>Chưa được cấp quyền sử dụng chức năng nào. Vui lòng liên hệ Admin.</Typography></Paper>
             ) : activePage === 'Tổng quan' ? (
               <>
@@ -628,7 +696,7 @@ useEffect(() => {
                         </Box>
                         </Box>
                         <Typography className="table-cell">{student.location}</Typography>
-                        <Typography className="table-cell">{student.belt}</Typography>
+                        <BeltBadge level={student.belt} showName compact />
                         <Box><Chip label={student.status} size="small" className={student.status === 'Đang học' ? 'status-active' : 'status-paused'} /></Box>
                         <Box><Chip label={student.fee} size="small" className={student.fee === 'Đã đóng' ? 'fee-paid' : student.fee === 'Còn nợ' ? 'fee-debt' : 'fee-due'} /></Box>
                       </Box>
@@ -677,6 +745,11 @@ useEffect(() => {
       setShowAddMember(false);
       setEditingMember(member);
     } : undefined}
+    onCollectTuition={profile?.role === 'admin' && allowedPages.includes('Học phí') ? (member) => {
+      setTuitionFocusMemberId(member.id);
+      setSelected('Học phí');
+      setLocation('Tất cả điểm tập');
+    } : undefined}
   />
 
 ) : activePage === 'Học phí' ? (
@@ -688,16 +761,32 @@ useEffect(() => {
     location={location}
     onLocationChange={setLocation}
     locations={availableLocations}
+    focusMemberId={tuitionFocusMemberId}
+    onFocusHandled={() => setTuitionFocusMemberId('')}
   />
 
   ) : activePage === "Thi cấp" ? (
   <ExamManagement
+    key="cap"
+    examType="cap"
     students={students}
     profile={profile}
     loading={membersLoading}
     error={membersError}
     location={location}
   />
+) : activePage === "Thi đẳng" ? (
+  <ExamManagement
+    key="dan"
+    examType="dan"
+    students={students}
+    profile={profile}
+    loading={membersLoading}
+    error={membersError}
+    location={location}
+  />
+) : activePage === "Duyệt đơn nghỉ" ? (
+  <LeaveRequestsManagement profile={profile} students={students} />
 ) : activePage === "Điểm danh" ? (
   <AttendanceManagement
     students={students}

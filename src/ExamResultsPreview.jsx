@@ -1,12 +1,13 @@
+import { isDanExamLevel } from "./examRankPolicy";
 import React, { useMemo, useState } from "react";
 import {
   Alert, Box, Button, Chip, Paper, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Typography,
 } from "@mui/material";
-import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import { collection, doc, getDocs, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
 import { db } from "./firebase";
-import { evaluateExamResult, normalizeExamLevel } from "./beltLevels";
+import { evaluateExamResult, normalizeExamLevel, previousExamLevel } from "./examRankPolicy";
 
 const clean = (value) => String(value ?? "").normalize("NFC").trim().replace(/\s+/g, " ");
 const fold = (value) => clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toLowerCase();
@@ -19,7 +20,30 @@ function dateKey(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
 }
 
-const requiredHeaders = ["MaDotThi", "VTF ID", "Họ và Tên", "Ngày sinh", "Đẳng dự thi", "Kết quả"];
+const requiredHeaders = ["VTF ID", "Họ và Tên", "Ngày sinh", "Đẳng dự thi", "Kết quả"];
+const alias = {
+  "SBD": ["sbd", "số báo danh", "so bao danh"],
+  "VTF ID": ["vtf id", "vtfid", "mã vtf", "ma vtf"],
+  "Họ và Tên": ["họ và tên", "ho va ten", "họ tên", "ho ten"],
+  "Giới tính": ["giới tính", "gioi tinh"],
+  "Ngày sinh": ["ngày sinh", "ngay sinh", "ntns"],
+  "Đẳng dự thi": ["đẳng dự thi", "dang du thi", "cấp dự thi", "cap du thi"],
+  "Kết quả": ["kết quả", "ket qua"],
+};
+function canonicalHeader(v) {
+  const k = fold(v).replace(/^\uFEFF/, "");
+  return Object.entries(alias).find(([, values]) => values.includes(k))?.[0] || clean(v);
+}
+function excelDate(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,"0")}-${String(value.getDate()).padStart(2,"0")}`;
+  }
+  if (typeof value === "number" && value > 10000 && value < 100000) {
+    const d = XLSX.SSF.parse_date_code(value);
+    if (d) return `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;
+  }
+  return value;
+}
 
 export default function ExamResultsPreview({ period, registrations = [], isAdmin = false }) {
   const [records, setRecords] = useState([]);
@@ -34,54 +58,39 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
     blocked: report.filter((item) => !item.ok).length,
   }), [report]);
 
-  async function readCsv(event) {
+  async function readExcel(event) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    setRecords([]);
-    setReport([]);
-    setFileName("");
-    setError("");
-    setNotice("");
+    setRecords([]); setReport([]); setFileName(""); setError(""); setNotice("");
     if (!file || !isAdmin) return;
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Vui lòng chọn file CSV xuất từ Google Sheets.");
-      return;
+    if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+      setError("Chỉ hỗ trợ Excel (.xlsx, .xls) hoặc CSV (.csv)."); return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError("File CSV vượt quá 5 MB.");
-      return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File vượt quá 10 MB."); return;
     }
     setBusy(true);
     try {
-      const parsed = await new Promise((resolve, reject) => {
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: "greedy",
-          complete: resolve,
-          error: reject,
-        });
-      });
-      if (parsed.errors?.length) throw new Error(parsed.errors[0].message);
-      const rows = parsed.data.map((row, index) => ({
-        ...Object.fromEntries(Object.entries(row).map(([header, value]) => [header.replace(/^\uFEFF/, "").trim(), value])),
-        sheetRow: index + 2,
-      }));
-      const headers = Object.keys(rows[0] || {});
-      const missing = requiredHeaders.filter((header) => !headers.includes(header));
-      if (missing.length) {
-        setError(`File CSV thiếu cột: ${missing.join(", ")}`);
-        return;
-      }
-      const filtered = rows.filter((row) => key(row.MaDotThi) === periodCode);
-      setRecords(filtered);
-      setFileName(file.name);
-      if (!filtered.length) setError(`Không tìm thấy kết quả của ${periodCode} trong file.`);
-    } catch (err) {
-      console.error("Không đọc được CSV:", err);
-      setError("Không thể đọc file CSV. Hãy xuất lại từ Google Sheets.");
-    } finally {
-      setBusy(false);
-    }
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (!sheet) throw new Error("Không tìm thấy Sheet dữ liệu.");
+      const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true, blankrows: false });
+      const headerIndex = matrix.findIndex(row => Array.isArray(row) && row.map(canonicalHeader).includes("VTF ID"));
+      if (headerIndex < 0) throw new Error("Không tìm thấy dòng tiêu đề chứa VTF ID.");
+      const headers = matrix[headerIndex].map(canonicalHeader);
+      const missing = requiredHeaders.filter(h => !headers.includes(h));
+      if (missing.length) throw new Error(`File thiếu cột: ${missing.join(", ")}`);
+      const rows = matrix.slice(headerIndex + 1).map((values, index) => {
+        const row = Object.fromEntries(headers.map((h, i) => [h, h === "Ngày sinh" ? excelDate(values[i]) : values[i]]));
+        row.sheetRow = headerIndex + index + 2;
+        return row;
+      }).filter(r => requiredHeaders.some(h => clean(r[h])));
+      if (!rows.length) throw new Error("File không có dữ liệu kết quả thi.");
+      // File không cần MaDotThi: kỳ thi đang chọn trên giao diện là nguồn đối chiếu.
+      setRecords(rows); setFileName(file.name);
+    } catch (err) { setError(`Không đọc được Excel: ${err.message}`); }
+    finally { setBusy(false); }
   }
 
   async function check() {
@@ -99,10 +108,15 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
         if (vtf && seen.has(vtf)) errors.push("Trùng VTF ID trong file");
         if (vtf) seen.add(vtf);
         const evalResult = evaluateExamResult(row["Đẳng dự thi"], row["Kết quả"]);
+        if (evalResult.valid && isDanExamLevel(evalResult.capDai) !== ((period?.examType || "cap") === "dan")) errors.push("Bậc dự thi không thuộc loại đợt thi này");
         if (!evalResult.valid) errors.push(evalResult.error || "Kết quả không hợp lệ");
         const regs = registrations.filter((reg) => key(reg.maHV) === vtf);
+        const sbd = key(row["SBD"]);
         if (regs.length !== 1) errors.push(regs.length ? "Trùng đăng ký thi" : "Chưa đăng ký thi");
         const reg = regs.length === 1 ? regs[0] : null;
+        if (reg && sbd && key(reg.sbd) && key(reg.sbd) !== sbd) errors.push("SBD không khớp đăng ký");
+        if (reg && reg.status === "Không dự thi") errors.push("Thí sinh đã hủy đăng ký");
+        if (reg && (reg.resultApplied === true || reg.examResultApplied === true)) errors.push("Kết quả đã được áp dụng trước đó");
         if (reg && normalizeExamLevel(reg.dangDuThi) !== normalizeExamLevel(row["Đẳng dự thi"])) {
           errors.push("Cấp dự thi không khớp đăng ký");
         }
@@ -131,6 +145,9 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
         item.rawBelt = data.capDaiDang ?? "";
         item.rawColor = data.mauDai ?? "";
         item.currentBelt = data.capDaiDang || "Chưa cập nhật";
+        if (item.evalResult.valid && normalizeExamLevel(data.capDaiDang) !== previousExamLevel(item.evalResult.capDai)) {
+          item.errors.push(`Cấp/đẳng hiện tại ${data.capDaiDang || 'trống'} không liền trước ${item.evalResult.capDai}`);
+        }
         item.currentColor = data.mauDai || "";
       }
       setReport(all.map((item) => ({ ...item, ok: item.errors.length === 0 })));
@@ -148,7 +165,7 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
     const eligible = report.filter((item) => item.ok && item.evalResult.shouldUpdateBelt);
     if (!eligible.length) return;
     const accepted = window.confirm(
-      `Cập nhật cấp đai cho ${eligible.length} võ sinh thi ĐẠT và đã KHỚP trong ${periodCode}?\n` +
+      `Thăng cấp/đẳng cho ${eligible.length} võ sinh thi ĐẠT và đã KHỚP trong ${periodCode}?\n` +
       `Các dòng chưa khớp sẽ được bỏ qua. Thao tác sẽ ghi dữ liệu lên Firestore.`
     );
     if (!accepted) return;
@@ -174,6 +191,8 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
           const member = memberSnap.data();
           const reg = regSnap.data();
           if (reg.periodId !== period.id || reg.memberDocId !== item.memberId ||
+              isDanExamLevel(reg.dangDuThi) !== ((period?.examType || "cap") === "dan") ||
+              (key(item.row["SBD"]) && key(reg.sbd) && key(item.row["SBD"]) !== key(reg.sbd)) ||
               key(reg.maHV) !== item.vtf || key(member.maHV) !== item.vtf ||
               normalizeExamLevel(reg.dangDuThi) !== item.evalResult.capDai ||
               fold(member.hoTen) !== fold(item.row["Họ và Tên"]) ||
@@ -181,6 +200,9 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
             throw new Error("Dữ liệu Firestore đã thay đổi, cần đối chiếu lại");
           }
           if (reg.resultApplied === true || reg.examResultApplied === true) return "skipped";
+          if (normalizeExamLevel(member.capDaiDang) !== previousExamLevel(item.evalResult.capDai)) {
+            throw new Error("Cấp/đẳng hiện tại không liền trước bậc dự thi, không thể thăng");
+          }
           if (clean(member.capDaiDang) !== clean(item.rawBelt) ||
               clean(member.mauDai) !== clean(item.rawColor)) {
             throw new Error("Cấp/màu đai đã thay đổi, cần đối chiếu lại");
@@ -216,18 +238,63 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
     if (failures.length) setError(failures.slice(0, 5).join(" | "));
   }
 
+  async function saveFailedResults() {
+    if (busy || !isAdmin || !period?.id) return;
+    const failed = report.filter(item => item.ok && !item.evalResult.shouldUpdateBelt && ["Không đạt", "Khong dat"].includes(item.evalResult.result));
+    if (!failed.length || !window.confirm(`Ghi ${failed.length} kết quả KHÔNG ĐẠT vào kỳ ${periodCode}? Cấp đai hội viên sẽ giữ nguyên.`)) return;
+    setBusy(true); setError(""); setNotice("");
+    let saved = 0, skipped = 0;
+    const problems = [];
+    for (const item of failed) {
+      try {
+        const outcome = await runTransaction(db, async tx => {
+          const regRef = doc(db, "examRegistrations", item.reg.id);
+          const memberRef = doc(db, "members", item.memberId);
+          const regSnap = await tx.get(regRef);
+          const memberSnap = await tx.get(memberRef);
+          if (!regSnap.exists() || !memberSnap.exists()) throw new Error("Hồ sơ hoặc đăng ký không còn tồn tại");
+          const reg = regSnap.data();
+          const member = memberSnap.data();
+          if (reg.periodId !== period.id || reg.memberDocId !== item.memberId ||
+              isDanExamLevel(reg.dangDuThi) !== ((period?.examType || "cap") === "dan") ||
+              key(reg.maHV) !== item.vtf || key(member.maHV) !== item.vtf ||
+              (key(item.row["SBD"]) && key(reg.sbd) && key(item.row["SBD"]) !== key(reg.sbd)) ||
+              normalizeExamLevel(reg.dangDuThi) !== normalizeExamLevel(item.row["Đẳng dự thi"]) ||
+              fold(member.hoTen) !== fold(item.row["Họ và Tên"]) ||
+              dateKey(member.ngaySinh) !== dateKey(item.row["Ngày sinh"])) {
+            throw new Error("Dữ liệu đã thay đổi, cần đối chiếu lại");
+          }
+          if (reg.resultApplied === true || reg.examResultApplied === true) return "skipped";
+          if (normalizeExamLevel(member.capDaiDang) !== previousExamLevel(item.evalResult.capDai)) {
+            throw new Error("Cấp/đẳng hiện tại không khớp cấp dự thi; hãy kiểm tra lại");
+          }
+          tx.update(regRef, {
+            ketQua: "Không đạt", resultApplied: true, resultAppliedAt: serverTimestamp(),
+            resultSource: fileName, capDaiTruoc: member.capDaiDang ?? "",
+            capDaiSau: member.capDaiDang ?? "",
+          });
+          return "saved";
+        });
+        if (outcome === "saved") saved += 1; else skipped += 1;
+      } catch (err) { problems.push(`${item.vtf}: ${err.message}`); }
+    }
+    setBusy(false); setReport([]);
+    setNotice(`Đã lưu ${saved} kết quả Không đạt; bỏ qua ${skipped}; lỗi ${problems.length}.`);
+    if (problems.length) setError(problems.slice(0,5).join(" | "));
+  }
+
   if (!isAdmin) return null;
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mt: 3, borderRadius: 3 }}>
       <Typography variant="h6" fontWeight={700}>Nhập kết quả thi — xem trước</Typography>
       <Alert severity="info" sx={{ my: 2 }}>
-        Đối chiếu trước khi cập nhật. Chỉ Admin được xác nhận; chỉ cập nhật dòng Đạt và Khớp.
+        Đối chiếu trước khi cập nhật. Đạt: lên đúng một cấp/đẳng; Không đạt: giữ nguyên. Chỉ Admin được xác nhận và phải khớp bậc liền trước. Kỳ thi lấy theo mục đang chọn trên web.
       </Alert>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
         <Button variant="outlined" component="label" disabled={!periodCode || busy}>
-          Chọn file CSV
-          <input hidden type="file" accept=".csv,text/csv" onChange={readCsv} />
+          Chọn Excel / CSV
+          <input hidden type="file" accept=".xlsx,.xls,.csv" onChange={readExcel} />
         </Button>
         <Typography variant="body2">
           {fileName || "Chưa chọn file"} — {records.length} dòng thuộc {periodCode || "đợt thi chưa chọn"}
@@ -243,13 +310,16 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
           <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
             <Chip color="success" label={`Khớp: ${summary.ok}`} />
             <Chip color="error" label={`Cần kiểm tra: ${summary.blocked}`} />
+            <Button variant="outlined" color="warning" disabled={busy || !report.some(item => item.ok && !item.evalResult.shouldUpdateBelt && ["Không đạt", "Khong dat"].includes(item.evalResult.result))} onClick={saveFailedResults}>
+              Lưu Không đạt ({report.filter(item => item.ok && !item.evalResult.shouldUpdateBelt && ["Không đạt", "Khong dat"].includes(item.evalResult.result)).length})
+            </Button>
             <Button
               variant="contained"
               color="success"
               disabled={busy || !period?.id || !report.some((item) => item.ok && item.evalResult.shouldUpdateBelt)}
               onClick={applyMatchedResults}
             >
-              Xác nhận cập nhật cấp đai ({report.filter((item) => item.ok && item.evalResult.shouldUpdateBelt).length})
+              Xác nhận thăng cấp/đẳng ({report.filter((item) => item.ok && item.evalResult.shouldUpdateBelt).length})
             </Button>
           </Stack>
           <TableContainer sx={{ maxHeight: 440 }}>
@@ -260,9 +330,9 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
                   <TableCell>VTF ID</TableCell>
                   <TableCell>Họ tên</TableCell>
                   <TableCell>Kết quả</TableCell>
-                  <TableCell>Cấp hiện tại</TableCell>
+                  <TableCell>Cấp/đẳng hiện tại</TableCell>
                   <TableCell>Màu đai hiện tại</TableCell>
-                  <TableCell>Cấp sau thi</TableCell>
+                  <TableCell>Cấp/đẳng sau thi</TableCell>
                   <TableCell>Màu đai sau thi</TableCell>
                   <TableCell>Đối chiếu</TableCell>
                 </TableRow>

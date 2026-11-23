@@ -1,404 +1,102 @@
+import { useState } from 'react';
+import * as XLSX from 'xlsx';
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import { useClubLocations, namesForProfile } from './useClubLocations';
+import { downloadMemberTemplate } from './memberImportTemplate';
+import { IMPORT_COLUMNS, loadExistingForImport, validateImportRows, importOneMember, updateExistingFromImport, formatDateVN } from './memberImportService';
 
-import { useState } from "react";
-import * as XLSX from "xlsx";
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  LinearProgress,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
+const colors={create:'success',update:'warning',skip:'default',error:'error'};
+const labels={create:'Thêm mới',update:'Cập nhật',skip:'Trùng hoàn toàn · bỏ qua',error:'Cần kiểm tra'};
+const PERMISSION_MODE = 'admin';
 
-import {
-  IMPORT_COLUMNS,
-  importOneMember,
-  validateImportRows,
-  formatDateVN,
-} from "./memberImportService";
-
-export default function ImportMembers({
-  open,
-  onClose,
-  students = [],
-  profile,
-}) {
-  const [rows, setRows] = useState([]);
-  const [filename, setFilename] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [message, setMessage] = useState("");
-  const [results, setResults] = useState([]);
-
-  const isAdmin = profile?.role === "admin";
-  const canCreate = isAdmin || (
-    profile?.role === "hlv" &&
-    profile?.permissions?.members?.create === true
-  );
-  const allowedLocations = isAdmin
-    ? null
-    : (profile?.locationPermissions?.members || []);
-
-  const hasLocationAccess = (location) =>
-    isAdmin || (canCreate && allowedLocations.includes(location));
-
-  const validRows = rows.filter((row) =>
-    row.valid && hasLocationAccess(row.member.diemTap)
-  );
-  const invalidRows = rows.filter((row) =>
-    !row.valid || !hasLocationAccess(row.member.diemTap)
-  );
-
-  function downloadExcelTemplate() {
-  const headers = IMPORT_COLUMNS;
-
-  const worksheet = XLSX.utils.aoa_to_sheet([
-    headers,
-  ]);
-
-  // Thiết lập độ rộng các cột
-  worksheet["!cols"] = [
-    { wch: 25 }, // Họ và tên
-    { wch: 15 }, // Ngày sinh
-    { wch: 12 }, // Giới tính
-    { wch: 18 }, // Mã VTF
-    { wch: 20 }, // Điểm tập
-    { wch: 15 }, // Cấp đai
-    { wch: 15 }, // Màu đai
-    { wch: 20 }, // SĐT phụ huynh
-    { wch: 18 }, // Ngày bắt đầu
-    { wch: 18 }, // Ngày hết hạn
-    { wch: 18 }, // Loại học phí
-    { wch: 15 }, // Trạng thái
-    { wch: 30 }, // Ghi chú
-  ];
-  
-  // Chuẩn bị định dạng ngày cho các cột B, I, J
-for (const col of ["B", "I", "J"]) {
-  for (let row = 2; row <= 1001; row++) {
-    const address = `${col}${row}`;
-
-    worksheet[address] = {
-      t: "z",
-      z: "dd/mm/yyyy",
-    };
-  }
-}
-
-  const guide = XLSX.utils.aoa_to_sheet([
-    ["HƯỚNG DẪN IMPORT HỘI VIÊN TKD GREEN"],
-    [],
-    ["1. Không thay đổi tên sheet DanhSachHoiVien."],
-    ["2. Không thay đổi tên các cột ở dòng đầu tiên."],
-    ["3. Họ và tên: bắt buộc."],
-    ["4. Điểm tập: bắt buộc."],
-    ["5. Mã VTF: có thể để trống."],
-    ["6. Ngày sinh, ngày bắt đầu, ngày hết hạn: dd/mm/yyyy."],
-    ["7. Mã nội bộ sẽ do ứng dụng tự cấp."],
-    ["8. Không nhập hội viên trùng."],
-    [],
-    ["DANH SÁCH ĐIỂM TẬP"],
-    ["Lê Văn Tám"],
-    ["Nghĩa Trung"],
-    ["Đồng Tâm"],
-    ["Thôn 6"],
-    ["Phước Sơn"],
-    ["Minh Hưng"],
-    [],
-    ["LOẠI HỌC PHÍ"],
-    ["Ngày"],
-    ["Tháng"],
-    ["Quý"],
-    [],
-    ["TRẠNG THÁI"],
-    ["Đang học"],
-    ["Nghỉ học"],
-  ]);
-
-  guide["!cols"] = [{ wch: 65 }];
-
-  const workbook = XLSX.utils.book_new();
-
-  XLSX.utils.book_append_sheet(
-    workbook,
-    worksheet,
-    "DanhSachHoiVien"
-  );
-
-  XLSX.utils.book_append_sheet(
-    workbook,
-    guide,
-    "HuongDan"
-  );
-
-  XLSX.writeFile(
-    workbook,
-    "TKD_Green_Mau_Import_Hoi_Vien.xlsx"
-  );
-}
-
-  async function handleFile(event) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-
-    setRows([]);
-    setResults([]);
-    setMessage("");
-    setProgress(0);
-
-    if (!/\.xlsx$/i.test(file.name)) {
-      setMessage("Chỉ hỗ trợ file Excel .xlsx");
-      return;
-    }
-
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array" });
-      const sheet = workbook.Sheets["DanhSachHoiVien"];
-
-      if (!sheet) {
-        throw new Error("Không tìm thấy sheet DanhSachHoiVien.");
-      }
-
-      const data = XLSX.utils.sheet_to_json(sheet, {
-        defval: "",
-        raw: true,
-      });
-
-      const headerRows = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        blankrows: false,
-      });
-      const headers = (headerRows[0] || []).map(String);
-
-      const missing = IMPORT_COLUMNS.filter(
-        (column) => !headers.includes(column)
-      );
-
-      if (missing.length) {
-        throw new Error(
-          "Thiếu cột: " + missing.join(", ")
-        );
-      }
-
-      const nonEmpty = data.filter((row) =>
-        IMPORT_COLUMNS.some((key) =>
-          String(row[key] ?? "").trim() !== ""
-        )
-      );
-
-      setFilename(file.name);
-      setRows(validateImportRows(nonEmpty, students, profile));
-    } catch (error) {
-      setMessage(error.message || "Không đọc được file Excel.");
-    }
-  }
-
-  async function handleImport() {
-    if (!canCreate || !validRows.length || invalidRows.length || busy) return;
-
+export default function ImportMembers({ open, onClose, students = [], profile }) {
+  const resolvedProfile = profile || (PERMISSION_MODE === 'admin' ? {role:'admin'} : null);
+  const { locations, loadingLocations, locationError }=useClubLocations();
+  const locationNames=PERMISSION_MODE==='admin' ? locations.filter(x=>x.active!==false).map(x=>x.name) : namesForProfile(locations,resolvedProfile);
+  const canCreate=resolvedProfile?.role==='admin' || (resolvedProfile?.role==='hlv' && resolvedProfile?.permissions?.members?.create===true);
+  const canEdit=resolvedProfile?.role==='admin' || (resolvedProfile?.role==='hlv' && resolvedProfile?.permissions?.members?.edit===true);
+  const [rows,setRows]=useState([]), [filename,setFilename]=useState('');
+  const [busy,setBusy]=useState(false),[progress,setProgress]=useState(0),[message,setMessage]=useState(''),[results,setResults]=useState([]);
+  const totals={create:rows.filter(r=>r.action==='create').length,update:rows.filter(r=>r.action==='update').length,skip:rows.filter(r=>r.action==='skip').length,error:rows.filter(r=>r.action==='error').length};
+  const actionable=rows.filter(r=>r.action==='create'||r.action==='update');
+  function downloadExcelTemplate(){try{downloadMemberTemplate(locationNames);}catch(e){setMessage(e.message);}}
+  async function handleFile(e){
+    const file=e.target.files?.[0];e.target.value='';if(!file)return;
+    setRows([]);setResults([]);setProgress(0);setMessage('');setFilename('');
+    if(!/\.xlsx$/i.test(file.name)){setMessage('Chỉ nhận Excel .xlsx');return;}
+    if(loadingLocations||locationError||!locationNames.length){setMessage(locationError||'Chưa tải được điểm tập');return;}
     setBusy(true);
-    setResults([]);
-    setMessage("");
-    setProgress(0);
-
-    const completed = [];
-
-    for (let i = 0; i < validRows.length; i++) {
-      const row = validRows[i];
-
-      try {
-        if (!hasLocationAccess(row.member.diemTap)) {
-          throw new Error("Không có quyền thêm hội viên tại điểm tập này.");
+    try{
+      const book=XLSX.read(await file.arrayBuffer(),{type:'array'});
+      const sheet=book.Sheets['DanhSachHoiVien'];if(!sheet)throw new Error('Không tìm thấy sheet DanhSachHoiVien');
+      const headers=(XLSX.utils.sheet_to_json(sheet,{header:1,blankrows:false})[0]||[]).map(v=>String(v).trim());
+      const missing=IMPORT_COLUMNS.filter(c=>!headers.includes(c));if(missing.length)throw new Error('Thiếu cột: '+missing.join(', '));
+      const data=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:true}).filter(r=>IMPORT_COLUMNS.some(k=>String(r[k]??'').trim()!==''));
+      // Đọc bản mới nhất đầy đủ từ Firestore, không dựa vào students rút gọn.
+      const existing=await loadExistingForImport(resolvedProfile,locationNames);
+      setRows(validateImportRows(data,existing,locationNames));setFilename(file.name);
+    }catch(err){setMessage(`Không thể xem trước: ${err.message}`);}finally{setBusy(false);}
+  }
+  async function handleImport(){
+    if(busy||totals.error||!actionable.length||!canCreate&&totals.create||!canEdit&&totals.update)return;
+    setBusy(true);setMessage('');setResults([]);setProgress(0);
+    const done=[];
+    for(const row of actionable){
+      try{
+        if(!locationNames.includes(row.member.diemTap))throw new Error('Điểm tập không còn hợp lệ');
+        let result;
+        if(row.action==='create'){
+          if(!canCreate)throw new Error('Không có quyền thêm hội viên');
+          result=await importOneMember(row.member,resolvedProfile);
+        }else{
+          if(!canEdit)throw new Error('Không có quyền sửa hội viên');
+          result=await updateExistingFromImport(row,locationNames,resolvedProfile);
         }
-        const result = await importOneMember(row.member, profile);
-        completed.push({
-          rowNumber: row.rowNumber,
-          success: true,
-          code: result.maHoiVienNoiBo,
-        });
-      } catch (error) {
-        completed.push({
-          rowNumber: row.rowNumber,
-          success: false,
-          error: error.message,
-        });
-
-        // Dừng khi có lỗi để tránh tiếp tục nhập sai.
-        setResults([...completed]);
-        setMessage(
-          `Đã dừng tại dòng ${row.rowNumber}: ${error.message}`
-        );
-        setBusy(false);
-        return;
+        done.push({rowNumber:row.rowNumber,action:result.action||row.action,code:result.maHoiVienNoiBo||'',success:true});
+      }catch(err){
+        done.push({rowNumber:row.rowNumber,action:row.action,success:false,error:err.message});
+        setMessage(`Đã dừng ở dòng ${row.rowNumber}: ${err.message}. Các dòng trước đã lưu; không tự chạy lại toàn bộ trước khi kiểm tra.`);
+        setResults([...done]);setBusy(false);return;
       }
-
-      setProgress(i + 1);
-      setResults([...completed]);
+      setProgress(done.length);setResults([...done]);
     }
-
-    setMessage(
-      `Hoàn thành: ${completed.length} hội viên đã được tạo.`
-    );
+    setMessage(`Hoàn thành: ${done.filter(x=>x.action==='create').length} thêm mới; ${done.filter(x=>x.action==='update').length} cập nhật; ${totals.skip+done.filter(x=>x.action==='skip').length} không thay đổi.`);
     setBusy(false);
   }
-
-  return (
-    <Dialog
-      open={open}
-      onClose={busy ? undefined : onClose}
-      fullWidth
-      maxWidth="lg"
-    >
-      <DialogTitle>Import Excel hội viên</DialogTitle>
-
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          <Stack
-  direction={{ xs: "column", sm: "row" }}
-  spacing={2}
->
-  <Button
-    variant="contained"
-    color="success"
-    onClick={downloadExcelTemplate}
-    disabled={busy}
-  >
-    Tải file Excel mẫu
-  </Button>
-
-  <Button
-    component="label"
-    variant="outlined"
-    disabled={busy}
-  >
-    Chọn file Excel (.xlsx)
-    <input
-      hidden
-      type="file"
-      accept=".xlsx"
-      onChange={handleFile}
-    />
-  </Button>
-</Stack>
-          {filename && (
-            <Typography variant="body2">
-              File: {filename}
-            </Typography>
-          )}
-
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Chip label={`Tổng: ${rows.length}`} />
-            <Chip
-              color="success"
-              label={`Hợp lệ: ${validRows.length}`}
-            />
-            <Chip
-              color="error"
-              label={`Cần kiểm tra: ${invalidRows.length}`}
-            />
-          </Stack>
-
-          {message && (
-            <Alert severity={message.startsWith("Hoàn thành") ? "success" : "warning"}>
-              {message}
-            </Alert>
-          )}
-
-          {busy && (
-            <Box>
-              <LinearProgress
-                variant="determinate"
-                value={
-                  validRows.length
-                    ? (progress / validRows.length) * 100
-                    : 0
-                }
-              />
-              <Typography variant="caption">
-                Đã xử lý {progress}/{validRows.length}
-              </Typography>
-            </Box>
-          )}
-
-          <TableContainer sx={{ maxHeight: 400 }}>
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Dòng</TableCell>
-                  <TableCell>Họ tên</TableCell>
-                  <TableCell>Ngày sinh</TableCell>
-                  <TableCell>VTF</TableCell>
-                  <TableCell>Điểm tập</TableCell>
-                  <TableCell>Kiểm tra</TableCell>
-                </TableRow>
-              </TableHead>
-
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.rowNumber}>
-                    <TableCell>{row.rowNumber}</TableCell>
-                    <TableCell>{row.member.hoTen}</TableCell>
-                    <TableCell>{formatDateVN(row.member.ngaySinh)}</TableCell>
-                    <TableCell>{row.member.maHV}</TableCell>
-                    <TableCell>{row.member.diemTap}</TableCell>
-                    <TableCell>
-                      {row.valid ? (
-                        <Chip
-                          size="small"
-                          color="success"
-                          label="Hợp lệ"
-                        />
-                      ) : (
-                        <Typography color="error" variant="caption">
-                          {row.errors.join("; ")}
-                        </Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          {results.length > 0 && (
-            <Typography variant="body2">
-              Đã tạo thành công:{" "}
-              {results.filter((r) => r.success).length} hội viên.
-            </Typography>
-          )}
-        </Stack>
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose} disabled={busy}>
-          Đóng
-        </Button>
-        <Button
-          variant="contained"
-          disabled={
-            busy ||
-            !validRows.length ||
-            invalidRows.length > 0 ||
-            results.length > 0
-          }
-          onClick={handleImport}
-        >
-          Xác nhận Import
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
+  const disabled=busy||loadingLocations||!!locationError;
+  return <Dialog open={open} onClose={busy?undefined:onClose} fullWidth maxWidth="lg" scroll="paper">
+    <DialogTitle sx={{fontWeight:800}}>Import Hội viên · đối chiếu và cập nhật dữ liệu</DialogTitle>
+    <DialogContent dividers><Stack spacing={2} sx={{pt:1}}>
+      <Stack direction={{xs:'column',sm:'row'}} spacing={1.5}>
+        <Button variant="outlined" disabled={disabled||!locationNames.length} onClick={downloadExcelTemplate}>Tải Excel mẫu (13 cột)</Button>
+        <Button variant="contained" component="label" disabled={disabled}>Chọn file Excel <input hidden type="file" accept=".xlsx" onChange={handleFile}/></Button>
+      </Stack>
+      {locationError&&<Alert severity="error">{locationError}</Alert>}
+      <Alert severity="info">Đối chiếu theo Mã VTF + Điểm tập; cùng mã nhưng thông tin khác sẽ cập nhật, trùng hoàn toàn sẽ bỏ qua. Ô Excel để trống không xóa giá trị hồ sơ cũ. Lịch sử chỉnh sửa lưu trong hồ sơ. Không tự chuyển điểm tập.</Alert>
+      {filename&&<Typography variant="body2">File: {filename}</Typography>}
+      <Stack direction="row" gap={1} flexWrap="wrap">
+        <Chip label={`Tổng: ${rows.length}`}/>
+        <Chip color="success" label={`Thêm: ${totals.create}`}/>
+        <Chip color="warning" label={`Cập nhật: ${totals.update}`}/>
+        <Chip label={`Bỏ qua: ${totals.skip}`}/>
+        <Chip color="error" label={`Cần kiểm tra: ${totals.error}`}/>
+      </Stack>
+      {message&&<Alert severity={message.startsWith('Hoàn thành')?'success':'warning'}>{message}</Alert>}
+      {busy&&<Box><LinearProgress variant={actionable.length?'determinate':'indeterminate'} value={actionable.length?(progress/actionable.length)*100:0}/><Typography variant="caption">Đã xử lý {progress}/{actionable.length} dòng cần ghi</Typography></Box>}
+      <TableContainer sx={{maxHeight:480,border:'1px solid #dde9e0',borderRadius:2}}>
+        <Table size="small" stickyHeader><TableHead><TableRow><TableCell>Dòng</TableCell><TableCell>Hội viên</TableCell><TableCell>Mã VTF</TableCell><TableCell>Điểm tập</TableCell><TableCell>Xử lý / trường thay đổi</TableCell></TableRow></TableHead>
+          <TableBody>{rows.map(r=><TableRow key={r.rowNumber} hover>
+            <TableCell>{r.rowNumber}</TableCell><TableCell><Typography fontWeight={700} variant="body2">{r.member.hoTen}</Typography><Typography variant="caption">{formatDateVN(r.member.ngaySinh)}</Typography></TableCell>
+            <TableCell>{r.member.maHV||'—'}</TableCell><TableCell>{r.member.diemTap}</TableCell><TableCell><Stack spacing={.5}>
+              <Chip size="small" color={colors[r.action]} label={labels[r.action]} sx={{alignSelf:'flex-start'}}/>
+              {r.changes.map(c=><Typography key={c.field} variant="caption" sx={{overflowWrap:'anywhere'}}><b>{c.label}:</b> {c.before||'(trống)'} → {c.after}</Typography>)}
+              {r.errors.map((x,i)=><Typography key={i} variant="caption" color="error">{x}</Typography>)}
+            </Stack></TableCell>
+          </TableRow>)}</TableBody>
+        </Table>
+      </TableContainer>
+      {results.length>0&&<Typography variant="body2">Đã xử lý: {results.length} dòng. {results.filter(r=>!r.success).map(r=>`Dòng ${r.rowNumber}: ${r.error}`).join('; ')}</Typography>}
+    </Stack></DialogContent>
+    <DialogActions sx={{p:2}}><Button disabled={busy} onClick={onClose}>Đóng</Button><Button variant="contained" disabled={disabled||!actionable.length||totals.error>0||results.length>0||(totals.create>0&&!canCreate)||(totals.update>0&&!canEdit)} onClick={handleImport}>Xác nhận ({totals.create} thêm, {totals.update} cập nhật)</Button></DialogActions>
+  </Dialog>;
 }

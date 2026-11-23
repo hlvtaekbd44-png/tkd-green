@@ -3,14 +3,30 @@ import { collection, doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 
 import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography, Divider } from "@mui/material";
 import { db } from "./firebase";
 import { accountRequest } from "./accountApi";
+import PublicLocationEditor from "./PublicLocationEditor";
 
 const LEGACY_LOCATIONS = [
   ["LVTA", "Lê Văn Tám"], ["NGTR", "Nghĩa Trung"], ["DOTM", "Đồng Tâm"],
   ["T6", "Thôn 6"], ["PHSo", "Phước Sơn"], ["MIHU", "Minh Hưng"],
 ];
-const DEFAULT_FEATURES = { members: true, tuition: true, exams: true, attendance: true, reports: true, leaveRequests: false };
+// Các quyền dành cho cổng Hội viên / Phụ huynh, tách biệt phân quyền HLV.
+// dan (Thi đẳng) là quyền mới; dữ liệu cũ chưa có dan kế thừa exams cho đến khi Admin lưu.
+const DEFAULT_FEATURES = {
+  members: true, tuition: true, exams: true, dan: true, attendance: true,
+  reports: true, leaveRequests: false, events: false, training: false, achievements: false,
+};
+const resolvedFeatures = (saved = {}) => ({
+  ...DEFAULT_FEATURES,
+  ...saved,
+  dan: typeof saved.dan === 'boolean' ? saved.dan : saved.exams === true,
+});
+const FEATURE_GROUPS = [
+  { title: 'Hội viên / Học tập', fields: [['members','Hồ sơ hội viên'], ['attendance','Điểm danh']] },
+  { title: 'Học phí và thi', fields: [['tuition','Học phí'], ['exams','Thi cấp'], ['dan','Thi đẳng']] },
+  { title: 'Hoạt động và tiện ích', fields: [['leaveRequests','Xin phép nghỉ'], ['reports','Báo cáo'], ['events','Sự kiện'], ['training','Đào tạo'], ['achievements','Thành tích']] },
+];
 const EMPTY_FORM = { name: "", code: "", address: "", active: true, features: { ...DEFAULT_FEATURES }, fees: { daily: "", monthly: "", quarterly: "", exam: "" } };
-const FEATURE_LABELS = { members: "Hội viên", tuition: "Học phí", exams: "Thi cấp", attendance: "Điểm danh", reports: "Báo cáo", leaveRequests: "Xin phép nghỉ" };
+
 const FEE_LABELS = { daily: "Học phí ngày", monthly: "Học phí tháng", quarterly: "Học phí quý", exam: "Lệ phí thi cấp" };
 
 export default function LocationManagement() {
@@ -36,7 +52,7 @@ export default function LocationManagement() {
     setSelectedId(id); setCreating(false); setError(""); setSuccess("");
     const item = locations.find(x => x.id === id);
     if (item) setForm({ name: item.name || "", code: item.code || id, address: item.address || "", active: item.active !== false,
-      features: { ...DEFAULT_FEATURES, ...(item.features || {}) },
+      features: resolvedFeatures(item.features || {}),
       fees: { daily: item.fees?.daily ?? "", monthly: item.fees?.monthly ?? "", quarterly: item.fees?.quarterly ?? "", exam: item.fees?.exam ?? "" } });
   };
   const startCreate = () => { setCreating(true); setSelectedId(""); setForm({ ...EMPTY_FORM, features: { ...DEFAULT_FEATURES }, fees: { ...EMPTY_FORM.fees } }); setError(""); setSuccess(""); };
@@ -133,10 +149,26 @@ export default function LocationManagement() {
         <TextField label="Địa chỉ" fullWidth value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
         <FormControlLabel control={<Checkbox checked={form.active} onChange={e => setForm(p => ({ ...p, active: e.target.checked }))} />} label="Điểm tập đang hoạt động" />
         <Divider />
-        <Typography fontWeight={700}>Chức năng sử dụng tại điểm tập</Typography>
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-          {Object.entries(FEATURE_LABELS).map(([key, label]) => <FormControlLabel key={key} control={<Checkbox checked={form.features[key] !== false} onChange={e => setForm(p => ({ ...p, features: { ...p.features, [key]: e.target.checked } }))} />} label={label} />)}
-        </Box>
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" gap={1}>
+          <Box>
+            <Typography variant="h6" fontWeight={800}>Chức năng sử dụng tại điểm tập</Typography>
+            <Typography variant="body2" color="text.secondary">Kích hoạt riêng cho tài khoản Hội viên / Phụ huynh thuộc điểm tập này.</Typography>
+          </Box>
+          <Stack direction="row" spacing={1}>
+            <Button size="small" variant="outlined" onClick={() => setForm(p => ({ ...p, features: { ...p.features, ...Object.fromEntries(FEATURE_GROUPS.flatMap(g => g.fields).map(([k]) => [k, true])) } }))}>Bật tất cả</Button>
+            <Button size="small" variant="outlined" onClick={() => setForm(p => ({ ...p, features: { ...p.features, ...Object.fromEntries(FEATURE_GROUPS.flatMap(g => g.fields).map(([k]) => [k, false])) } }))}>Tắt tất cả</Button>
+          </Stack>
+        </Stack>
+        <Alert severity="info">Tổng quan và Giới thiệu là hai trang chung. Thi cấp và Thi đẳng được bật/tắt độc lập. Tắt quyền sẽ ẩn menu của tài khoản Hội viên; quyền HLV được quản lý riêng tại Phân quyền HLV.</Alert>
+        {FEATURE_GROUPS.map(group => <Box key={group.title} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2 }}>
+          <Typography fontWeight={800} sx={{ mb: 1 }}>{group.title}</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 0.75 }}>
+            {group.fields.map(([key, label]) => <FormControlLabel key={key}
+              control={<Checkbox checked={form.features[key] === true}
+                onChange={e => setForm(p => ({ ...p, features: { ...p.features, [key]: e.target.checked } }))} />}
+              label={<Typography fontSize={15} fontWeight={600}>{label}</Typography>} />)}
+          </Box>
+        </Box>)}
         <Divider />
         <Typography fontWeight={700}>Mức thu (VNĐ)</Typography>
         <Alert severity="warning">Để trống mức thu nếu chưa cấu hình. Không nhập số 0 trừ khi mức thu thực sự bằng 0 đồng.</Alert>
@@ -147,6 +179,12 @@ export default function LocationManagement() {
         </Stack>
       </Stack>
     </Paper>}
+    {!creating && selectedId && locations.some(x => x.id === selectedId) && (
+      <PublicLocationEditor
+        key={selectedId}
+        location={locations.find(x => x.id === selectedId)}
+      />
+    )}
     <Dialog open={deleteLocationOpen && Boolean(selectedId) && !creating} onClose={saving ? undefined : () => setDeleteLocationOpen(false)} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 800 }}>Xóa điểm tập</DialogTitle>
       <DialogContent>

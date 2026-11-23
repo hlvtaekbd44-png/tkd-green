@@ -1,0 +1,44 @@
+/* TKD Green - readable typography across all screens. Loaded after App.css and TKDPro.css. */
+:root { font-family: "Segoe UI", Roboto, Arial, sans-serif; font-size: 16px; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body, #root, button, input, textarea, select { font-family: "Segoe UI", Roboto, Arial, sans-serif !important; }
+body { font-size: 15px; color: #18362a; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+/* Core MUI content */
+.MuiTypography-root { font-family: "Segoe UI", Roboto, Arial, sans-serif !important; }
+.MuiTypography-body1 { font-size: 1rem; line-height: 1.6; }
+.MuiTypography-body2 { font-size: 0.94rem; line-height: 1.55; }
+.MuiTypography-caption { font-size: 0.82rem; line-height: 1.45; }
+.MuiButton-root { font-size: 0.94rem; font-weight: 700; letter-spacing: normal; }
+.MuiInputBase-input, .MuiSelect-select, .MuiOutlinedInput-input, .MuiAutocomplete-input { font-size: 0.97rem !important; line-height: 1.45; }
+.MuiInputLabel-root, .MuiFormLabel-root { font-size: 0.96rem; font-weight: 600; }
+.MuiMenuItem-root, .MuiListItemText-primary { font-size: 0.96rem; line-height: 1.5; }
+.MuiListItemText-secondary { font-size: 0.85rem; }
+.MuiTableCell-root { font-size: 0.94rem; line-height: 1.55; }
+.MuiTableCell-head { font-size: 0.92rem; font-weight: 800; color: #254c35; }
+.MuiDialogTitle-root { font-size: 1.24rem; font-weight: 800; }
+.MuiAlert-message { font-size: 0.93rem; line-height: 1.55; }
+/* Original TKD dashboard/sidebar class names */
+.sidebar-inner .MuiListItemText-primary, .sidebar-inner .nav-list .MuiTypography-root { font-size: 0.97rem; font-weight: 700; }
+.sidebar-section-label, .topbar-eyebrow, .welcome-kicker { font-size: 0.79rem !important; letter-spacing: .02em; font-weight: 800; }
+.topbar-title { font-size: 1.32rem !important; font-weight: 800 !important; }
+.welcome-title { font-size: clamp(1.4rem, 2.2vw, 1.75rem) !important; font-weight: 800 !important; }
+.welcome-description, .panel-subtitle { font-size: 0.96rem !important; line-height: 1.6; }
+.panel-title { font-size: 1.18rem !important; font-weight: 800 !important; }
+.stat-title { font-size: 0.94rem !important; font-weight: 700 !important; }
+.stat-value { font-size: clamp(1.7rem, 2.6vw, 2.15rem) !important; line-height: 1.25; }
+.stat-note { font-size: 0.83rem !important; }
+.student-name, .quick-link-title { font-size: 0.99rem !important; font-weight: 750 !important; }
+.student-id, .table-cell, .student-table-head .MuiTypography-root, .student-table-row .MuiTypography-root { font-size: 0.9rem !important; }
+.student-table-head .MuiTypography-root { font-weight: 800 !important; }
+.quick-link-desc { font-size: 0.86rem !important; }
+/* Improve readability without forcing nowrap, preventing horizontal overflow of narrow screens. */
+.MuiTableCell-root, .MuiDialogContent-root { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .topbar-title { font-size: 1.16rem !important; }
+  .MuiTableCell-root { font-size: 0.89rem; }
+  .MuiButton-root { font-size: 0.9rem; }
+}
+@media print {
+  /* On-screen typography only: do not alter tuition A5 slip printing. */
+  .MuiTableCell-root { overflow-wrap: normal; }
+}

@@ -320,6 +320,26 @@ async function deleteLocation({locationId,confirmName},adminUid) {
   }
 }
 
+
+// Chỉ Admin đã xác thực được đặt lại mật khẩu HLV / võ sinh.
+// Tuyệt đối không lưu hoặc trả về mật khẩu cũ.
+async function resetAccountPassword({ uid, password }, adminUid) {
+  if (typeof uid !== 'string' || !uid || uid.includes('/') || uid === adminUid) {
+    return failure(400, 'UID tài khoản không hợp lệ.');
+  }
+  if (!validPassword(password)) return failure(400, 'Mật khẩu mới phải dài 12–128 ký tự.');
+  const snapshot = await getFirestore().doc(`users/${uid}`).get();
+  if (!snapshot.exists || !['hlv', 'member'].includes(snapshot.get('role'))) {
+    return failure(403, 'Chỉ được đặt lại mật khẩu tài khoản HLV hoặc võ sinh.');
+  }
+  const userRecord = await getAuth().getUser(uid);
+  // Giữ nguyên trạng thái bị khóa nếu tài khoản hiện không hoạt động.
+  await getAuth().updateUser(uid, { password });
+  await getAuth().revokeRefreshTokens(uid);
+  console.info('account-password-reset', JSON.stringify({ adminUid, uid, role: snapshot.get('role') }));
+  return response(200, { ok: true, uid, username: snapshot.get('username') || userRecord.email || uid });
+}
+
 export async function handler(event) {
   if (event.httpMethod !== 'POST') return failure(405,'Chỉ hỗ trợ POST.');
   try {
@@ -331,6 +351,7 @@ export async function handler(event) {
       case 'createMember':
       case 'createCoach': return await createAccount(body,admin.uid);
       case 'setActive': return await setActive(body,admin.uid);
+      case 'resetPassword': return await resetAccountPassword(body,admin.uid);
       case 'deleteMemberForever': return await deleteMemberForever(body,admin.uid);
       case 'deleteCoach': return await deleteCoach(body,admin.uid);
       case 'deleteLocation': return await deleteLocation(body,admin.uid);

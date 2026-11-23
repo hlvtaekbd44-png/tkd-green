@@ -1,6 +1,10 @@
 
 import { useState } from "react";
-import { createMemberWithAutoId } from "./memberIdService.js";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+} from "firebase/firestore";
 import {
   Box,
   Button,
@@ -9,45 +13,32 @@ import {
   Typography,
   Alert,
 } from "@mui/material";
-import { tinhNgayKetThucKy, formatNgayVN } from "./tuitionDateUtils";
+import { db } from "./firebase";
+import { useClubLocations, namesForProfile } from "./useClubLocations";
+import { EDUCATION_LEVELS } from "./educationLevels";
 
-const locations = [
-  "Lê Văn Tám",
-  "Nghĩa Trung",
-  "Đồng Tâm",
-  "Thôn 6",
-  "Phước Sơn",
-  "Minh Hưng",
-];
+
 
 export default function AddMember({ profile, onSaved }) {
+  const { locations, loadingLocations, locationError } = useClubLocations();
   const [form, setForm] = useState({
     maHV: "",
     hoTen: "",
     ngaySinh: "",
     gioiTinh: "Nam",
-    diemTap:
-      profile?.role === "hlv"
-        ? profile.diemTap?.[0] || ""
-        : "Lê Văn Tám",
+    trinhDoVanHoa: "",
+    diemTap: "",
     soDienThoaiPhuHuynh: "",
     loaiHocPhi: "Tháng",
-    ngayBatDau: [new Date().getFullYear(), String(new Date().getMonth()+1).padStart(2,"0"), String(new Date().getDate()).padStart(2,"0")].join("-"),
+    ngayBatDau: new Date().toISOString().slice(0, 10),
   });
 
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [message, setMessage] = useState("");
 
-  const allowedLocations =
-    profile?.role === "admin"
-      ? locations
-      : locations.filter((item) =>
-          profile?.diemTap?.includes(item)
-        );
+  const allowedLocations = namesForProfile(locations, profile);
 
   function handleChange(event) {
-    setSaved(false);
     setForm({
       ...form,
       [event.target.name]: event.target.value,
@@ -61,56 +52,31 @@ async function handleSubmit(event) {
 
   setMessage("");
 
-  if (saved) {
-    setMessage("Hồ sơ này đã được lưu. Hãy quay lại danh sách để thêm hồ sơ khác.");
+  if (!form.maHV.trim() || !form.hoTen.trim()) {
+    setMessage("Vui lòng nhập mã hội viên VTF và họ tên.");
     return;
   }
-
-  if (!form.hoTen.trim()) {
-  setMessage("Vui lòng nhập họ tên hội viên.");
-  return;
-}
 
   if (!allowedLocations.includes(form.diemTap)) {
     setMessage("Bạn không có quyền thêm hội viên tại điểm tập này.");
     return;
   }
 
-  const laHocPhiNgay = form.loaiHocPhi === "Ngày";
-
-const ngayKetThucKy = tinhNgayKetThucKy(
-  form.ngayBatDau,
-  form.loaiHocPhi
-);
-
-if (
-  !/^\d{4}-\d{2}-\d{2}$/.test(form.ngayBatDau) ||
-  (!laHocPhiNgay && !ngayKetThucKy)
-) {
-  setMessage("Ngày bắt đầu hoặc loại học phí không hợp lệ.");
-  return;
-}
-
   setSaving(true);
   setMessage("Đang lưu hồ sơ hội viên...");
 
   try {
-    const result = await createMemberWithAutoId({
-  ...form,
-  maHV: "",
-  maHoiVienNoiBo: "",
-  hoTen: form.hoTen.trim(),
-  trangThai: "Đang học",
-  capDaiDang: "Chưa cập nhật",
-});
+    const docRef = await addDoc(collection(db, "members"), {
+      ...form,
+      maHV: form.maHV.trim(),
+      hoTen: form.hoTen.trim(),
+      trangThai: "Đang học",
+      capDaiDang: "Chưa cập nhật",
+      createdAt: serverTimestamp(),
+    });
 
-setSaved(true);
-
-setMessage(
-  laHocPhiNgay
-    ? `Đã lưu thành công! Mã hội viên: ${result.maHoiVienNoiBo}. Học phí Ngày sẽ được tính theo số buổi có mặt trong điểm danh; chưa phát sinh khoản thu.`
-    : `Đã lưu thành công! Mã hội viên: ${result.maHoiVienNoiBo}. Kỳ đầu kết thúc ${formatNgayVN(ngayKetThucKy)}; chưa ghi nhận thanh toán.`
-);
+    console.log("Đã lưu hội viên, ID:", docRef.id);
+    setMessage(`Đã lưu thành công! Mã tài liệu: ${docRef.id}`);
 
     // Tạm thời không đóng biểu mẫu để bạn nhìn thấy kết quả.
     // onSaved?.();
@@ -144,12 +110,12 @@ setMessage(
       </Typography>
 
       <TextField
-          name="maHV"
-          label="Mã hội viên VTF"
-          value=""
-          disabled
-          helperText="Mã VTF sẽ được Admin cập nhật sau."
-        />
+        name="maHV"
+        label="Mã hội viên VTF"
+        value={form.maHV}
+        onChange={handleChange}
+        required
+      />
 
       <TextField
         name="hoTen"
@@ -177,6 +143,11 @@ setMessage(
       >
         <MenuItem value="Nam">Nam</MenuItem>
         <MenuItem value="Nữ">Nữ</MenuItem>
+      </TextField>
+
+      <TextField select name="trinhDoVanHoa" label="Trình độ văn hóa (không bắt buộc)" value={form.trinhDoVanHoa} onChange={handleChange} fullWidth>
+        <MenuItem value="">Chưa cập nhật</MenuItem>
+        {EDUCATION_LEVELS.map(level => <MenuItem key={level} value={level}>{level}</MenuItem>)}
       </TextField>
 
       <TextField
@@ -208,7 +179,6 @@ setMessage(
         value={form.loaiHocPhi}
         onChange={handleChange}
       >
-        <MenuItem value="Ngày">Ngày (theo điểm danh)</MenuItem>
         <MenuItem value="Tháng">Tháng</MenuItem>
         <MenuItem value="Quý">Quý</MenuItem>
       </TextField>
@@ -223,29 +193,7 @@ setMessage(
         required
       />
 
-      <Alert severity="info">
-  {form.loaiHocPhi === "Ngày" ? (
-    <>
-      Học phí Ngày được tính theo số buổi có mặt
-      trong chức năng Điểm danh.
-      Mỗi buổi có mặt sẽ phát sinh một khoản phải thu.
-      Có thể thanh toán từng buổi hoặc thanh toán gộp.
-    </>
-  ) : (
-    <>
-      Kỳ học phí đầu tiên:{" "}
-      {formatNgayVN(form.ngayBatDau)} –{" "}
-      {formatNgayVN(
-        tinhNgayKetThucKy(
-          form.ngayBatDau,
-          form.loaiHocPhi
-        )
-      )}.
-      Đây là lịch kỳ học phí, chưa xác nhận đã thanh toán.
-    </>
-  )}
-</Alert>
-
+      {locationError && <Alert severity="error">{locationError}</Alert>}
       {message && (
         <Alert
           severity={
@@ -259,7 +207,7 @@ setMessage(
       <Button
         type="submit"
         variant="contained"
-        disabled={saving || saved || allowedLocations.length === 0}
+        disabled={saving || loadingLocations || allowedLocations.length === 0}
       >
         {saving ? "Đang lưu..." : "Lưu hội viên"}
       </Button>

@@ -80,6 +80,7 @@ export default function MemberProfile({
   onClose,
   member,
   profile,
+  onCollectTuition,
 }) {
   const [tab, setTab] = useState(0);
   const [detail, setDetail] = useState(null);
@@ -103,6 +104,7 @@ export default function MemberProfile({
   );
   const canViewExams = canViewAt("exams");
   const canViewTuition = canViewAt("tuition");
+  const quitMember = ["Nghỉ học", "Đã nghỉ", "Nghỉ", "Ngừng học"].includes(String(detail?.trangThai || "").trim());
 
   useEffect(() => {
     if (!open || !member?.id) return;
@@ -269,7 +271,8 @@ export default function MemberProfile({
       : !detail.ngayHetHan && !cycles.length ? detail.ngayBatDau || "" : "";
     let nextAmount = null;
     let nextError = "";
-    if (!nextStart) nextError = "Chưa đủ dữ liệu chu kỳ để xác định kỳ tiếp theo.";
+    if (["Nghỉ học", "Đã nghỉ", "Nghỉ", "Ngừng học"].includes(String(detail.trangThai || '').trim())) nextError = 'Hội viên đã nghỉ học; không phát sinh kỳ mới.';
+    else if (!nextStart) nextError = "Chưa đủ dữ liệu chu kỳ để xác định kỳ tiếp theo.";
     else if (!price || price.active === false || price.features?.tuition === false) nextError = "Chưa có bảng giá hợp lệ tại điểm tập.";
     else if (!validAmount(fee) || fee <= 0) nextError = "Chưa cấu hình học phí cho loại thu này.";
     else {
@@ -448,7 +451,13 @@ export default function MemberProfile({
         {tab === 3 && canViewTuition && (
           <Stack spacing={2}>
             <Box sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
-              <Typography variant="h6" fontWeight={800}>Tổng hợp học phí</Typography>
+              <Stack direction={{ xs:'column', sm:'row' }} justifyContent="space-between" alignItems={{sm:'center'}} spacing={1}>
+                <Typography variant="h6" fontWeight={800}>Tổng hợp học phí</Typography>
+                {onCollectTuition && <Button color="success" variant="contained" onClick={() => {
+                  onClose?.();
+                  onCollectTuition(member);
+                }}>Thu học phí / Thu nợ</Button>}
+              </Stack>
               {tuitionSummary?.badData || tuitionSummary?.debtMismatch ? (
                 <Alert severity="warning" sx={{ mt: 1 }}>Lịch sử kỳ học phí và công nợ chưa khớp. Cần đối soát dữ liệu trước khi xác nhận số dư.</Alert>
               ) : tuitionSummary?.hasOldSchema ? (
@@ -464,9 +473,9 @@ export default function MemberProfile({
                   </Typography>
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" color="text.secondary">Học phí kỳ tiếp theo (dự kiến)</Typography>
+                  <Typography variant="caption" color="text.secondary">{quitMember ? 'Không đề xuất kỳ mới (đã nghỉ học)' : 'Học phí kỳ tiếp theo (dự kiến)'}</Typography>
                   <Typography variant="h6" fontWeight={800}>
-                    {tuitionSummary?.nextAmount === null || tuitionSummary?.nextAmount === undefined ? "Chưa xác định" : money(tuitionSummary.nextAmount)}
+                    {quitMember ? 'Không phát sinh kỳ mới' : tuitionSummary?.nextAmount === null || tuitionSummary?.nextAmount === undefined ? "Chưa xác định" : money(tuitionSummary.nextAmount)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">Bắt đầu kỳ: {dateVN(tuitionSummary?.nextStart)} · Loại: {display(tuitionSummary?.type)}</Typography>
                 </Box>
@@ -477,6 +486,7 @@ export default function MemberProfile({
                 Công nợ chỉ gồm các kỳ đã lập trong hồ sơ. Học phí dự kiến chưa cộng vào nợ; kỳ quá hạn chưa lập sẽ được đối soát tại màn hình Thu học phí.
               </Typography>
             </Box>
+            {quitMember && <Alert severity="info">Hội viên nghỉ học: hệ thống giữ khoản nợ đã phát sinh, không đề xuất học phí kỳ mới. Nếu còn nợ, dùng nút Thu học phí / Thu nợ phía trên.</Alert>}
             {tuitionSummary?.cycles.length > 0 && (
               <Box>
                 <Typography fontWeight={800} sx={{ mb: 1 }}>Công nợ theo từng kỳ</Typography>

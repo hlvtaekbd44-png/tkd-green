@@ -44,19 +44,17 @@ import {
 
 import { db } from "./firebase";
 import ExamResultsPreview from "./ExamResultsPreview";
+import DanExamResultsPreview from "./DanExamResultsPreview";
+import ExamTopScorers from "./ExamTopScorers";
+import { nextExamLevel, normalizeExamLevel, isDanExamLevel, EXAM_RANK_SEQUENCE } from "./examRankPolicy";
 import * as XLSX from "xlsx";
+import { DAN_EXAM_LEVELS, parseDanFees, getDanExamFee, formatDanFee } from "./danExamFeePolicy";
 
-// Quy ước đăng ký: Cấp 10 -> Cấp 9 -> ... -> Cấp 1.
-// Đẳng/đai đen cần quy tắc riêng, không tự suy đoán.
+// Cấp/đẳng kế tiếp dùng chung với Import kết quả thi.
 function currentLevel(student) {
   return String(student.belt || student.capDaiDang || "").trim();
 }
-function nextLevel(level) {
-  const match = String(level).match(/(?:cấp|cap)\s*(10|[1-9])\b/i);
-  if (!match) return "";
-  const number = Number(match[1]);
-  return number > 1 ? `Cấp ${number - 1}` : "";
-}
+const nextLevel = nextExamLevel;
 function parseBirth(value) {
   if (!value) return null;
   if (typeof value?.toDate === "function") return value.toDate();
@@ -73,8 +71,8 @@ function formatBirth(value) {
   return date ? `${String(date.getUTCDate()).padStart(2,"0")}/${String(date.getUTCMonth()+1).padStart(2,"0")}/${date.getUTCFullYear()}` : "";
 }
 function gradeOrder(value) {
-  const n = Number(String(value).match(/(?:cấp|cap)\s*(10|[1-9])\b/i)?.[1]);
-  return n >= 1 && n <= 10 ? 10 - n : 1000;
+  const index = EXAM_RANK_SEQUENCE.indexOf(normalizeExamLevel(value));
+  return index < 0 ? 1000 : index;
 }
 function genderOrder(value) {
   const s = String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -91,7 +89,17 @@ function sortExamRows(a,b) {
   if (birthA !== birthB) return birthB - birthA;
   return String(a.hoTen || "").localeCompare(String(b.hoTen || ""), "vi");
 }
-function eligibility(student, examDate, registeredIds) {
+// Chỉ loại các hồ sơ đã nghỉ học khỏi đề xuất và đăng ký thi mới.
+// App.jsx truyền trạng thái qua `status`; hồ sơ Firestore dùng `trangThai`.
+function isQuitMember(student) {
+  const value = String(student?.trangThai ?? student?.status ?? "")
+    .trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("vi").replace(/\s+/g, " ");
+  return value === "nghi hoc";
+}
+
+function eligibility(student, examDate, registeredIds, examType = "cap") {
+  if (isQuitMember(student)) return "Hội viên đã nghỉ học, không được đề xuất đăng ký thi";
   if (registeredIds.has(student.id)) return "Đã đăng ký đợt thi này";
   const birth = parseBirth(student.ngaySinh);
   if (!birth) return "Thiếu hoặc sai ngày sinh";
@@ -99,7 +107,9 @@ function eligibility(student, examDate, registeredIds) {
   if (!date || Number.isNaN(date.getTime())) return "Đợt thi chưa có ngày thi hợp lệ";
   // Theo yêu cầu: xét NĂM SINH, không xét đủ ngày sinh nhật.
   if (date.getUTCFullYear() - birth.getUTCFullYear() < 6) return "Chưa đủ 6 tuổi theo năm sinh";
-  if (!nextLevel(currentLevel(student))) return "Chưa xác định được cấp thi tiếp theo";
+  const target = nextLevel(currentLevel(student));
+  if (!target) return "Chưa xác định được bậc thi tiếp theo";
+  if (isDanExamLevel(target) !== (examType === "dan")) return examType === "dan" ? "Chưa đến bậc thi đẳng" : "Đã chuyển sang nhóm thi đẳng";
   return "";
 }
 
@@ -110,6 +120,7 @@ export default function ExamManagement({
   loading = false,
   error = "",
   location = "Tất cả điểm tập",
+  examType = "cap",
 }) {
   const [periods, setPeriods] = useState([]);
   const [registrations, setRegistrations] = useState([]);
@@ -122,19 +133,22 @@ export default function ExamManagement({
   const [deletePeriodSummary, setDeletePeriodSummary] = useState(null);
   const [checkingDelete, setCheckingDelete] = useState(false);
   const [togglingRegistration, setTogglingRegistration] = useState(false);
-  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   // name chính là mã đợt thi: Q1-2026, Q2-2026...
   const [periodName, setPeriodName] = useState("");
 
   const [examDate, setExamDate] = useState("");
   const [examLocation, setExamLocation] = useState("");
+  const [danFeeDraft, setDanFeeDraft] = useState({});
+  const [danFeeDialog, setDanFeeDialog] = useState(false);
 
   const [studentId, setStudentId] = useState("");
   const [dangDuThi, setDangDuThi] = useState("");
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkSelection, setBulkSelection] = useState([]);
   const [bulkSearch, setBulkSearch] = useState("");
+  const [bulkExamType, setBulkExamType] = useState(examType);
   const [bulkReport, setBulkReport] = useState([]);
 
   const [busy, setBusy] = useState(false);
@@ -160,7 +174,7 @@ export default function ExamManagement({
         const data = snapshot.docs.map((item) => ({
           id: item.id,
           ...item.data(),
-        })).filter(item => item.archived !== true && item.deleted !== true);
+        })).filter(item => item.archived !== true && item.deleted !== true && (item.examType || "cap") === examType);
 
         setPeriods(data);
 
@@ -182,7 +196,7 @@ export default function ExamManagement({
     );
 
     return unsubscribe;
-  }, []);
+  }, [examType]);
 
   // ============================================
   // 2. LẤY DANH SÁCH ĐĂNG KÝ THI
@@ -306,12 +320,16 @@ export default function ExamManagement({
 
   const registeredIds = useMemo(() => new Set(registrations.filter(item => item.status !== "Không dự thi").map(item => item.memberDocId)), [registrations]);
   const canManage = isAdmin || (profile?.role === "hlv" && profile?.permissions?.exams?.manage === true);
-  const eligibleStudents = useMemo(() => visibleStudents.filter(s => !eligibility(s, selectedPeriodData?.examDate, registeredIds)), [visibleStudents, selectedPeriodData?.examDate, registeredIds]);
+  const eligibleStudents = useMemo(() => visibleStudents.filter(s => !eligibility(s, selectedPeriodData?.examDate, registeredIds, examType)), [visibleStudents, selectedPeriodData?.examDate, registeredIds, examType]);
+  const eligibleCount = eligibleStudents.length;
   const sortedRegistrations = useMemo(() => registrations.filter(r => r.status !== "Không dự thi").sort(sortExamRows), [registrations]);
   const bulkCandidates = useMemo(() => visibleStudents.filter(s => {
+    if (isQuitMember(s)) return false;
+    const proposed = nextLevel(currentLevel(s));
+    if (!proposed || isDanExamLevel(proposed) !== (examType === "dan")) return false;
     const q = bulkSearch.trim().toLocaleLowerCase("vi");
     return !q || `${s.name} ${s.maHV} ${s.maHoiVienNoiBo} ${s.location}`.toLocaleLowerCase("vi").includes(q);
-  }), [visibleStudents, bulkSearch]);
+  }), [visibleStudents, bulkSearch, examType]);
   const studentForSingle = visibleStudents.find(s => s.id === studentId);
 
   const exportExcel = () => {
@@ -368,7 +386,7 @@ export default function ExamManagement({
   const saveRegistration = async (student) => {
     if (!canManage) throw new Error("Tài khoản chưa có quyền quản lý thi cấp.");
     if (!registrationOpen) throw new Error("Đợt thi đang khóa đăng ký.");
-    const reason = eligibility(student, selectedPeriodData?.examDate, registeredIds);
+    const reason = eligibility(student, selectedPeriodData?.examDate, registeredIds, examType);
     if (reason) throw new Error(reason);
     const level = nextLevel(currentLevel(student));
     const registrationId = `${selectedPeriod}_${encodeURIComponent(student.id)}`;
@@ -383,6 +401,7 @@ export default function ExamManagement({
       const periodSnap = await tx.get(doc(db, "examPeriods", selectedPeriod));
       if (!periodSnap.exists()) throw new Error("Đợt thi không còn tồn tại.");
       const periodData = periodSnap.data();
+      if ((periodData.examType || "cap") !== examType) throw new Error("Đợt thi không thuộc phân hệ này. Vui lòng tải lại.");
       const isOpenNow = typeof periodData.registrationOpen === "boolean"
         ? periodData.registrationOpen
         : !["Khóa đăng ký", "Đã khóa", "Đóng đăng ký", "Đã kết thúc"].includes(periodData.status);
@@ -402,18 +421,27 @@ export default function ExamManagement({
       if (config.active === false || config.features?.exams === false || config.name !== actual.diemTap || config.name !== student.location)
         throw new Error("Điểm tập đã thay đổi hoặc chưa bật chức năng Thi cấp.");
       const tuitionEnabled = config.features?.tuition !== false;
-      const feeAmount = config.fees?.exam;
-      if (tuitionEnabled && (feeAmount === null || feeAmount === undefined || feeAmount === "" || !Number.isSafeInteger(Number(feeAmount)) || Number(feeAmount) < 0))
+      // Thi cấp dùng mức phí của điểm tập; Thi đẳng dùng biểu phí riêng theo
+      // ĐẲNG DỰ THI và theo từng đợt. Không dùng phí thi cấp cho thi đẳng.
+      const feeAmount = examType === "dan"
+        ? getDanExamFee(periodData.danFees, level)
+        : config.fees?.exam;
+      if (examType === "dan" && feeAmount === null)
+        throw new Error(`Đợt ${periodData.name} chưa cấu hình lệ phí thi lên ${level}. Admin cần thiết lập biểu phí trước khi đăng ký.`);
+      if (examType === "cap" && tuitionEnabled && (feeAmount === null || feeAmount === undefined || feeAmount === "" || !Number.isSafeInteger(Number(feeAmount)) || Number(feeAmount) < 0))
         throw new Error("Điểm tập có Học phí nhưng chưa cấu hình lệ phí thi cấp. Hãy thiết lập trong Cài đặt.");
       // Đọc lại điều kiện tuổi/cấp từ hồ sơ thật, tránh dữ liệu danh sách đã cũ.
-      const current = { ...student, ngaySinh:actual.ngaySinh, belt:actual.capDaiDang };
-      const reason = eligibility(current, selectedPeriodData?.examDate, new Set());
+      if (isQuitMember(actual)) throw new Error("Hội viên đã nghỉ học; không thể đăng ký thi cấp.");
+      const current = { ...student, ngaySinh: actual.ngaySinh, belt: actual.capDaiDang, trangThai: actual.trangThai };
+      const reason = eligibility(current, selectedPeriodData?.examDate, new Set(), examType);
       if (reason) throw new Error(reason);
       if (nextLevel(actual.capDaiDang) !== level) throw new Error("Cấp đai đã thay đổi; vui lòng tải lại danh sách trước khi đăng ký.");
-      const examFee = tuitionEnabled ? {
+      const examFee = (examType === "dan" || tuitionEnabled) ? {
         phaiThu: Number(feeAmount), daThu:0, conNo:Number(feeAmount),
         trangThai:Number(feeAmount) === 0 ? "Đã miễn" : "Chưa đóng",
-        diemTap:config.name, ngayGhiNhan: selectedPeriodData.examDate,
+        diemTap:config.name, ngayGhiNhan: periodData.examDate,
+        loaiThi:examType, dangDuThi:level,
+        bieuPhiDotThi:periodData.name || "",
       } : null;
       // Tái sử dụng cùng ID, không tạo hồ sơ trùng. Lưu dấu vết hủy trước đó.
       const lichSuHuyDangKy = oldRegistration
@@ -429,6 +457,7 @@ export default function ExamManagement({
         : [];
       tx.set(ref, {
         periodId: selectedPeriod,
+        examType,
         memberDocId: student.id,
         maHV: student.maHV || "",
         hoTen: student.name || "",
@@ -489,11 +518,10 @@ export default function ExamManagement({
       return;
     }
 
-    // Ví dụ mã hợp lệ: Q1-2026, Q2-2026, Q3-2026.
-    if (!/^Q[1-4]-\d{4}$/.test(code)) {
-      setMessage(
-        "Mã đợt thi phải có dạng Q1-2026, Q2-2026, Q3-2026 hoặc Q4-2026."
-      );
+    // Thi cấp theo quý; thi đẳng có mã đợt riêng (L1-2026, L2-2026...).
+    const validCode = examType === "dan" ? /^L[1-9]\d*-\d{4}$/.test(code) : /^Q[1-4]-\d{4}$/.test(code);
+    if (!validCode) {
+      setMessage(examType === "dan" ? "Mã đợt thi đẳng có dạng L1-2026, L2-2026..." : "Mã thi cấp có dạng Q1-2026 đến Q4-2026.");
       setMessageType("warning");
       return;
     }
@@ -512,12 +540,19 @@ export default function ExamManagement({
       return;
     }
 
+    let danFees = {};
+    if (examType === "dan") {
+      try { danFees = parseDanFees(danFeeDraft); }
+      catch (e) { setMessage(e.message); setMessageType("warning"); return; }
+    }
     setBusy(true);
     setMessage("");
 
     try {
       const ref = await addDoc(collection(db, "examPeriods"), {
         name: code,
+        examType,
+        ...(examType === "dan" ? { danFees } : {}),
         examDate,
         examLocation: examLocation.trim(),
         status: "Đang đăng ký",
@@ -532,6 +567,7 @@ export default function ExamManagement({
       setPeriodName("");
       setExamDate("");
       setExamLocation("");
+      setDanFeeDraft({});
 
       setMessage("Đã tạo đợt thi với mã " + code + ".");
       setMessageType("success");
@@ -583,7 +619,7 @@ export default function ExamManagement({
     if (!isAdmin || !selectedPeriodData || busy) return;
     setCheckingDelete(true);
     setDeletePeriodSummary(null);
-    setDeleteConfirmed(false);
+    setDeleteConfirmation("");
     setDeletePeriodDialog(true);
     try {
       const inspection = await inspectPeriodDeletion(selectedPeriodData.id);
@@ -608,8 +644,7 @@ export default function ExamManagement({
     if (!isAdmin || !selectedPeriodData || !deletePeriodSummary || busy) return;
     const periodId = selectedPeriodData.id;
     const code = String(selectedPeriodData.name || "");
-    if (!deleteConfirmed || deletePeriodSummary.blocked || checkingDelete) return;
-    if (!window.confirm(`XÁC NHẬN XÓA VĨNH VIỄN đợt thi ${code} và toàn bộ đăng ký liên quan? Thao tác không thể hoàn tác.`)) return;
+    if (deleteConfirmation.trim() !== code) return;
     setBusy(true);
     try {
       const inspection = await inspectPeriodDeletion(periodId);
@@ -631,7 +666,7 @@ export default function ExamManagement({
       setMessage(`Đã xóa vĩnh viễn đợt ${code} và ${inspection.total} đăng ký liên quan.`);
       setMessageType("success");
       setDeletePeriodDialog(false);
-      setDeleteConfirmed(false);
+      setDeleteConfirmation("");
       setSelectedPeriod("");
     } catch (err) {
       console.error("Xóa đợt thi thất bại:", err);
@@ -662,6 +697,43 @@ export default function ExamManagement({
     } finally {setBusy(false);}
   };
 
+  // Chỉ điều chỉnh biểu phí cho các đăng ký TƯƠNG LAI. Lệ phí tại
+  // examRegistrations.lePhiThi là số tiền chốt lúc đăng ký, không bị sửa.
+  const saveDanFees = async () => {
+    if (!isAdmin || examType !== "dan" || !selectedPeriodData || busy) return;
+    let fees;
+    try { fees = parseDanFees(danFeeDraft); }
+    catch (e) { setMessage(e.message); setMessageType("warning"); return; }
+    setBusy(true);
+    try {
+      await runTransaction(db, async tx => {
+        const ref = doc(db, "examPeriods", selectedPeriodData.id);
+        const snap = await tx.get(ref);
+        if (!snap.exists() || snap.data().examType !== "dan")
+          throw new Error("Đợt thi đẳng không còn tồn tại.");
+        tx.update(ref, { danFees: fees, danFeesUpdatedAt: serverTimestamp(), danFeesUpdatedBy: profile?.email || "" });
+      });
+      setDanFeeDialog(false);
+      setMessage("Đã lưu biểu phí thi đẳng. Đăng ký cũ giữ nguyên lệ phí; đăng ký mới dùng biểu phí cập nhật.");
+      setMessageType("success");
+    } catch (e) { setMessage(e.message || "Không lưu được biểu phí."); setMessageType("error"); }
+    finally { setBusy(false); }
+  };
+
+  const danFeeFields = (values, change) => (
+    <Stack spacing={1.5}>
+      <Alert severity="info">Nhập mức thu theo đẳng dự thi (VNĐ). Ví dụ 1 Đẳng: 1200000; 2 Đẳng: 700000 hoặc 1000000, tùy đợt. Để trống nghĩa là chưa cấu hình và không thể đăng ký bậc đó. Nhập 0 khi thực sự miễn phí.</Alert>
+      <Box sx={{ display:"grid", gridTemplateColumns:{ xs:"1fr", sm:"repeat(2,minmax(0,1fr))" }, gap:1.5 }}>
+        {DAN_EXAM_LEVELS.map(level => <TextField
+          key={level} fullWidth type="number" label={`Thi lên ${level}`}
+          value={values[level] ?? ""} onChange={e=>change(old=>({...old,[level]:e.target.value}))}
+          slotProps={{ inputLabel:{shrink:true}, htmlInput:{min:0,step:1000,inputMode:"numeric"} }}
+          helperText="VNĐ · để trống nếu chưa có biểu phí"
+        />)}
+      </Box>
+    </Stack>
+  );
+
   // ============================================
   // 6. GIAO DIỆN QUẢN LÝ THI CẤP
   // ============================================
@@ -677,11 +749,11 @@ export default function ExamManagement({
       >
         <Box>
           <Typography variant="h5" fontWeight={800}>
-            Quản lý thi cấp
+            {examType === "dan" ? "Quản lý thi đẳng" : "Quản lý thi cấp"}
           </Typography>
 
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Quản lý đợt thi và đăng ký võ sinh trên web.
+            {examType === "dan" ? "Kỳ thi đẳng riêng: Cấp 1 → 1 Đẳng → … → 7 Đẳng." : "Kỳ thi cấp riêng: Cấp 10 → Cấp 9 → … → Cấp 1."} Hội viên nghỉ học không được đề xuất.
           </Typography>
         </Box>
 
@@ -695,14 +767,29 @@ export default function ExamManagement({
             </Button>
           )}
 
+          {isAdmin && examType === "dan" && selectedPeriodData && <Button variant="outlined" onClick={() => {
+            setDanFeeDraft(Object.fromEntries(DAN_EXAM_LEVELS.map(level => [level, selectedPeriodData.danFees?.[level] ?? ""])));
+            setDanFeeDialog(true);
+          }}>Cấu hình lệ phí thi đẳng</Button>}
           {isAdmin && <Button variant="outlined" color={registrationOpen ? "warning" : "success"} disabled={!selectedPeriodData || busy || togglingRegistration} onClick={toggleRegistration}>{togglingRegistration ? "Đang cập nhật..." : registrationOpen ? "Khóa đăng ký" : "Mở đăng ký"}</Button>}
           {isAdmin && <Button variant="outlined" color="error" disabled={!selectedPeriodData || busy || togglingRegistration} onClick={openDeletePeriod}>Xóa đợt thi</Button>}
-          {canManage && <Button variant="contained" onClick={() => setRegisterDialog(true)} disabled={!selectedPeriod || loading || !registrationOpen || busy} sx={{ bgcolor: "#176b45" }}>Đăng ký một võ sinh</Button>}
-          {canManage && <Button variant="contained" color="success" onClick={() => {setBulkOpen(true);setBulkReport([]);setBulkSelection([]);}} disabled={!selectedPeriod || loading || !registrationOpen || busy}>Đăng ký hàng loạt</Button>}
+          {canManage && <Button variant="contained" onClick={() => setRegisterDialog(true)} disabled={!selectedPeriod || loading || !registrationOpen || busy} sx={{ bgcolor: "#176b45" }}>{examType === "dan" ? "Đăng ký thi đẳng" : "Đăng ký thi cấp"}</Button>}
+          {canManage && <Button variant="contained" color="success" onClick={() => {setBulkOpen(true);setBulkReport([]);setBulkSelection([]);}} disabled={!selectedPeriod || loading || !registrationOpen || busy}>Đăng ký hàng loạt ({eligibleCount} đủ điều kiện)</Button>}
           <Button variant="outlined" onClick={exportExcel} disabled={!selectedPeriod || !sortedRegistrations.length}>Xuất Excel (.xlsx)</Button>
         </Stack>
       </Stack>
 
+      {examType === "dan" && selectedPeriodData && <Paper variant="outlined" sx={{p:2,mb:2,borderRadius:2}}>
+        <Typography fontWeight={800} sx={{mb:1}}>Biểu phí thi đẳng · {selectedPeriodData.name}</Typography>
+        <Stack direction="row" gap={1} useFlexGap flexWrap="wrap">
+          {DAN_EXAM_LEVELS.map(level => <Chip key={level}
+            label={`${level}: ${formatDanFee(getDanExamFee(selectedPeriodData.danFees,level))}`}
+            color={getDanExamFee(selectedPeriodData.danFees,level) === null ? "default" : "success"}
+            variant="outlined" />)}
+        </Stack>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{mt:1}}>Lệ phí được lưu vào từng đăng ký khi đăng ký thành công. Thay biểu phí không thay đổi số tiền của các đăng ký đã ghi nhận.</Typography>
+      </Paper>}
+      {selectedPeriodData && sortedRegistrations.some(r => isDanExamLevel(r.dangDuThi) !== (examType === "dan")) && <Alert severity="warning" sx={{ mb: 2 }}>Đợt thi cũ có đăng ký khác loại. Dữ liệu lịch sử được giữ nguyên; cần đối soát trước khi nhập kết quả, không tự di chuyển đăng ký.</Alert>}
       {message && (
         <Alert
           severity={messageType}
@@ -739,19 +826,9 @@ export default function ExamManagement({
                     Xóa vĩnh viễn đợt thi và toàn bộ {deletePeriodSummary.total} đăng ký
                     (kể cả đăng ký đã hủy). Thao tác này không thể hoàn tác.
                   </Alert>
-                  <Stack direction="row" alignItems="flex-start" spacing={1}>
-                    <Checkbox
-                      checked={deleteConfirmed}
-                      onChange={(e) => setDeleteConfirmed(e.target.checked)}
-                      disabled={busy}
-                      inputProps={{ "aria-label": "Xác nhận xóa vĩnh viễn đợt thi" }}
-                      sx={{ pt: 0.25, color: "error.main", "&.Mui-checked": { color: "error.main" } }}
-                    />
-                    <Typography variant="body2" sx={{ pt: 1 }}>
-                      Tôi đã kiểm tra và xác nhận muốn xóa vĩnh viễn đợt thi này cùng
-                      {` ${deletePeriodSummary.total} `}đăng ký liên quan.
-                    </Typography>
-                  </Stack>
+                  <TextField fullWidth label="Nhập chính xác mã đợt thi để xác nhận"
+                    value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)}
+                    placeholder={selectedPeriodData?.name || ""} />
                 </>
               )}
             </Stack>
@@ -760,7 +837,7 @@ export default function ExamManagement({
         <DialogActions>
           <Button onClick={() => setDeletePeriodDialog(false)} disabled={busy}>Đóng</Button>
           <Button variant="contained" color="error" onClick={confirmDeletePeriod}
-            disabled={busy || checkingDelete || !deletePeriodSummary || deletePeriodSummary.blocked || !deleteConfirmed}>
+            disabled={busy || checkingDelete || !deletePeriodSummary || deletePeriodSummary.blocked || deleteConfirmation.trim() !== String(selectedPeriodData?.name || "")}>
             {busy ? "Đang xóa..." : "Xóa vĩnh viễn cả dữ liệu"}
           </Button>
         </DialogActions>
@@ -842,6 +919,8 @@ export default function ExamManagement({
         )}
       </Paper>
 
+      <ExamTopScorers period={selectedPeriodData} registrations={registrations} profile={profile} />
+
       {/* DANH SÁCH ĐĂNG KÝ THI */}
 
       <TableContainer component={Paper} variant="outlined">
@@ -897,20 +976,19 @@ export default function ExamManagement({
 
             {/* NHẬP KẾT QUẢ THI - CHỈ ADMIN */}
 {isAdmin && selectedPeriodData && (
-  <ExamResultsPreview
-    key={selectedPeriod}
-    period={selectedPeriodData}
-    registrations={sortedRegistrations}
-    isAdmin={isAdmin}
-  />
+  (examType === "dan" ? (
+    <DanExamResultsPreview key={selectedPeriod} period={selectedPeriodData} registrations={sortedRegistrations} isAdmin={isAdmin} />
+  ) : (
+    <ExamResultsPreview key={selectedPeriod} period={selectedPeriodData} registrations={sortedRegistrations} isAdmin={isAdmin} />
+  ))
 )}
       {!registrationOpen && selectedPeriodData && <Alert severity="warning" sx={{mb:2}}>Đợt {selectedPeriodData.name} đã khóa đăng ký. Vẫn có thể xem danh sách và xuất Excel, nhưng không thể thêm võ sinh mới.</Alert>}
       {/* HỘP THOẠI ĐĂNG KÝ HÀNG LOẠT */}
       <Dialog open={bulkOpen} onClose={() => !busy && setBulkOpen(false)} fullWidth maxWidth="lg">
-        <DialogTitle>Đăng ký thi cấp hàng loạt — {selectedPeriodData?.name || ""}</DialogTitle>
+        <DialogTitle>Đăng ký {examType === "dan" ? "thi đẳng" : "thi cấp"} hàng loạt — {selectedPeriodData?.name || ""}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
-            <Alert severity="info">Tự chọn cấp liền kề (Cấp 10 → Cấp 9), xét đủ 6 tuổi theo năm sinh của ngày thi, bỏ qua võ sinh đã đăng ký. Cấp 1 hoặc đẳng chưa thiết lập quy đổi sẽ không tự đăng ký.</Alert>
+            <Alert severity="info">Danh sách chỉ gồm võ sinh đủ điều kiện {examType === "dan" ? "thi đẳng" : "thi cấp"} của đợt đang chọn. Không trộn hai loại kỳ thi.</Alert>
             <TextField size="small" label="Tìm võ sinh (tên / VTF / điểm tập)" value={bulkSearch} onChange={e=>setBulkSearch(e.target.value)} fullWidth />
             <Stack direction="row" alignItems="center" spacing={2}>
               <Button disabled={busy} onClick={()=>setBulkSelection(eligibleStudents.filter(s=>bulkCandidates.some(x=>x.id===s.id)).map(s=>s.id))}>Chọn tất cả đủ điều kiện đang lọc</Button>
@@ -920,7 +998,7 @@ export default function ExamManagement({
             <TableContainer sx={{maxHeight:380}}><Table size="small" stickyHeader>
               <TableHead><TableRow><TableCell padding="checkbox">Chọn</TableCell><TableCell>Họ tên</TableCell><TableCell>Ngày sinh</TableCell><TableCell>Giới tính</TableCell><TableCell>Đang mang</TableCell><TableCell>Dự thi</TableCell><TableCell>Điều kiện</TableCell></TableRow></TableHead>
               <TableBody>{bulkCandidates.map(s=>{
-                const reason=eligibility(s,selectedPeriodData?.examDate,registeredIds);
+                const reason=eligibility(s,selectedPeriodData?.examDate,registeredIds,examType);
                 return <TableRow key={s.id}>
                   <TableCell padding="checkbox"><Checkbox checked={bulkSelection.includes(s.id)} disabled={!!reason||busy} onChange={e=>setBulkSelection(v=>e.target.checked?[...new Set([...v,s.id])]:v.filter(id=>id!==s.id))}/></TableCell>
                   <TableCell>{s.name}<Typography variant="caption" display="block" color="text.secondary">{s.location}</Typography></TableCell>
@@ -937,6 +1015,12 @@ export default function ExamManagement({
         <DialogActions><Button disabled={busy} onClick={()=>setBulkOpen(false)}>Đóng</Button><Button variant="contained" disabled={busy||!registrationOpen||!bulkSelection.length} onClick={handleBulkRegister}>{busy?"Đang lưu...":`Lưu ${bulkSelection.length} đăng ký`}</Button></DialogActions>
       </Dialog>
 
+      {examType === "dan" && <Dialog open={danFeeDialog} onClose={() => !busy && setDanFeeDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{fontWeight:800}}>Cấu hình lệ phí · {selectedPeriodData?.name}</DialogTitle>
+        <DialogContent dividers>{danFeeFields(danFeeDraft,setDanFeeDraft)}</DialogContent>
+        <DialogActions><Button onClick={()=>setDanFeeDialog(false)} disabled={busy}>Hủy</Button><Button variant="contained" onClick={saveDanFees} disabled={busy}>{busy?"Đang lưu…":"Lưu biểu phí"}</Button></DialogActions>
+      </Dialog>}
+
       {/* HỘP THOẠI TẠO ĐỢT THI */}
 
       <Dialog
@@ -951,12 +1035,12 @@ export default function ExamManagement({
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField
               label="Mã đợt thi"
-              placeholder="Ví dụ: Q4-2026"
+              placeholder={examType === "dan" ? "Ví dụ: L1-2026" : "Ví dụ: Q4-2026"}
               value={periodName}
               onChange={(event) =>
                 setPeriodName(event.target.value)
               }
-              helperText="Mã này phải trùng với cột MaDotThi trong Google Sheets."
+              helperText={examType === "dan" ? "Mã L1-2026, L2-2026...; biểu phí đặt riêng cho từng đợt." : "Mã Q1-2026 đến Q4-2026."}
               fullWidth
             />
 
@@ -981,6 +1065,10 @@ export default function ExamManagement({
               }
               fullWidth
             />
+            {examType === "dan" && <>
+              <Typography fontWeight={800}>Lệ phí thi đẳng theo bậc</Typography>
+              {danFeeFields(danFeeDraft,setDanFeeDraft)}
+            </>}
           </Stack>
         </DialogContent>
 
@@ -1010,7 +1098,7 @@ export default function ExamManagement({
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Đăng ký võ sinh thi cấp</DialogTitle>
+        <DialogTitle>Đăng ký võ sinh {examType === "dan" ? "thi đẳng" : "thi cấp"}</DialogTitle>
 
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
@@ -1025,7 +1113,7 @@ export default function ExamManagement({
             >
               {visibleStudents
                 .filter(
-                  (student) => !eligibility(student, selectedPeriodData?.examDate, registeredIds)
+                  (student) => !eligibility(student, selectedPeriodData?.examDate, registeredIds, examType)
                 )
                 .map((student) => (
                   <MenuItem
@@ -1033,13 +1121,13 @@ export default function ExamManagement({
                     value={student.id}
                   >
                     {student.maHV} — {student.name} (
-                    {student.location})
+                    {student.location}) → {nextLevel(currentLevel(student))}
                   </MenuItem>
                 ))}
             </TextField>
 
             <TextField label="Cấp đai hiện tại" value={studentForSingle ? currentLevel(studentForSingle) : ""} InputProps={{readOnly:true}} fullWidth />
-            <TextField label="Cấp dự thi tự động" value={studentForSingle ? nextLevel(currentLevel(studentForSingle)) : ""} InputProps={{readOnly:true}} fullWidth />
+            <TextField label="Cấp/đẳng dự thi tự động" value={studentForSingle ? nextLevel(currentLevel(studentForSingle)) : ""} InputProps={{readOnly:true}} fullWidth />
           </Stack>
         </DialogContent>
 
@@ -1053,7 +1141,7 @@ export default function ExamManagement({
 
           <Button
             onClick={handleRegister}
-            disabled={busy || !registrationOpen || !studentForSingle || !!eligibility(studentForSingle, selectedPeriodData?.examDate, registeredIds)}
+            disabled={busy || !registrationOpen || !studentForSingle || !!eligibility(studentForSingle, selectedPeriodData?.examDate, registeredIds, examType)}
             variant="contained"
           >
             Lưu đăng ký

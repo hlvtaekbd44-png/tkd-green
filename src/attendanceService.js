@@ -1,170 +1,97 @@
-
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-  setDoc,
-  writeBatch,
+  collection, doc, getDoc, getDocs, serverTimestamp,
+  setDoc, writeBatch, query, where,
 } from "firebase/firestore";
 import { db } from "./firebase";
 
+// Tương thích những giao diện cũ; nguồn danh sách mới phải dùng useClubLocations.
 export const ATTENDANCE_LOCATIONS = [
-  "Lê Văn Tám",
-  "Nghĩa Trung",
-  "Đồng Tâm",
-  "Thôn 6",
-  "Phước Sơn",
-  "Minh Hưng",
+  "Lê Văn Tám", "Nghĩa Trung", "Đồng Tâm",
+  "Thôn 6", "Phước Sơn", "Minh Hưng",
 ];
-
 const PREFIXES = {
-  "Lê Văn Tám": "LVTA",
-  "Nghĩa Trung": "NGTR",
-  "Đồng Tâm": "DOTM",
-  "Thôn 6": "T6",
-  "Phước Sơn": "PHSo",
-  "Minh Hưng": "MIHU",
+  "Lê Văn Tám": "LVTA", "Nghĩa Trung": "NGTR", "Đồng Tâm": "DOTM",
+  "Thôn 6": "T6", "Phước Sơn": "PHSo", "Minh Hưng": "MIHU",
 };
-
 export const ATTENDANCE_STATUSES = [
-  "Chưa điểm danh",
-  "Có mặt",
-  "Vắng có phép",
-  "Vắng không phép",
+  "Có mặt", "Vắng có phép", "Vắng không phép", "Chưa điểm danh",
 ];
 
-export function attendanceSessionId(location, date) {
-  if (
-    !PREFIXES[location] ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(date)
-  ) {
-    throw new Error("Điểm tập hoặc ngày không hợp lệ.");
+/** Tra cứu nguồn dữ liệu điểm tập chuẩn. Không cần thay mã khi Admin thêm điểm tập. */
+async function resolveAttendanceLocation(location) {
+  const name = String(location || '').trim();
+  if (!name) throw new Error('Vui lòng chọn điểm tập.');
+  const found = await getDocs(query(collection(db, 'locations'), where('name', '==', name)));
+  const matches = found.docs.filter(item => item.data().deleted !== true);
+  if (matches.length !== 1) {
+    throw new Error('Không xác định duy nhất điểm tập trong Cài đặt. Kiểm tra tên hoặc dữ liệu trùng.');
   }
+  const record = matches[0];
+  if (record.data().active === false) throw new Error('Điểm tập đang tạm ngừng hoạt động.');
+  return record;
+}
 
-  return `${PREFIXES[location]}_${date}`;
+/** Giữ ID cũ cho 6 điểm tập lịch sử, dùng ID Firestore cho điểm tập mới. */
+export async function attendanceSessionId(location, date) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) throw new Error('Ngày tập không hợp lệ.');
+  const locationDoc = await resolveAttendanceLocation(location);
+  const legacyPrefix = PREFIXES[location];
+  const code = legacyPrefix || locationDoc.id;
+  if (!/^[A-Za-z0-9_-]{2,40}$/.test(code)) throw new Error('Mã điểm tập không hợp lệ.');
+  return `${code}_${date}`;
 }
 
 export async function loadAttendance(location, date) {
-  const id = attendanceSessionId(location, date);
+  const id = await attendanceSessionId(location, date);
   const sessionRef = doc(db, "attendanceSessions", id);
-
-  // Đọc buổi trước. Chỉ đọc records khi buổi tồn tại.
   const sessionSnap = await getDoc(sessionRef);
-
-  if (!sessionSnap.exists()) {
-    return { session: null, records: {} };
-  }
-
-  const snapshot = await getDocs(
-    collection(sessionRef, "records")
-  );
-
-  const records = {};
-
-  snapshot.forEach((item) => {
-    records[item.id] = item.data();
-  });
-
+  const recordSnap = sessionSnap.exists() ? await getDocs(collection(sessionRef, "records")) : {docs: []};
   return {
-    session: {
-      id: sessionSnap.id,
-      ...sessionSnap.data(),
-    },
-    records,
+    session: sessionSnap.exists() ? sessionSnap.data() : null,
+    records: Object.fromEntries(recordSnap.docs.map((d) => [d.id, d.data()])),
   };
 }
 
-export async function saveAttendance({
-  location,
-  date,
-  students,
-  changes,
-  user,
-}) {
-  if (!user?.uid) {
-    throw new Error("Bạn chưa đăng nhập.");
-  }
-
-  const entries = Object.entries(changes);
-
-  if (entries.length === 0) {
-    return { count: 0 };
-  }
-
-  const studentsById = new Map(
-    students.map((student) => [student.id, student])
-  );
-
-  // Kiểm tra toàn bộ dữ liệu trước khi ghi.
-  for (const [memberId, change] of entries) {
-    const student = studentsById.get(memberId);
-
-    if (!student || student.location !== location) {
-      throw new Error(
-        `Võ sinh ${memberId} không thuộc điểm tập này.`
-      );
-    }
-
-    if (!ATTENDANCE_STATUSES.includes(change.trangThai)) {
-      throw new Error("Trạng thái điểm danh không hợp lệ.");
-    }
-
-    if (
-      typeof change.ghiChu !== "string" ||
-      change.ghiChu.length > 500
-    ) {
-      throw new Error("Ghi chú tối đa 500 ký tự.");
-    }
-  }
-
-  const id = attendanceSessionId(location, date);
+export async function saveAttendance({ location, date, students, statuses, existingRecords = {}, user }) {
+  if (!user?.uid) throw new Error("Bạn cần đăng nhập.");
+  const id = await attendanceSessionId(location, date);
   const sessionRef = doc(db, "attendanceSessions", id);
+  const validStudents = students.filter((s) => s.id && s.location === location);
+  if (!validStudents.length) throw new Error("Không có võ sinh để lưu.");
 
-  // Tạo buổi nếu chưa có; không sửa thông tin buổi cũ.
-  const sessionSnap = await getDoc(sessionRef);
-
-  if (!sessionSnap.exists()) {
+  // Tạo buổi tập nếu chưa tồn tại; không ghi đè người tạo hay ngày tạo.
+  const existing = await getDoc(sessionRef);
+  if (!existing.exists()) {
     try {
       await setDoc(sessionRef, {
-        diemTap: location,
-        ngayTap: date,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
+        ngayTap: date, diemTap: location,
+        createdBy: user.uid, createdAt: serverTimestamp(),
       });
     } catch (error) {
-      // Có thể một HLV khác vừa tạo cùng buổi.
+      // Nếu buổi vừa được tạo ở thiết bị khác, tiếp tục dùng buổi đó.
       const latest = await getDoc(sessionRef);
       if (!latest.exists()) throw error;
     }
   }
 
-  // Chỉ ghi những dòng đã thay đổi.
-  // Mỗi batch tối đa 400 bản ghi.
-  let saved = 0;
-
-  for (let start = 0; start < entries.length; start += 400) {
-    const chunk = entries.slice(start, start + 400);
+  // Ghi theo lô 10 để phù hợp giới hạn đọc tài liệu của Firestore Rules trong batch.
+  for (let start = 0; start < validStudents.length; start += 10) {
     const batch = writeBatch(db);
-
-    chunk.forEach(([memberId, change]) => {
-      batch.set(
-        doc(sessionRef, "records", memberId),
-        {
-          memberId,
-          trangThai: change.trangThai,
-          ghiChu: change.ghiChu,
-          updatedBy: user.uid,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    });
-
+    const chunk = validStudents.slice(start, start + 10);
+    for (const student of chunk) {
+      const status = statuses[student.id] || "Chưa điểm danh";
+      if (!ATTENDANCE_STATUSES.includes(status)) {
+        throw new Error(`Trạng thái không hợp lệ: ${student.name}`);
+      }
+      batch.set(doc(sessionRef, "records", student.id), {
+        memberId: student.id,
+        trangThai: status,
+        ghiChu: String(existingRecords[student.id]?.ghiChu || "").slice(0, 500),
+        updatedBy: user.uid,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    }
     await batch.commit();
-    saved += chunk.length;
   }
-
-  return { sessionId: id, count: saved };
+  return { sessionId: id, count: validStudents.length };
 }
