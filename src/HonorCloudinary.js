@@ -21,7 +21,13 @@ async function readJson(response,description) {
   try {data=JSON.parse(raw)} catch {
     throw new Error(`${description}: máy chủ không trả về JSON (${response.status}). Hãy kiểm tra Netlify Functions và biến môi trường.`);
   }
-  if(!response.ok) throw new Error(`${description}: ${data.error||data.message||`HTTP ${response.status}`}`);
+  if (!response.ok) {
+    const detail = typeof data?.error === 'string'
+      ? data.error
+      : (typeof data?.error?.message === 'string' ? data.error.message : null);
+    const message = detail || (typeof data?.message === 'string' ? data.message : null) || `HTTP ${response.status}`;
+    throw new Error(`${description} (HTTP ${response.status}): ${message}`);
+  }
   return data;
 }
 
