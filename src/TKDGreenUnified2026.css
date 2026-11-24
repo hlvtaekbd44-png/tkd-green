@@ -1,0 +1,64 @@
+/* CLB TAEKWONDO GREEN — UNIFIED DESIGN A | 2026-11-25
+   Loaded LAST in App.jsx to harmonize previous V1/V2/Design A styling.
+   Does not change Firebase/permission logic, existing forms or the official logo.
+*/
+:root { --tkgu-canvas:#f2f6f3; --tkgu-surface:#fff; --tkgu-border:#e0ebe2; --tkgu-accent:#0b8152; --tkgu-ink:#173b2b; }
+.tka-app {background:var(--tkgu-canvas)}
+.tka-app .main-area {min-width:0;background:var(--tkgu-canvas)!important}
+.tka-app .topbar {background:#fff!important;border-bottom:1px solid #e3eee5!important;box-shadow:0 2px 14px rgba(22,70,43,.035)!important}
+.tka-app .topbar-toolbar {min-height:73px!important;padding-inline:clamp(16px,2vw,34px)!important;gap:12px}
+.tka-app .topbar-title {font-size:clamp(19px,1.7vw,24px)!important;letter-spacing:-.045em!important;font-weight:800!important;color:#123b2a!important}
+.tka-app .topbar-eyebrow {font-size:10px!important;color:#6a8b75!important;font-weight:800!important;letter-spacing:.09em!important}
+body:has(.tka-app) .MuiDrawer-paper {background:linear-gradient(172deg,#063e2e 0%,#07543b 56%,#06402d 100%)!important;border-right:0!important;box-shadow:6px 0 27px rgba(9,53,33,.08)!important}
+body:has(.tka-app) .MuiDrawer-paper .brand {padding-top:26px!important;padding-bottom:23px!important;border-bottom:1px solid rgba(255,255,255,.11)!important}
+body:has(.tka-app) .MuiDrawer-paper .brand-title {color:#f8fffa!important;font-weight:800!important;font-size:14px!important;line-height:1.4!important;letter-spacing:-.025em!important}
+body:has(.tka-app) .MuiDrawer-paper .brand-subtitle {color:#b7dec9!important;font-size:9px!important;letter-spacing:.09em!important}
+body:has(.tka-app) .MuiDrawer-paper .sidebar-section-label {color:#98cdb2!important;font-size:10px!important;font-weight:800!important;letter-spacing:.13em!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item {border-radius:11px!important;margin:3px 11px!important;min-height:45px!important;transition:background .14s ease,transform .14s ease!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item:not(.Mui-selected) .MuiListItemText-primary {color:#e0f3e7!important;font-size:13px!important;font-weight:600!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item:not(.Mui-selected) .MuiListItemIcon-root {color:#b7dfc9!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item.Mui-selected {background:#128c5a!important;border:1px solid rgba(255,255,255,.18)!important;box-shadow:0 4px 15px rgba(1,30,18,.15)!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item.Mui-selected .MuiListItemText-primary, body:has(.tka-app) .MuiDrawer-paper .nav-item.Mui-selected .MuiListItemIcon-root {color:#fff!important;font-weight:800!important}
+body:has(.tka-app) .MuiDrawer-paper .coach-card {background:rgba(255,255,255,.085)!important;border-color:rgba(255,255,255,.13)!important}
+.tka-app .page-content.tkg-all-modules {padding:22px clamp(17px,2.25vw,35px) 48px!important}
+.tka-app .page-content .MuiPaper-root:not(.MuiDialog-paper) {border-radius:17px;border-color:var(--tkgu-border)}
+.tka-app .page-content .MuiTableCell-head {background:#f1f8f4!important;color:#305c42!important;font-size:12px!important;letter-spacing:.01em}
+.tka-app .page-content .MuiTableCell-body {color:#274d37!important}
+.tka-app .page-content .MuiButton-containedPrimary {background:#0b8353!important;color:#fff!important}
+.tka-app .page-content .MuiButton-containedPrimary:hover {background:#086b44!important}
+.tka-app .tka-dashboard .tka-hero {padding:30px 32px!important;background:linear-gradient(110deg,#064c37 0%,#087e50 61%,#149666 100%)!important;border-radius:20px!important;min-height:171px!important}
+.tka-app .tka-dashboard .tka-stats {gap:15px!important}
+.tka-app .tka-dashboard .tka-metric {min-height:145px!important;border-radius:17px!important}
+.tka-app .tka-dashboard .tka-section {border-radius:17px!important;padding:19px 20px!important}
+.tka-app .tka-dashboard .tka-shortcut-list {gap:11px!important}
+/* Full row: club member composition + real navigation to exam and event modules + watch list. */
+.tkg-command-grid {display:grid;grid-template-columns:minmax(0,1.17fr) minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:stretch;min-width:0}
+.tkg-command-grid>.tka-section{min-width:0;min-height:285px}
+.tkg-composition-inner{display:flex;align-items:center;gap:12px;min-height:195px}
+.tkg-donut-container{height:175px;width:175px;max-width:55%;position:relative;flex-shrink:0}
+.tkg-donut-total{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tkg-donut-total strong{font-size:27px;color:#164a31;line-height:1;font-weight:800}
+.tkg-donut-total small{font-size:10px;color:#789182;font-weight:700}
+.tkg-composition-legend{flex:1;min-width:0;display:flex;flex-direction:column;gap:11px}
+.tkg-legend-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#547362}
+.tkg-legend-row strong{margin-left:auto;color:#244a35;font-weight:800}
+.tkg-legend-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.tkg-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.tkg-schedule-list,.tkg-attention-list{display:flex;flex-direction:column;gap:9px}
+.tkg-schedule-row{display:flex;align-items:center;gap:10px;padding:11px 9px;border:1px solid #e6eee7;border-radius:11px;background:#f8fbf8;cursor:pointer;text-align:left;color:#214d35;font-family:inherit;min-height:62px;width:100%}
+.tkg-schedule-row:hover,.tkg-schedule-row:focus-visible{border-color:#9bcfb0;background:#eef9f1;outline:2px solid transparent}
+.tkg-schedule-row>span:nth-child(2){min-width:0;display:flex;flex:1;flex-direction:column;gap:3px}
+.tkg-schedule-row strong{font-size:12px;font-weight:750}
+.tkg-schedule-row small{font-size:10px;color:#6c8474;line-height:1.5}
+.tkg-schedule-row>svg{color:#4f976e;font-size:18px}
+.tkg-schedule-badge{height:37px;width:37px;border-radius:10px;display:grid;place-items:center;background:#e4f4e9;color:#128454;flex-shrink:0}
+.tkg-attention-item{display:flex;gap:10px;align-items:center;padding:11px 2px;border-bottom:1px solid #eef2ed;font-size:11px;color:#45614f}
+.tkg-attention-item>span:nth-child(2){flex:1;line-height:1.45}
+.tkg-attention-item strong{font-weight:800;color:#164b31;font-size:16px}
+.tkg-attention-indicator{height:8px;width:8px;border-radius:50%;flex-shrink:0}
+.tkg-attention-indicator.is-amber{background:#eaae35}.tkg-attention-indicator.is-green{background:#148f5c}.tkg-attention-indicator.is-red{background:#dc8270}
+.tka-app .tkg-attention-link{margin-top:10px;color:#08784a!important;font-size:12px!important;font-weight:800!important}
+@media(max-width:1450px){.tkg-command-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tkg-attention{grid-column:1/-1}.tkg-composition-inner{justify-content:center}}
+@media(max-width:1050px){.tkg-command-grid{grid-template-columns:1fr}.tkg-attention{grid-column:auto}.tkg-composition-inner{justify-content:flex-start}}
+@media(max-width:899px){.tka-app .topbar-toolbar{min-height:66px!important;padding:0 13px!important}.tka-app .page-content.tkg-all-modules{padding:14px 12px 105px!important}.tka-app .tka-dashboard .tka-hero{padding:22px 18px!important;min-height:0!important}.tkg-command-grid{gap:12px}.tkg-command-grid>.tka-section{min-height:0}}
+@media(max-width:480px){.tkg-composition-inner{gap:8px}.tkg-donut-container{width:152px;height:152px;max-width:51%}.tkg-donut-total strong{font-size:23px}.tka-app .tka-dashboard .tka-section{padding:15px!important}.tkg-legend-row{gap:6px;font-size:10px}.tkg-schedule-row{min-height:64px}}

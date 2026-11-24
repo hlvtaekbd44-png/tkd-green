@@ -1,0 +1,132 @@
+/* CLB TAEKWONDO GREEN — DESIGN A — consolidated UI. Single new final layer.
+   Components remain connected to their original Firebase subscriptions and actions.
+   Intentionally scoped to admin/coach app; public site and member portal remain untouched. */
+.green-design-final { --green-ink:#193d2c; --green-muted:#6c8776; --green-line:#e0ebe4; --green-bg:#f3f7f4; --green-accent:#087d50; background:var(--green-bg)!important; }
+.green-design-final .main-area { background:var(--green-bg)!important; }
+body:has(.green-design-final) .MuiDrawer-paper {background:linear-gradient(165deg,#062f26,#064832 55%,#07593a)!important; border:0!important; color:#e9f8ee!important;box-shadow:4px 0 26px rgba(0,45,26,.10)!important}
+body:has(.green-design-final) .MuiDrawer-paper .sidebar-inner{padding:22px 13px!important}
+body:has(.green-design-final) .MuiDrawer-paper .brand{display:flex!important;align-items:center!important;padding:8px 8px 24px!important;margin-bottom:22px!important;border-bottom:1px solid rgba(255,255,255,.13)!important;min-height:94px!important}
+body:has(.green-design-final) .MuiDrawer-paper .brand-mark{width:54px!important;height:54px!important;flex-shrink:0!important;padding:5px!important;border-radius:14px!important;background:#fff!important}
+body:has(.green-design-final) .MuiDrawer-paper .brand-title{font-size:13px!important;font-weight:900!important;line-height:1.45!important;color:#fff!important}
+body:has(.green-design-final) .MuiDrawer-paper .brand-subtitle{font-size:9px!important;line-height:1.6!important;color:#a3d4bb!important}
+body:has(.green-design-final) .MuiDrawer-paper .nav-list{padding-top:6px!important;padding-bottom:6px!important}
+body:has(.green-design-final) .MuiDrawer-paper .nav-item{margin:3px 2px!important;padding:10px 15px!important;min-height:45px!important;border-radius:11px!important;transition:background .18s ease!important}
+body:has(.green-design-final) .MuiDrawer-paper .nav-item:not(.Mui-selected) .MuiListItemText-primary{color:#d8eae0!important;font-size:13px!important;font-weight:600!important}
+body:has(.green-design-final) .MuiDrawer-paper .nav-item:not(.Mui-selected) .MuiListItemIcon-root{color:#a7d6bf!important;min-width:37px!important}
+body:has(.green-design-final) .MuiDrawer-paper .nav-item.Mui-selected{background:#14935f!important;box-shadow:inset 3px 0 0 #c1f7cf,0 6px 15px rgba(0,22,10,.18)!important}
+body:has(.green-design-final) .MuiDrawer-paper .nav-item.Mui-selected .MuiListItemText-primary,body:has(.green-design-final) .MuiDrawer-paper .nav-item.Mui-selected .MuiListItemIcon-root{color:#fff!important;font-weight:900!important}
+body:has(.green-design-final) .MuiDrawer-paper .sidebar-version{opacity:.5!important}
+.green-design-final .topbar{background:#fff!important;border-bottom:1px solid var(--green-line)!important;box-shadow:0 3px 13px rgba(17,70,40,.025)!important}
+.green-design-final .topbar-toolbar{min-height:74px!important;padding-inline:clamp(18px,2.4vw,40px)!important}
+.green-design-final .topbar-title{font-size:22px!important;line-height:1.35!important;letter-spacing:-.035em!important;color:#173f2c!important;font-weight:900!important}
+.green-design-final .topbar-eyebrow{font-size:10px!important;letter-spacing:.11em!important;color:#7a9b84!important}
+.green-design-final .page-content{width:100%!important;max-width:none!important;margin:0!important;padding:25px clamp(17px,2.3vw,38px) 55px!important;box-sizing:border-box!important}
+.green-design-final .page-content .MuiPaper-root:not(.MuiDialog-paper){border-radius:17px;border-color:#e1ebe4}
+.green-design-final .page-content .MuiButton-containedPrimary{background:#088553!important;color:#fff!important}
+.green-design-final .page-content .MuiButton-outlinedPrimary{border-color:#c6e1d1!important;color:#08794c!important}
+.green-design-final .page-content .MuiButton-root{font-weight:750!important;letter-spacing:0!important}
+.green-design-final .page-content .MuiTableCell-head{background:#f0f7f2!important;color:#285940!important;font-weight:900!important}
+.green-design-final .page-content .MuiTableRow-root:hover .MuiTableCell-body{background:#f9fcfa}
+.green-design-final .page-content .tkg-module-hero{background:linear-gradient(110deg,#f7fbf8,#eef8f1)!important;border:1px solid #dbe9df!important;border-left:5px solid #078652!important;border-radius:16px!important;box-shadow:none!important;padding:20px 25px!important;margin-bottom:18px!important}
+.green-design-final .page-content .tkg-module-hero-title{color:#17472f!important;font-size:clamp(21px,1.6vw,27px)!important;font-weight:900!important}
+.green-design-final .page-content .tkg-module-hero-subtitle{color:#64816c!important}
+.green-design-final .page-content .tkg-module-hero-icon{background:#dff2e6!important;color:#0b8654!important}
+/* Dashboard — deliberate new two-column composition instead of the old card stack. */
+.green-design-final .green-console{display:flex;flex-direction:column;gap:19px;color:var(--green-ink);min-width:0;font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif}
+.green-design-final .green-welcome{min-height:188px;display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;overflow:hidden;padding:29px clamp(24px,3.2vw,45px);background:linear-gradient(111deg,#064632 0%,#08754c 65%,#0f9864 100%);border-radius:20px;color:white;isolation:isolate}
+.green-design-final .green-welcome__copy,.green-design-final .green-welcome__actions{z-index:1;position:relative}
+.green-design-final .green-welcome__eyebrow{font-size:10px;font-weight:900;letter-spacing:.12em;color:#c8f4d7;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.green-design-final .green-welcome__eyebrow>span:not(.green-welcome__pulse){opacity:.5}
+.green-design-final .green-welcome__pulse{width:8px;height:8px;background:#a8edac;border-radius:50%;box-shadow:0 0 0 4px rgba(168,237,172,.14)}
+.green-design-final .green-welcome .green-welcome__title{color:#fff!important;font-size:clamp(22px,2.15vw,31px)!important;line-height:1.38!important;font-weight:900!important;margin:11px 0 5px!important;letter-spacing:-.04em!important;max-width:750px}
+.green-design-final .green-welcome .green-welcome__sub{font-size:13px!important;line-height:1.8!important;color:#d5f5e2!important;max-width:670px}
+.green-design-final .green-welcome__pills{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px}
+.green-design-final .green-welcome__pills span{border:1px solid rgba(255,255,255,.21);border-radius:30px;padding:6px 13px;font-size:10px;color:#e2ffed;font-weight:800;background:rgba(255,255,255,.07)}
+.green-design-final .green-welcome__actions{display:flex;flex-direction:column;gap:10px;align-items:stretch;min-width:155px}
+.green-design-final .green-welcome__actions .MuiButton-root{background:#fff!important;border-color:rgba(255,255,255,.7)!important;color:#087347!important;min-height:43px!important;border-radius:10px!important;white-space:nowrap;font-size:12px!important}
+.green-design-final .green-welcome__actions .MuiButton-outlined{background:rgba(255,255,255,.09)!important;color:#fff!important}
+.green-design-final .green-welcome__art{position:absolute;right:11%;top:-165px;width:420px;height:420px;border-radius:50%;border:1px solid rgba(255,255,255,.09);z-index:0;pointer-events:none}
+.green-design-final .green-welcome__art span{position:absolute;inset:35px;border:1px solid rgba(255,255,255,.10);border-radius:50%}
+.green-design-final .green-welcome__art span:nth-child(2){inset:85px}.green-design-final .green-welcome__art span:nth-child(3){inset:130px}
+.green-design-final .green-console__toolbar{min-height:50px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.green-design-final .green-console__toolbar-title{display:flex;gap:10px;align-items:center;font-size:15px;font-weight:900;color:#234d37}
+.green-design-final .green-console__toolbar-title svg{color:#138959}
+.green-design-final .green-console__toolbar-title .MuiChip-root{background:#e2f3e9;color:#247349;font-size:10px}
+.green-design-final .green-console__location{width:245px;max-width:100%}
+.green-design-final .green-console__stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+.green-design-final .green-stat{padding:21px 22px 18px!important;border:1px solid var(--green-line)!important;border-radius:16px!important;min-height:143px;display:flex;flex-direction:column;position:relative;overflow:hidden;background:#fff!important;box-shadow:0 5px 18px rgba(23,60,37,.025)}
+.green-design-final .green-stat:before{content:'';height:4px;position:absolute;left:0;right:0;top:0;background:#158958}
+.green-design-final .green-stat--mint:before{background:#31b88c}.green-design-final .green-stat--gold:before{background:#e4ae45}.green-design-final .green-stat--blue:before{background:#529cbd}
+.green-design-final .green-stat__top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;color:#627f6b}
+.green-design-final .green-stat__icon{display:grid;place-items:center;width:39px;height:39px;border-radius:11px;background:#e6f6ec;color:#087d4e;flex-shrink:0}
+.green-design-final .green-stat--gold .green-stat__icon{background:#fff2d9;color:#b78425}.green-design-final .green-stat--blue .green-stat__icon{background:#eaf3fc;color:#427fab}
+.green-design-final .green-stat__value{font-size:clamp(21px,2.1vw,33px);font-weight:900;letter-spacing:-.055em;color:#193f2c;line-height:1.2;margin-top:12px;overflow-wrap:anywhere}
+.green-design-final .green-stat__helper{font-size:10px;color:#859a8b;margin-top:8px;line-height:1.5;min-height:15px}
+.green-design-final .green-console__workspace{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(320px,.9fr);gap:18px;align-items:start;min-width:0}
+.green-design-final .green-console__primary,.green-design-final .green-console__rail{display:grid;gap:18px;min-width:0}
+.green-design-final .green-panel{background:#fff!important;border:1px solid var(--green-line)!important;border-radius:17px!important;padding:22px!important;min-width:0;box-shadow:0 4px 20px rgba(21,75,39,.02)}
+.green-design-final .green-panel__heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:21px}
+.green-design-final .green-panel__eyebrow{font-size:10px;color:#14915c;font-weight:900;letter-spacing:.105em;margin-bottom:6px}
+.green-design-final .green-panel .green-panel__title{font-weight:900!important;letter-spacing:-.035em!important;color:#1a4630!important;font-size:17px!important;line-height:1.4!important}
+.green-design-final .green-panel .green-panel__detail{font-size:11px!important;color:#839889!important;margin-top:4px!important;line-height:1.6!important}
+.green-design-final .green-panel__aside .MuiButton-root{font-size:11px!important;white-space:nowrap}
+.green-design-final .green-panel__chart{height:330px;width:100%;min-width:0}
+.green-design-final .green-panel__empty{min-height:130px;display:grid;place-items:center;text-align:center;padding:18px;color:#7b9584;font-size:12px}
+.green-design-final .green-panel__error{color:#bb413f;background:#fff5f3;padding:10px 12px;border-radius:8px;font-size:12px}
+.green-design-final .green-panel__search{width:100%;margin:-3px 0 15px!important}
+.green-design-final .green-composition{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center;gap:13px;min-height:170px}
+.green-design-final .green-composition__chart{width:170px;height:170px;position:relative;min-width:0}
+.green-design-final .green-composition__total{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.green-design-final .green-composition__total strong{font-size:26px;font-weight:900;line-height:1.1;color:#195238}.green-design-final .green-composition__total small{font-size:8px;font-weight:900;color:#87a28f}
+.green-design-final .green-composition__legend{display:grid;gap:11px;min-width:0}
+.green-design-final .green-composition__legend>div{display:flex;align-items:center;gap:7px;font-size:10px;color:#55725f;min-width:0}
+.green-design-final .green-composition__legend>div span:nth-child(2){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.green-design-final .green-composition__legend strong{font-weight:900;color:#234b34}
+.green-design-final .green-composition__dot{width:9px;height:9px;flex-shrink:0;border-radius:50%}
+.green-design-final .green-quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.green-design-final .green-quick-grid button{appearance:none;border:1px solid #e5ede6;background:#f9fcfa;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;gap:5px;align-items:flex-start;text-align:left;padding:14px 12px;color:#26513b;font:inherit;min-height:118px;transition:background .18s,border .18s,transform .18s}
+.green-design-final .green-quick-grid button:hover,.green-design-final .green-quick-grid button:focus-visible{background:#eaf7ee;border-color:#7ac7a1;transform:translateY(-2px);outline:2px solid transparent}
+.green-design-final .green-quick-grid__icon{display:grid;place-items:center;border-radius:8px;color:#0f8a56;background:#e5f4eb;width:29px;height:29px;margin-bottom:3px}
+.green-design-final .green-quick-grid__icon svg{font-size:18px}
+.green-design-final .green-quick-grid strong{font-size:11px;font-weight:900}.green-design-final .green-quick-grid small{font-size:9px;color:#8a9e90;line-height:1.5}
+.green-design-final .green-activity-list{display:grid;gap:9px}
+.green-design-final .green-activity-list button{width:100%;display:flex;gap:10px;align-items:center;text-align:left;padding:12px 10px;border:1px solid #e5ede6;border-radius:11px;background:#fafcfa;font:inherit;cursor:pointer;color:#25503a}
+.green-design-final .green-activity-list button:hover,.green-design-final .green-activity-list button:focus-visible{background:#eaf7ee;border-color:#9ed2b6;outline:2px solid transparent}
+.green-design-final .green-activity-list__icon{color:#168a57;display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#e7f5eb;flex-shrink:0}
+.green-design-final .green-activity-list button>span:nth-child(2){flex:1;min-width:0;display:grid;gap:2px}
+.green-design-final .green-activity-list strong{font-size:11px;font-weight:900}.green-design-final .green-activity-list small{font-size:10px;color:#829587;line-height:1.4}
+.green-design-final .green-activity-list button>svg{color:#90ac9a}
+.green-design-final .green-panel__notice{display:flex;gap:8px;align-items:center;margin-top:16px;padding:10px 12px;border-radius:9px;background:#f2f8f3;color:#567e62;font-size:11px;font-weight:700}
+.green-design-final .green-panel__notice svg{color:#158859}
+.green-design-final .green-members-table{min-width:0}
+.green-design-final .green-members-table__header,.green-design-final .green-members-table__row{display:grid;grid-template-columns:minmax(160px,1.7fr) minmax(85px,1fr) minmax(85px,.9fr) minmax(90px,.8fr);align-items:center;gap:12px;padding:13px 16px}
+.green-design-final .green-members-table__header{background:#f0f8f3;border-radius:10px;color:#62836c;font-size:10px;letter-spacing:.04em;font-weight:900}
+.green-design-final .green-members-table__row{border-bottom:1px solid #eef2ee;color:#52715d;font-size:11px;line-height:1.5}
+.green-design-final .green-members-table__row:last-child{border:0}
+.green-design-final .green-members-table__identity{display:flex;gap:10px;align-items:center;min-width:0}
+.green-design-final .green-members-table__identity .MuiAvatar-root{width:35px;height:35px;background:#e4f3eb;color:#118552;font-weight:900;font-size:13px}
+.green-design-final .green-members-table__identity>div{min-width:0;display:grid;gap:3px}
+.green-design-final .green-members-table__identity strong{font-size:11px;color:#214d35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.green-design-final .green-members-table__identity small{font-size:9px;color:#91a398;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.green-design-final .green-members-table__state>span{display:inline-block;padding:4px 9px;border-radius:15px;background:#f2f3f1;color:#758377;font-size:10px;font-weight:800}
+.green-design-final .green-members-table__state>span.is-active{background:#e6f6e9;color:#0d8a54}
+/* Member page: actual React hooks, forms, filters, import/export actions unchanged. */
+.green-design-final .green-member-management{gap:18px!important;margin-top:0!important}
+.green-design-final .green-member-management>div:first-child{background:#fff;border:1px solid var(--green-line);border-radius:16px;padding:21px 24px;box-shadow:0 4px 15px rgba(20,65,38,.018)}
+.green-design-final .green-member-management>div:first-child .MuiTypography-overline{font-size:10px;letter-spacing:.10em}
+.green-design-final .green-member-management>div:first-child .MuiTypography-h5{font-size:23px!important;color:#1a4630}
+.green-design-final .green-member-management>.MuiPaper-root{box-shadow:0 4px 15px rgba(20,65,38,.025)!important}
+.green-design-final .green-member-management .MuiOutlinedInput-root{background:#fff}
+.green-design-final .green-member-management .MuiButton-root{min-height:40px}
+/* Other existing business modules: high-contrast panels, without altering their behavior or data. */
+.green-design-final .tkg-module-tuition>.MuiPaper-root,.green-design-final .tkg-module-exams>.MuiPaper-root,.green-design-final .tkg-module-attendance>.MuiPaper-root,.green-design-final .tkg-module-reports>.MuiPaper-root,.green-design-final .tkg-module-settings>.MuiPaper-root{border:1px solid var(--green-line)!important;box-shadow:0 4px 20px rgba(17,71,42,.025)!important}
+.green-design-final .tkg-module-tuition .MuiTabs-indicator,.green-design-final .tkg-module-cap .MuiTabs-indicator,.green-design-final .tkg-module-dan .MuiTabs-indicator{height:3px;border-radius:3px}
+.green-design-final .page-content .MuiChip-colorSuccess{background:#e6f6ed;color:#087a48}
+.green-design-final .page-content .MuiChip-colorWarning{background:#fff4d9;color:#a56d12}
+.green-design-final .page-content .MuiChip-colorError{background:#ffebe9;color:#b84d40}
+@media(max-width:1350px){.green-design-final .green-console__workspace{grid-template-columns:minmax(0,1.35fr) minmax(300px,.85fr)}.green-design-final .green-composition{grid-template-columns:120px minmax(0,1fr)}.green-design-final .green-composition__chart{width:120px;height:120px}.green-design-final .green-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1100px){.green-design-final .green-console__workspace{grid-template-columns:1fr}.green-design-final .green-console__rail{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.green-design-final .green-console__rail>.green-panel:last-child{grid-column:1/-1}.green-design-final .green-composition{grid-template-columns:140px minmax(0,1fr)}.green-design-final .green-composition__chart{width:140px;height:140px}}
+@media(max-width:899px){.green-design-final .topbar-toolbar{min-height:66px!important;padding-inline:15px!important}.green-design-final .page-content{padding:16px 13px 110px!important}.green-design-final .green-welcome{padding:23px 21px;min-height:0;flex-direction:column;align-items:flex-start}.green-design-final .green-welcome__actions{flex-direction:row;flex-wrap:wrap;min-width:0}.green-design-final .green-console__stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.green-design-final .green-console__rail{grid-template-columns:1fr}.green-design-final .green-console__rail>.green-panel:last-child{grid-column:auto}.green-design-final .green-console{gap:13px}.green-design-final .green-console__workspace,.green-design-final .green-console__primary,.green-design-final .green-console__rail{gap:13px}.green-design-final .green-panel{padding:16px!important}.green-design-final .green-welcome__title{font-size:24px!important}.green-design-final .green-panel__chart{height:275px}.green-design-final .green-quick-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.green-design-final .tkg-module-hero{padding:16px 17px!important}}
+@media(max-width:620px){.green-design-final .green-welcome__actions{width:100%}.green-design-final .green-welcome__actions .MuiButton-root{flex:1;min-width:0;font-size:11px!important}.green-design-final .green-stat{padding:15px!important;min-height:132px}.green-design-final .green-stat__top{font-size:11px}.green-design-final .green-stat__value{font-size:23px}.green-design-final .green-stat__helper{font-size:9px}.green-design-final .green-panel__heading{align-items:flex-start}.green-design-final .green-panel__aside{align-self:flex-start}.green-design-final .green-composition{grid-template-columns:145px minmax(0,1fr)}.green-design-final .green-composition__chart{width:145px;height:145px}.green-design-final .green-members-table__header{display:none}.green-design-final .green-members-table__row{display:grid;grid-template-columns:1fr auto;gap:7px 10px;padding:13px 0}.green-design-final .green-members-table__row>span:nth-child(2){grid-column:1;grid-row:2;padding-left:45px}.green-design-final .green-members-table__row>span:nth-child(3){grid-column:2;grid-row:1}.green-design-final .green-members-table__row>span:nth-child(4){grid-column:2;grid-row:2;align-self:center}.green-design-final .green-panel__chart{height:255px}.green-design-final .green-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.green-design-final .green-member-management>div:first-child{padding:16px!important}}
+@media(max-width:360px){.green-design-final .green-composition{grid-template-columns:110px minmax(0,1fr)}.green-design-final .green-composition__chart{width:110px;height:110px}.green-design-final .green-welcome__actions{flex-direction:column}.green-design-final .green-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.green-design-final .green-quick-grid button{transition:none}.green-design-final .green-quick-grid button:hover{transform:none}}

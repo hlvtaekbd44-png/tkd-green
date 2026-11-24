@@ -48,7 +48,18 @@ import './App.css'
 import './TKDPro.css'
 import './TKDFontReadability.css'
 import HeaderAccount from "./HeaderAccount";
+// TKDG_APPROVED_UI_V1: visually approved club UI – no business logic changes.
+import './TKDGreenApproved.css';
+import './TKDGreenVisualV2.css';
+import TKDGreenMobileNav from './TKDGreenMobileNav';
+import TKDGreenDashboardA from './TKDGreenDashboardA';
+import './TKDGreenAllModules.css';
+
 import "./TKDPublicReadability.css";
+import "./TKDGreenDesignA.css";
+import "./TKDGreenUnified2026.css";
+import "./TKDGreenDesignFinal.css"; // Design A consolidated visual layout — loaded last
+import "./TKDGreenInterface2026.css"; // UI rebuild: compact workspace & module hierarchy
 
 const drawerWidth = 256
 
@@ -62,7 +73,7 @@ const theme = createTheme({
   },
   shape: { borderRadius: 14 },
   typography: {
-    fontFamily: '"Segoe UI", "Roboto", Arial, sans-serif',
+    fontFamily: '"Be Vietnam Pro", "Segoe UI", Arial, sans-serif',
     fontSize: 15,
     button: { textTransform: 'none', fontWeight: 700, fontSize: '0.94rem' },
     body1: { fontSize: '1rem', lineHeight: 1.65 },
@@ -71,8 +82,7 @@ const theme = createTheme({
     subtitle2: { fontSize: '0.98rem', fontWeight: 700 },
     caption: { fontSize: '0.83rem', lineHeight: 1.45 },
     h6: { fontSize: '1.22rem', fontWeight: 800 },
-    h5: { fontSize: '1.48rem', fontWeight: 800 },
-    h5: { fontWeight: 800, letterSpacing: '-0.5px' },
+    h5: { fontSize: '1.48rem', fontWeight: 800, letterSpacing: '-0.5px' },
   },
   components: {
     MuiPaper: { styleOverrides: { root: { backgroundImage: 'none', border: '1px solid #e0ebe4' } } },
@@ -203,7 +213,7 @@ function MemberPortalLayout({ profile, user }) {
   const visiblePage = items.some(x => x.label === page) ? page : (items[0]?.label || '');
   const side = <Box className="sidebar-inner">
     <Box className="brand"><Box className="brand-mark"><img src="/branding/green-emblem.png" alt="Logo Green Taekwondo" /></Box>
-      <Box><Typography className="brand-title">TKD GREEN</Typography><Typography className="brand-subtitle">CLUB MANAGEMENT</Typography></Box>
+      <Box><Typography className="brand-title">CLB TAEKWONDO GREEN</Typography><Typography className="brand-subtitle">HỆ THỐNG QUẢN LÝ CLB</Typography></Box>
     </Box>
     <Box className="sidebar-section-label">VÕ SINH / PHỤ HUYNH</Box>
     <List className="nav-list">{items.map(item => <ListItemButton key={item.label} className="nav-item"
@@ -216,7 +226,7 @@ function MemberPortalLayout({ profile, user }) {
       <Typography className="sidebar-version">TKD GREEN CLUB · MEMBER</Typography>
     </Box>
   </Box>;
-  return <ThemeProvider theme={theme}><CssBaseline/><Box className="app-shell">
+  return <ThemeProvider theme={theme}><CssBaseline/><Box className="app-shell tkdg-approved tka-app green-design-final">
     <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
       {mobile ? <Drawer variant="temporary" open={mobileOpen} onClose={() => setMobileOpen(false)}
         ModalProps={{ keepMounted: true }} sx={{ '& .MuiDrawer-paper': { width: drawerWidth } }}>{side}</Drawer>
@@ -224,9 +234,9 @@ function MemberPortalLayout({ profile, user }) {
     </Box>
     <Box className="main-area"><AppBar position="sticky" elevation={0} className="topbar"><Toolbar className="topbar-toolbar">
       {mobile && <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon/></IconButton>}
-      <Box sx={{ flexGrow: 1 }}><Typography className="topbar-eyebrow">TKD GREEN CLUB / VÕ SINH</Typography>
+      <Box sx={{ flexGrow: 1 }}><Typography className="topbar-eyebrow">CLB TAEKWONDO GREEN / HỘI VIÊN</Typography>
       <Typography className="topbar-title">{visiblePage || 'Chưa được mở chức năng'}</Typography></Box><HeaderAccount />
-    </Toolbar></AppBar><Box component="main" className="page-content">
+    </Toolbar></AppBar><Box component="main" className="page-content tkg-member-portal">
             {memberError && <Alert severity="error" sx={{ mb: 2 }}>{memberError}</Alert>}
       {locationError && <Alert severity="warning" sx={{ mb: 2 }}>{locationError}</Alert>}
       <Box className="tkdp-area">
@@ -244,6 +254,9 @@ function MemberPortalLayout({ profile, user }) {
         : visiblePage ? <MemberSelfPortal profile={profile} embedded view={visiblePage} leaveEnabled={feature('leaveRequests')} examAccess={feature('exams') || (locationDoc?.features && Object.prototype.hasOwnProperty.call(locationDoc.features, 'dan') ? feature('dan') : feature('exams'))} locationId={locationDoc?.id || ''} />
         : <Alert severity="info">Điểm tập chưa bật chức năng nào cho võ sinh. Vui lòng liên hệ Admin.</Alert>}
       </Box>
+      <TKDGreenMobileNav currentPage={visiblePage} pages={items.map(item => item.label)}
+        onNavigate={(page) => { if (items.some(item => item.label === page)) setPage(page); }}
+        onMenu={() => setMobileOpen(true)} />
       <Box className="footer"><Typography>© 2026 TKD GREEN CLUB</Typography><Typography>CỔNG THÔNG TIN VÕ SINH / PHỤ HUYNH</Typography></Box>
     </Box></Box>
   </Box></ThemeProvider>;
@@ -431,7 +444,7 @@ useEffect(() => {
   }
 
   if (!user) {
-    return <PublicHome />;
+    return <Box className="tkdg-approved tkdg-public"><PublicHome /></Box>;
   }
 
   if (!profile) {
@@ -456,8 +469,8 @@ useEffect(() => {
       <Box className="brand">
         <Box className="brand-mark"><img src="/branding/green-emblem.png" alt="Logo Green Taekwondo" /></Box>
         <Box>
-          <Typography className="brand-title">TKD GREEN</Typography>
-          <Typography className="brand-subtitle">CLUB MANAGEMENT</Typography>
+          <Typography className="brand-title">CLB TAEKWONDO GREEN</Typography>
+          <Typography className="brand-subtitle">HỆ THỐNG QUẢN LÝ CLB</Typography>
         </Box>
       </Box>
       <Box className="sidebar-section-label">MENU CHÍNH</Box>
@@ -528,7 +541,7 @@ useEffect(() => {
   />
 </Box>
 
-        <Typography className="sidebar-version">TKD GREEN CLUB · FULL STYLE</Typography>
+        <Typography className="sidebar-version">CLB TAEKWONDO GREEN · QUẢN LÝ</Typography>
       </Box>
     </Box>
   )
@@ -536,7 +549,7 @@ useEffect(() => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box className="app-shell">
+      <Box className="app-shell tkdg-approved tka-app green-design-final">
         {/* Desktop: menu cố định 256px. Mobile: menu mở/đóng bằng nút trên thanh đầu. */}
         <Box component="nav" sx={{ width: { xs: 0, md: drawerWidth }, flexShrink: { md: 0 } }}>
           {isMobile ? (
@@ -567,7 +580,7 @@ useEffect(() => {
                 </IconButton>
               )}
               <Box sx={{ flexGrow: 1 }}>
-                <Typography className="topbar-eyebrow">TKD GREEN CLUB / QUẢN LÝ</Typography>
+                <Typography className="topbar-eyebrow">CLB TAEKWONDO GREEN / QUẢN LÝ</Typography>
                 <Typography className="topbar-title">{activePage || "Chưa được cấp quyền"}</Typography>
               </Box>
               
@@ -582,39 +595,7 @@ useEffect(() => {
             </Toolbar>
           </AppBar>
 
-          <Box component="main" className="page-content">
-            {activePage === "Tổng quan" && (
-              <>
-              <Box className="welcome-row">
-                <Box>
-                  <Typography className="welcome-kicker">HỆ THỐNG QUẢN LÝ CLB TAEKWONDO</Typography>
-                  <Typography variant="h5" className="welcome-title">Xin chào, {user.displayName || profile?.tenHienThi || (profile?.role === 'admin' ? 'Quản trị viên' : 'Huấn luyện viên')} 👋</Typography>
-                  <Typography className="welcome-description">Theo dõi hoạt động và tình hình câu lạc bộ tại một nơi.</Typography>
-                </Box>
-                {canCreateMember && <Button variant="contained" startIcon={<AddRounded />} className="add-student-button" onClick={() => {
-    navigate('Hội viên');
-    setShowAddMember(true);
-  }}>
-                  Thêm hội viên
-                </Button>}
-              </Box>
-  
-              <Paper className="filter-bar" elevation={0}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexGrow: 1 }}>
-                    <CalendarMonthRounded className="filter-icon" />
-                    <Typography className="filter-label">Kỳ báo cáo</Typography>
-                    <Chip label={dashboardMetrics.periodLabel} className="period-chip" />
-                  </Stack>
-                  <TextField select slotProps={{ select: { native: true }, htmlInput: { "aria-label": "Lọc theo điểm tập" } }} value={location} onChange={(e) => setLocation(e.target.value)}
-                    size="small" className="location-select">
-                    {availableLocations.map((item) => <option key={item} value={item}>{item}</option>)}
-                  </TextField>
-                </Stack>
-              </Paper>
-              </>
-            )}
-
+          <Box component="main" className={`page-content tkg-all-modules tkg-module-${({ 'Hội viên':'members','Học phí':'tuition','Thi cấp':'cap','Thi đẳng':'dan','Điểm danh':'attendance','Báo cáo':'reports','Cài đặt':'settings','Duyệt đơn nghỉ':'leave','Thành tích':'achievements','Sự kiện':'events','Đào tạo':'training','Tổng quan':'dashboard','Giới thiệu':'public' })[activePage] || 'other'}`}>
             {activePage === 'Giới thiệu' ? (
               <PublicLocationIntroduction embedded />
             ) : activePage === 'Báo cáo' ? (
@@ -627,106 +608,25 @@ useEffect(() => {
             ) : !activePage ? (
               <Paper sx={{ p: 3 }}><Typography>Chưa được cấp quyền sử dụng chức năng nào. Vui lòng liên hệ Admin.</Typography></Paper>
             ) : activePage === 'Tổng quan' ? (
-              <>
-                <Box className="stats-grid">
-                  <StatCard title="Tổng hội viên" value={students.length.toLocaleString("vi-VN")} note="Theo dữ liệu được phân quyền" icon={<GroupsRounded />} />
-                  <StatCard title="Đang học" value={students.filter((s) => s.status === "Đang học").length.toLocaleString("vi-VN")} note="Theo dữ liệu được phân quyền" icon={<FactCheckRounded />} />
-                  <StatCard title="Học phí đã thu" value={dashboardMetrics.collected} note={dashboardMetrics.tuitionNote} icon={<PaymentsRounded />} accent />
-                  <StatCard title="Chờ thi cấp" value={dashboardMetrics.pending} note={dashboardMetrics.examNote} icon={<EmojiEventsRounded />} />
-                </Box>
-
-                <Box className="dashboard-grid">
-                  <Paper className="panel chart-panel" elevation={0}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                      <Box>
-                        <Typography className="panel-title">Hội viên theo điểm tập</Typography>
-                        <Typography className="panel-subtitle">Dữ liệu thực tế theo điểm tập được phân quyền</Typography>
-                      </Box>
-                      <Chip label={`${locationChartData.reduce((sum, row) => sum + row.members, 0).toLocaleString("vi-VN")} hội viên`} className="chart-year-chip" />
-                    </Stack>
-                    <Box className="chart-wrap">
-                      {locationChartData.length === 0 ? (
-                        <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', color: 'text.secondary' }}>Chưa có dữ liệu hội viên để thống kê</Box>
-                      ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={locationChartData} margin={{ top: 18, right: 8, left: -18, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e9efeb" />
-                          <XAxis dataKey="location" interval={0} angle={-20} textAnchor="end" height={62} axisLine={false} tickLine={false} tick={{ fill: '#78867d', fontSize: 12 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#78867d', fontSize: 12 }} />
-                          <Tooltip cursor={{ fill: '#edf5ef' }} />
-                          <Bar dataKey="members" name="Hội viên" fill="#087d4b" radius={[6, 6, 0, 0]} maxBarSize={42} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                      )}
-                    </Box>
-                  </Paper>
-
-                  <Paper className="panel quick-panel" elevation={0}>
-                    <Typography className="panel-title">Truy cập nhanh</Typography>
-                    <Typography className="panel-subtitle">Các nghiệp vụ thường dùng</Typography>
-                    {[
-                      { label: 'Quản lý hội viên', desc: 'Danh sách và hồ sơ võ sinh', icon: <GroupsRounded />, target: 'Hội viên' },
-                      { label: 'Thu học phí', desc: 'Ghi nhận khoản thu và công nợ', icon: <PaymentsRounded />, target: 'Học phí' },
-                      { label: 'Đăng ký thi cấp', desc: 'Danh sách và kết quả thi', icon: <EmojiEventsRounded />, target: 'Thi cấp' },
-                    ].filter(item => allowedPages.includes(item.target)).map((item) => (
-                      <Button key={item.label} className="quick-link" onClick={() => navigate(item.target)} fullWidth>
-                        <Box className="quick-link-icon">{item.icon}</Box>
-                        <Box className="quick-link-copy">
-                          <Typography className="quick-link-title">{item.label}</Typography>
-                          <Typography className="quick-link-desc">{item.desc}</Typography>
-                        </Box>
-                        <ArrowForwardRounded className="quick-arrow" />
-                      </Button>
-                    ))}
-                  </Paper>
-                </Box>
-
-                <Paper className="panel students-panel" elevation={0}>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={2} className="students-header">
-                    <Box>
-                      <Typography className="panel-title">Hội viên gần đây</Typography>
-                      <Typography className="panel-subtitle">
-  {membersLoading
-    ? 'Đang tải dữ liệu hội viên...'
-    : membersError
-      ? membersError
-      : `Có ${students.length.toLocaleString('vi-VN')} hội viên`}
-</Typography>
-                    </Box>
-                    <TextField size="small" placeholder="Tìm tên, mã hội viên VTF..." value={search} onChange={(e) => setSearch(e.target.value)}
-                      className="student-search" slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchRounded fontSize="small" /></InputAdornment> } }} />
-                  </Stack>
-                  <Box className="student-table-wrap">
-                    <Box className="student-table-head">
-                      <Typography>MÃ HỘI VIÊN / HỌ TÊN</Typography><Typography>ĐIỂM TẬP</Typography>
-                      <Typography>CẤP ĐAI</Typography><Typography>TRẠNG THÁI</Typography><Typography>HỌC PHÍ</Typography>
-                    </Box>
-                    {filteredStudents.length ? filteredStudents.map((student) => (
-                      <Box className="student-table-row" key={student.id}>
-                        <Box className="student-name-cell">
-                          <Avatar className="student-avatar">{student.name.split(' ').slice(-1)[0].charAt(0)}</Avatar>
-                          <Box><Typography className="student-name">{student.name}</Typography><Stack spacing={0.3}>
-                          <Typography className="student-id">
-                            {student.maHoiVienNoiBo || "Chưa cấp ID nội bộ"}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            VTF: {student.maHV || "Chưa cấp"}
-                          </Typography>
-                        </Stack>
-                        </Box>
-                        </Box>
-                        <Typography className="table-cell">{student.location}</Typography>
-                        <BeltBadge level={student.belt} showName compact />
-                        <Box><Chip label={student.status} size="small" className={student.status === 'Đang học' ? 'status-active' : 'status-paused'} /></Box>
-                        <Box><Chip label={student.fee} size="small" className={student.fee === 'Đã đóng' ? 'fee-paid' : student.fee === 'Còn nợ' ? 'fee-debt' : 'fee-due'} /></Box>
-                      </Box>
-                    )) : <Typography className="empty-state">Không tìm thấy hội viên phù hợp.</Typography>}
-                  </Box>
-                  <Button className="view-all-button" endIcon={<ArrowForwardRounded />} onClick={() => navigate('Hội viên')}>Xem danh sách hội viên</Button>
-                </Paper>
-              </>
-                          
-
+              <TKDGreenDashboardA
+                displayName={user.displayName || profile?.tenHienThi}
+                isAdmin={profile?.role === 'admin'}
+                canCreateMember={canCreateMember}
+                onAddMember={() => { navigate('Hội viên'); setShowAddMember(true); }}
+                metrics={dashboardMetrics}
+                members={students}
+                filteredMembers={filteredStudents}
+                memberLoading={membersLoading}
+                memberError={membersError}
+                selectedLocation={location}
+                locations={availableLocations}
+                onLocationChange={setLocation}
+                locationChartData={locationChartData}
+                search={search}
+                onSearchChange={setSearch}
+                allowedPages={allowedPages}
+                navigate={navigate}
+              />
 ) : activePage === 'Hội viên' && editingMember && canEditMember ? (
   <EditMember
     member={editingMember}
@@ -837,8 +737,10 @@ useEffect(() => {
 )}
 
 
+            <TKDGreenMobileNav currentPage={activePage} pages={allowedPages}
+              onNavigate={navigate} onMenu={() => setMobileOpen(true)} />
             <Box className="footer">
-              <Typography>© 2026 TKD GREEN CLUB · HLV NGUYỄN HỮU TÀI</Typography>
+              <Typography>© 2026 CLB TAEKWONDO GREEN · HLV NGUYỄN HỮU TÀI</Typography>
               <Typography>HỆ THỐNG QUẢN LÝ CLB TAEKWONDO GREEN · AD-PuKwon </Typography>
             </Box>
           </Box>

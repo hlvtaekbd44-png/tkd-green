@@ -1,0 +1,101 @@
+/* CLB TAEKWONDO GREEN — layout rebuild 2026.
+   Scoped to the existing admin/coach shell; no changes to public/member portal.
+   This layer intentionally follows the legacy styles and adjusts actual workspace hierarchy. */
+.green-design-final .page-content{padding:17px clamp(15px,2vw,32px) 48px!important}
+.green-design-final .topbar-toolbar{min-height:66px!important}
+.green-design-final .topbar-title{font-size:18px!important}
+.green-design-final .topbar-eyebrow{font-size:10px!important}
+body:has(.green-design-final) .MuiDrawer-paper .brand{min-height:76px!important;margin-bottom:12px!important;padding:6px 6px 16px!important}
+body:has(.green-design-final) .MuiDrawer-paper .sidebar-inner{padding:14px 12px!important}
+body:has(.green-design-final) .MuiDrawer-paper .nav-item{min-height:42px!important;margin:2px!important;padding:9px 13px!important}
+body:has(.green-design-final) .MuiDrawer-paper .nav-item .MuiListItemText-primary{font-size:13px!important;font-weight:750!important}
+.green-design-final .tkd26-dashboard{--tkd26-f:#0b5c3a;--tkd26-green:#07834e;--tkd26-border:#dce9e0;--tkd26-text:#193f2d;display:grid;gap:13px;min-width:0;font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif;color:var(--tkd26-text)}
+.green-design-final .tkd26-page-top{display:flex;gap:16px;align-items:center;justify-content:space-between;min-height:96px;padding:15px 23px;border:1px solid #d4e8db;border-radius:13px;background:linear-gradient(105deg,#fff 0%,#f4fbf6 72%,#e5f6eb 100%);position:relative;overflow:hidden}
+.green-design-final .tkd26-page-top:after{content:'';position:absolute;width:185px;height:185px;right:13%;top:-80px;border-radius:50%;border:1px solid rgba(1,114,58,.07);box-shadow:0 0 0 30px rgba(9,130,66,.024),0 0 0 75px rgba(9,130,66,.018);pointer-events:none}
+.green-design-final .tkd26-page-top-title{z-index:1;min-width:0}
+.green-design-final .tkd26-eyebrow{font-size:10px;letter-spacing:.07em;font-weight:850;color:#278253}
+.green-design-final .tkd26-page-top h1{font-size:clamp(18px,1.7vw,25px);font-weight:900;letter-spacing:-.035em;line-height:1.36;margin:3px 0 3px;color:#123b29}
+.green-design-final .tkd26-page-top p{margin:0;color:#6c8375;font-size:12px}
+.green-design-final .tkd26-page-top-actions{display:flex;gap:9px;z-index:1;flex-wrap:wrap}
+.green-design-final .tkd26-page-top-actions .MuiButton-root{min-height:37px!important;font-size:12px!important;border-radius:9px!important}
+.green-design-final .tkd26-dashboard-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;min-height:44px}
+.green-design-final .tkd26-dashboard-bar-label{display:flex;gap:9px;align-items:center;color:#1a603c;font-size:13px;font-weight:850}
+.green-design-final .tkd26-dashboard-bar-label>svg{color:#0d9858}
+.green-design-final .tkd26-dashboard-bar-label .MuiChip-root{background:#e5f5e9;font-size:10px;color:#24724a}
+.green-design-final .tkd26-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.green-design-final .tkd26-metric{position:relative;min-width:0;padding:15px 17px 13px!important;min-height:100px;border:1px solid var(--tkd26-border)!important;border-radius:12px!important;background:white!important;box-shadow:0 3px 10px rgba(10,70,30,.025)!important}
+.green-design-final .tkd26-metric-icon{position:absolute;right:15px;top:14px;width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:#e1f6e9;color:#059453}
+.green-design-final .tkd26-metric--amber .tkd26-metric-icon{background:#fff1d4;color:#de9514}
+.green-design-final .tkd26-metric--blue .tkd26-metric-icon{background:#e2f1fb;color:#2385be}
+.green-design-final .tkd26-metric--emerald .tkd26-metric-icon{background:#d9f7e3;color:#1b9f56}
+.green-design-final .tkd26-metric-title{font-size:11px;color:#5e7769;font-weight:800;margin-right:42px}
+.green-design-final .tkd26-metric-value{font-size:clamp(22px,2.05vw,30px);font-weight:900;line-height:1.24;color:#164932;letter-spacing:-.045em;margin-top:11px;white-space:nowrap}
+.green-design-final .tkd26-metric-sub{font-size:10px;color:#809487;margin-top:5px;line-height:1.4}
+.green-design-final .tkd26-overview-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.8fr) minmax(230px,.75fr);gap:12px;min-width:0}
+.green-design-final .tkd26-operation-grid{display:grid;grid-template-columns:minmax(0,1.06fr) minmax(0,1fr);gap:12px;min-width:0}
+.green-design-final .tkd26-panel{padding:15px 17px!important;border:1px solid var(--tkd26-border)!important;border-radius:12px!important;min-width:0;background:#fff!important;box-shadow:0 3px 12px rgba(10,68,30,.018)!important}
+.green-design-final .tkd26-panel-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+.green-design-final .tkd26-panel-heading{display:flex;gap:9px;align-items:flex-start;min-width:0}
+.green-design-final .tkd26-panel-heading>svg{font-size:18px;color:#06864c;margin-top:2px;flex-shrink:0}
+.green-design-final .tkd26-panel-heading h2{margin:0;font-size:13px;line-height:1.5;font-weight:900;color:#16452c}
+.green-design-final .tkd26-panel-heading p{margin:2px 0 0;color:#7c9082;font-size:10px;line-height:1.5}
+.green-design-final .tkd26-chart{height:196px;width:100%;min-width:0}
+.green-design-final .tkd26-empty{min-height:80px;display:grid;place-items:center;text-align:center;color:#6e8275;font-size:12px;margin:0}
+.green-design-final .tkd26-donut-wrap{min-height:196px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px}
+.green-design-final .tkd26-donut{width:150px;height:139px;position:relative;flex-shrink:0}
+.green-design-final .tkd26-donut-label{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;pointer-events:none}
+.green-design-final .tkd26-donut-label strong{font-size:24px;font-weight:900;color:#13553a}
+.green-design-final .tkd26-donut-label small{font-size:9px;color:#6b8774;font-weight:850}
+.green-design-final .tkd26-legend{width:100%;display:flex;flex-wrap:wrap;gap:5px 10px;justify-content:center}
+.green-design-final .tkd26-legend>div{display:flex;align-items:center;gap:5px;color:#718778;font-size:10px}
+.green-design-final .tkd26-legend i{display:inline-block;height:8px;width:8px;border-radius:50%}
+.green-design-final .tkd26-legend strong{color:#194a33}
+.green-design-final .tkd26-alert-row{display:flex;align-items:center;gap:10px;border-bottom:1px solid #eef3ef;padding:10px 1px;font-size:12px;color:#51715d}
+.green-design-final .tkd26-alert-row>span{flex:1}
+.green-design-final .tkd26-alert-row>strong{font-size:17px;color:#214e36}
+.green-design-final .tkd26-alert-mark{width:29px;height:29px;display:grid;place-items:center;border-radius:9px;background:#e6f7ed;color:#138a53}
+.green-design-final .tkd26-alert-mark svg{font-size:17px}
+.green-design-final .tkd26-alert-mark.amber{background:#fff4dd;color:#d99b1b}
+.green-design-final .tkd26-alert-mark.red{background:#fdeceb;color:#c26757}
+.green-design-final .tkd26-alert-foot{font-size:10px;color:#85998c;line-height:1.5;margin-top:12px}
+.green-design-final .tkd26-activity-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.green-design-final .tkd26-activity-list button{border:1px solid #e0eee5;background:#f8fcf9;border-radius:10px;display:flex;align-items:center;gap:9px;padding:11px;text-align:left;color:#1e5738;font:inherit;cursor:pointer;min-width:0}
+.green-design-final .tkd26-activity-list button:hover,.green-design-final .tkd26-activity-list button:focus-visible{background:#eaf8ef;border-color:#8fceb0;outline:2px solid #a9dbbe;outline-offset:1px}
+.green-design-final .tkd26-activity-list button>span:nth-child(2){display:grid;gap:3px;min-width:0;flex:1}
+.green-design-final .tkd26-activity-list button strong{font-size:11px;font-weight:850}
+.green-design-final .tkd26-activity-list button small{font-size:10px;color:#718d7e;line-height:1.4}
+.green-design-final .tkd26-activity-list button>svg:last-child{color:#409a6b}
+.green-design-final .tkd26-activity-icon{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:#e5f6ed;color:#069052}
+.green-design-final .tkd26-activity-icon svg{font-size:18px}
+.green-design-final .tkd26-shortcut-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.green-design-final .tkd26-shortcut-grid button{min-height:53px;border:1px solid #dcece1;border-radius:10px;background:#f7fcf8;display:flex;align-items:center;gap:8px;padding:9px;text-align:left;color:#155c38;font:inherit;cursor:pointer}
+.green-design-final .tkd26-shortcut-grid button svg{font-size:20px;flex-shrink:0;color:#0c9955}
+.green-design-final .tkd26-shortcut-grid button span{font-size:11px;line-height:1.4;font-weight:850}
+.green-design-final .tkd26-shortcut-grid button:hover,.green-design-final .tkd26-shortcut-grid button:focus-visible{background:#e5f6ec;border-color:#8bcaac;outline:2px solid #a9dbbe;outline-offset:1px}
+.green-design-final .tkd26-members .tkd26-panel-head{align-items:center}
+.green-design-final .tkd26-member-search{width:min(100%,350px);margin-bottom:12px!important}
+.green-design-final .tkd26-member-head,.green-design-final .tkd26-member-row{display:grid;grid-template-columns:minmax(190px,1.6fr) minmax(110px,1fr) minmax(100px,.8fr) minmax(90px,.7fr);gap:12px;align-items:center;padding:9px 14px}
+.green-design-final .tkd26-member-head{font-size:10px;color:#5e7969;font-weight:850;background:#f0f8f3;border-radius:9px}
+.green-design-final .tkd26-member-row{font-size:11px;color:#4f6c5b;border-bottom:1px solid #ecf1ed}
+.green-design-final .tkd26-member-row:last-child{border-bottom:0}
+.green-design-final .tkd26-member-id{display:flex;gap:9px;align-items:center;min-width:0}
+.green-design-final .tkd26-member-id .MuiAvatar-root{height:31px;width:31px;background:#dbf2e6;color:#087e4b;font-size:12px;font-weight:900}
+.green-design-final .tkd26-member-id div{min-width:0;display:grid;gap:2px}
+.green-design-final .tkd26-member-id strong{color:#1c5136;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.green-design-final .tkd26-member-id small{color:#809789}
+.green-design-final .tkd26-error{padding:10px 13px;color:#b4433d;background:#fff2f1;border-radius:8px}
+/* Module data screens: avoid repeated hero bars, normalize header & density. */
+.green-design-final .tkg-module-members>.green-member-management{margin-top:0!important}
+.green-design-final .page-content>.tkg-module-hero{display:none!important}
+.green-design-final .page-content .MuiTableContainer-root{border:1px solid #e1ebe5;border-radius:10px;max-width:100%}
+.green-design-final .page-content .MuiTableCell-head{background:#eef8f2!important;font-size:12px!important;padding:11px 12px!important}
+.green-design-final .page-content .MuiTableCell-body{font-size:12px!important;padding:9px 12px!important}
+.green-design-final .page-content .MuiTabs-root{min-height:45px}
+.green-design-final .page-content .MuiTab-root{min-height:42px;font-size:12px!important;font-weight:850!important;text-transform:none}
+.green-design-final .page-content .MuiButton-root{font-size:12px!important}
+.green-design-final .page-content .MuiTextField-root .MuiInputBase-root{font-size:12px}
+.green-design-final .page-content .MuiPaper-root{box-shadow:0 3px 12px rgba(16,58,30,.025)}
+@media(max-width:1250px){.green-design-final .tkd26-overview-grid{grid-template-columns:minmax(0,1.2fr) minmax(260px,1fr)}.green-design-final .tkd26-alerts{grid-column:1/-1}.green-design-final .tkd26-alerts .tkd26-alert-row{display:inline-flex;width:30%;margin-right:3%}.green-design-final .tkd26-alert-foot{clear:both}}
+@media(max-width:950px){.green-design-final .tkd26-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.green-design-final .tkd26-operation-grid{grid-template-columns:1fr}.green-design-final .tkd26-overview-grid{grid-template-columns:1fr 1fr}.green-design-final .tkd26-locations{grid-column:1/-1}.green-design-final .tkd26-alerts{grid-column:auto}.green-design-final .tkd26-alerts .tkd26-alert-row{display:flex;width:auto;margin:0}}
+@media(max-width:650px){.green-design-final .page-content{padding:12px 12px 98px!important}.green-design-final .tkd26-dashboard{gap:10px}.green-design-final .tkd26-page-top{padding:15px;align-items:flex-start;flex-direction:column}.green-design-final .tkd26-page-top h1{font-size:20px}.green-design-final .tkd26-page-top-actions{width:100%}.green-design-final .tkd26-page-top-actions .MuiButton-root{flex:1}.green-design-final .tkd26-dashboard-bar{align-items:stretch}.green-design-final .tkd26-dashboard-bar>.MuiTextField-root{width:100%}.green-design-final .tkd26-metric{padding:13px!important;min-height:100px}.green-design-final .tkd26-metric-title{font-size:10px}.green-design-final .tkd26-metric-value{font-size:21px;white-space:normal;overflow-wrap:anywhere}.green-design-final .tkd26-metric-sub{font-size:9px}.green-design-final .tkd26-overview-grid{grid-template-columns:1fr}.green-design-final .tkd26-locations{grid-column:auto}.green-design-final .tkd26-activity-list{grid-template-columns:1fr}.green-design-final .tkd26-shortcut-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.green-design-final .tkd26-chart{height:210px}.green-design-final .tkd26-panel{padding:13px!important}.green-design-final .tkd26-member-head{display:none}.green-design-final .tkd26-member-row{grid-template-columns:1fr auto;gap:6px;padding:12px 3px}.green-design-final .tkd26-member-row>span:nth-child(2){grid-row:2;grid-column:1;padding-left:40px}.green-design-final .tkd26-member-row>span:nth-child(3){grid-row:1;grid-column:2}.green-design-final .tkd26-member-row>span:nth-child(4){grid-row:2;grid-column:2}}
+@media(prefers-reduced-motion:reduce){.green-design-final .tkd26-activity-list button,.green-design-final .tkd26-shortcut-grid button{transition:none}}

@@ -1,0 +1,79 @@
+/* CLB TAEKWONDO GREEN — VISUAL V2. Does not modify business logic or club logo. */
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
+:root { --green-v2:#087b4b; --green-dark-v2:#06462e; --ink-v2:#16362a; --muted-v2:#536f60; --edge-v2:#dceae1; }
+/* Global selectors intentionally cover Material-UI Drawer portal outside .app-shell */
+body:has(.tkdg-approved) { font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif; background:#edf5ef; }
+body:has(.tkdg-approved) .MuiDrawer-paper { background:linear-gradient(168deg,#043a2b 0%,#07583c 56%,#08613f 100%) !important; border-right:0 !important; box-shadow:7px 0 28px rgba(7,49,30,.12); }
+body:has(.tkdg-approved) .MuiDrawer-paper .sidebar-inner { background:transparent !important; color:#f6fff9 !important; min-height:100%; }
+body:has(.tkdg-approved) .MuiDrawer-paper .brand {display:flex;align-items:center;gap:10px;padding:20px 12px !important; min-height:90px; background:rgba(255,255,255,.045);border-bottom:1px solid rgba(255,255,255,.13);}
+body:has(.tkdg-approved) .MuiDrawer-paper .brand-mark {width:43px;height:43px;flex:none;border-radius:50%;background:white;padding:3px;overflow:hidden;}
+body:has(.tkdg-approved) .MuiDrawer-paper .brand-mark img {width:100%;height:100%;object-fit:contain !important;}
+body:has(.tkdg-approved) .MuiDrawer-paper .brand-title {font:700 13px/1.3 'Be Vietnam Pro','Segoe UI',sans-serif !important;color:white !important;letter-spacing:-.02em !important;white-space:normal;}
+body:has(.tkdg-approved) .MuiDrawer-paper .brand-subtitle {color:#c5e9d5 !important;font:500 10px/1.5 'Be Vietnam Pro',sans-serif !important;}
+body:has(.tkdg-approved) .MuiDrawer-paper .sidebar-section-label {color:#a5d2b9 !important;font-size:10px !important;letter-spacing:.11em;}
+body:has(.tkdg-approved) .MuiDrawer-paper .nav-item {border-radius:11px !important;min-height:43px;margin:3px 8px !important;color:#e6f8ee !important;font-weight:600;background:transparent;transition:background .15s ease;}
+body:has(.tkdg-approved) .MuiDrawer-paper .nav-item .MuiListItemIcon-root {color:#bfe5d0 !important;min-width:35px;}
+body:has(.tkdg-approved) .MuiDrawer-paper .nav-item.Mui-selected {background:#20a15e !important;color:white !important;box-shadow:0 3px 8px rgba(0,0,0,.13);}
+body:has(.tkdg-approved) .MuiDrawer-paper .nav-item.Mui-selected .MuiListItemIcon-root {color:white !important;}
+body:has(.tkdg-approved) .MuiDrawer-paper .nav-item:hover {background:rgba(255,255,255,.13) !important;}
+body:has(.tkdg-approved) .MuiDrawer-paper .coach-card {background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.13);border-radius:13px;margin:10px;}
+body:has(.tkdg-approved) .MuiDrawer-paper .coach-name {color:white !important;}
+body:has(.tkdg-approved) .MuiDrawer-paper .coach-role,body:has(.tkdg-approved) .MuiDrawer-paper .sidebar-version {color:#c9e8d7 !important;}
+.tkdg-approved, .tkdg-approved :is(.MuiTypography-root,.MuiButton-root,.MuiInputBase-root,.MuiFormLabel-root,.MuiTableCell-root,.MuiListItemText-root) {font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif !important;}
+.tkdg-approved.app-shell {background:#f0f6f2 !important;color:var(--ink-v2);}
+.tkdg-approved .main-area {background:#f0f6f2;}
+.tkdg-approved .topbar {background:linear-gradient(100deg,#ffffff 0%,#f9fffb 75%,#edfaef 100%) !important;border-bottom:1px solid #d4e8da !important;box-shadow:0 2px 15px rgba(5,63,37,.045) !important;}
+.tkdg-approved .topbar-title {color:#123d2b !important;font-weight:800 !important;font-size:20px !important;letter-spacing:-.03em;}
+.tkdg-approved .topbar-eyebrow {color:#2a7a50 !important;font-size:10.5px !important;letter-spacing:.13em;font-weight:700 !important;}
+.tkdg-approved .page-content {padding:22px 24px 38px !important;max-width:none !important;}
+.tkdg-approved .welcome-row {background:linear-gradient(110deg,#ffffff 40%,#e1f6e9);border:1px solid #cfe6d5;border-radius:18px;padding:20px 22px !important;margin-bottom:18px !important;box-shadow:0 5px 18px rgba(13,72,45,.05);}
+.tkdg-approved .welcome-kicker {color:#07844d;font-weight:700 !important;letter-spacing:.09em;font-size:11px !important;}
+.tkdg-approved .welcome-title {color:#103c2b;font-weight:800 !important;font-size:clamp(20px,2vw,27px) !important;letter-spacing:-.025em;}
+.tkdg-approved .welcome-description {color:#577364;font-size:13.5px !important;}
+.tkdg-approved .stats-grid {gap:14px !important;}
+.tkdg-approved .stat-card {border:1px solid #d6e7dc !important;background:#fff !important;border-radius:17px !important;padding:18px !important;box-shadow:0 8px 23px rgba(13,74,43,.07) !important;transition:transform .18s ease,box-shadow .18s ease;}
+.tkdg-approved .stat-card:hover {transform:translateY(-2px);box-shadow:0 12px 24px rgba(13,74,43,.105) !important;}
+.tkdg-approved .stat-card-accent {background:linear-gradient(120deg,#08613e,#098e53) !important;}
+.tkdg-approved .stat-value {font-size:clamp(24px,2.5vw,34px) !important;font-weight:800 !important;letter-spacing:-.045em;}
+.tkdg-approved .stat-title {font-weight:600 !important;color:#547060;}
+.tkdg-approved .panel,.tkdg-approved .filter-bar,.tkdg-approved .students-panel {background:#fff !important;border:1px solid #d9e9df !important;border-radius:17px !important;box-shadow:0 7px 23px rgba(13,74,43,.055) !important;}
+.tkdg-approved .panel-title {color:#143d2c !important;font-size:17px !important;font-weight:800 !important;letter-spacing:-.02em;}
+.tkdg-approved .panel-subtitle {color:#597366 !important;font-size:13px !important;}
+.tkdg-approved .student-table-head {background:#e8f4ec !important;color:#20553a !important;font-weight:700 !important;min-height:46px;}
+.tkdg-approved .student-table-row {background:#fff;border-bottom:1px solid #e5eee8;min-height:57px;}
+.tkdg-approved .student-table-row:nth-child(even) {background:#fbfdfb;}
+.tkdg-approved .student-name {color:#1b3f2c;font-weight:700 !important;}
+.tkdg-approved .MuiTableCell-head {background:#eaf4ee !important;color:#20563a !important;font-weight:700 !important;white-space:nowrap;}
+.tkdg-approved .MuiTableCell-body {color:#1c3f2e !important;}
+.tkdg-approved .MuiTableContainer-root {max-width:100%;overflow-x:auto;}
+.tkdg-approved .MuiPaper-root:not(.MuiDrawer-paper) {background-image:none;}
+.tkdg-approved .MuiButton-containedPrimary {background:linear-gradient(135deg,#12965a,#05683f) !important;border-radius:10px !important;box-shadow:0 4px 10px rgba(8,96,53,.13) !important;}
+.tkdg-approved .MuiButton-root {text-transform:none;font-weight:700 !important;min-height:39px;}
+.tkdg-approved .MuiInputBase-input {color:#203e2d !important;font-size:14px !important;}
+.tkdg-approved .MuiInputBase-root {border-radius:10px;}
+.tkdg-approved .MuiTypography-caption {color:#536f60;font-size:12.5px;}
+.tkdg-approved .footer {color:#6b8274;font-size:11px;}
+.tkdg-approved.tkdg-public {background:#f5faf7;}
+.tkdg-approved.tkdg-public :is(h1,h2,h3) {letter-spacing:-.025em;color:#10442f;}
+/* Mobile: visible layout change, high-contrast text, touch sizes */
+@media(max-width:899.95px){
+ .tkdg-approved .page-content {padding:14px 12px calc(94px + env(safe-area-inset-bottom)) !important;}
+ .tkdg-approved .topbar-title {font-size:18px !important;}
+ .tkdg-approved .topbar-eyebrow {font-size:10px !important;}
+ .tkdg-approved .welcome-row {padding:16px !important;border-radius:15px;}
+ .tkdg-approved .welcome-title {font-size:20px !important;}
+ .tkdg-approved .stats-grid {gap:10px !important;}
+ .tkdg-approved .stat-card {padding:14px !important;border-radius:14px !important;}
+ .tkdg-approved .stat-value {font-size:23px !important;}
+ .tkdg-approved .panel,.tkdg-approved .filter-bar,.tkdg-approved .students-panel {border-radius:14px !important;}
+ .tkdg-approved .MuiButton-root,.tkdg-approved .MuiOutlinedInput-root {min-height:44px;}
+ .tkdg-approved .MuiTableCell-root {font-size:13px !important;padding:10px 9px;}
+ .tkdg-approved .student-table-wrap {overflow-x:auto;}
+ .tkdg-approved .MuiTypography-body2 {font-size:14px !important;line-height:1.55;}
+ .tkdg-mobile-nav {display:grid !important;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;z-index:1300;left:0;right:0;bottom:0;padding:6px 6px calc(7px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.98);border-top:1px solid #d0e5d8;box-shadow:0 -6px 26px rgba(7,51,29,.11);backdrop-filter:blur(12px);}
+ .tkdg-mobile-nav button {font-family:'Be Vietnam Pro',sans-serif;color:#496c57;border:0;border-radius:10px;min-height:55px;background:none;font-size:10px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
+ .tkdg-mobile-nav button svg {font-size:23px;}
+ .tkdg-mobile-nav button[data-active='true'] {color:#056d42;background:#e4f5ea;}
+}
+@media(min-width:900px){.tkdg-mobile-nav{display:none !important;}}
+@media(prefers-reduced-motion:reduce){.tkdg-approved *{transition:none!important}}

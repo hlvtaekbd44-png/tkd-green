@@ -100,7 +100,7 @@ export default function ClubContentManagement({ kind = 'events', profile }) {
     finally { setBusy(false); }
   };
 
-  return <Stack spacing={2.5} sx={{fontFamily:'"Segoe UI", Arial, sans-serif',minWidth:0, width:'100%', '& .MuiTypography-root, & .MuiButton-root, & .MuiInputBase-root, & .MuiInputLabel-root':{fontFamily:'"Segoe UI", Arial, sans-serif'}}}>
+  return <Stack className="tkg-club-content-module" spacing={2.5} sx={{fontFamily:'"Segoe UI", Arial, sans-serif',minWidth:0, width:'100%', '& .MuiTypography-root, & .MuiButton-root, & .MuiInputBase-root, & .MuiInputLabel-root':{fontFamily:'"Segoe UI", Arial, sans-serif'}}}>
     <Paper
       elevation={0}
       sx={{

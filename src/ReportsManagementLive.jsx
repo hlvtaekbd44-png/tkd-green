@@ -7,6 +7,7 @@ import DownloadRounded from '@mui/icons-material/DownloadRounded';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import { db } from './firebase';
+import { BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const ALL = 'Tất cả điểm tập';
 const money = n => Number(n || 0).toLocaleString('vi-VN') + ' ₫';
@@ -130,7 +131,7 @@ export default function ReportsManagementLive({
     XLSX.writeFile(book, `TKD_GREEN_BAO_CAO_${safe}.xlsx`);
   };
 
-  return <Stack spacing={2.25} sx={{ py: 2 }}>
+  return <Stack className="tkg-reports-module" spacing={2.25} sx={{ py: 0 }}>
     <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} gap={2}>
       <Box><Typography variant="h5" fontWeight={850}>Báo cáo hoạt động CLB</Typography>
         <Typography color="text.secondary" variant="body2">Dữ liệu trực tiếp từ hội viên, thu học phí và đăng ký thi được phân quyền</Typography></Box>
@@ -153,6 +154,32 @@ export default function ReportsManagementLive({
     </Stack>
     {!canTuition && <Alert severity="info">Tài khoản không có quyền xem học phí, báo cáo không tải dữ liệu tài chính.</Alert>}
     {!canCap && !canDan && <Alert severity="info">Tài khoản không có quyền Thi cấp/Thi đẳng, báo cáo không tải dữ liệu thi.</Alert>}
+    <div className="tkg-report-charts">
+      <Paper elevation={0} className="tkg-report-chart-card">
+        <Typography component="h2" fontWeight={800} sx={{mb: .5}}>Hội viên theo điểm tập</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{mb:2}}>Chỉ thống kê hội viên thuộc điểm tập được phân quyền.</Typography>
+        <div className="tkg-report-chart-body">
+          {byLocation.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={byLocation} margin={{top:12,right:12,left:-20,bottom:4}}>
+            <CartesianGrid vertical={false} strokeDasharray="4 5" stroke="#e9efe9"/>
+            <XAxis dataKey="location" tick={{fontSize:10,fill:'#5e7567'}} interval={0} angle={-17} textAnchor="end" height={62}/>
+            <YAxis allowDecimals={false} tick={{fontSize:11,fill:'#5e7567'}}/>
+            <Tooltip/><Bar dataKey="total" name="Hội viên" fill="#13965b" radius={[6,6,0,0]} maxBarSize={40}/>
+          </BarChart></ResponsiveContainer> : <Typography color="text.secondary">Chưa có dữ liệu.</Typography>}
+        </div>
+      </Paper>
+      <Paper elevation={0} className="tkg-report-chart-card">
+        <Typography component="h2" fontWeight={800} sx={{mb:.5}}>Tình trạng học tập</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{mb:2}}>Tổng hợp từ hồ sơ đang được hiển thị.</Typography>
+        <div className="tkg-report-status-bars">
+          {[['Đang học',members.filter(m=>m.status==='Đang học').length,'active'],
+            ['Tạm nghỉ',members.filter(m=>m.status==='Tạm nghỉ').length,'paused'],
+            ['Nghỉ học',members.filter(m=>m.status==='Nghỉ học').length,'quit']].map(([name,n,kind])=><div className="tkg-report-status" key={name}>
+              <div><span>{name}</span><strong>{n.toLocaleString('vi-VN')}</strong></div>
+              <div className="tkg-report-track"><span className={'tkg-report-fill '+kind} style={{width:(members.length ? n/members.length*100:0)+'%'}}/></div>
+            </div>)}
+        </div>
+      </Paper>
+    </div>
     <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden' }}>
       <TableContainer><Table size="small"><TableHead><TableRow>
         {['Điểm tập','Tổng hội viên','Đang học','Tạm nghỉ','Nghỉ học',...(canTuition && !tuition.error ? ['Đã thu'] : []),...((canCap || canDan) && !exams.error ? ['Đăng ký thi'] : [])].map(h => <TableCell key={h}>{h}</TableCell>)}

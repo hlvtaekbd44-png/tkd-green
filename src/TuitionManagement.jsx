@@ -664,7 +664,7 @@ const addDays = (date, days) => {
   };
 
   return (
-    <Stack spacing={2.5} sx={{ minWidth: 0, pb: 3 }}>
+    <Stack className="tkg-tuition-module" spacing={2.5} sx={{ minWidth: 0, pb: 3 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
         <Avatar variant="rounded" sx={{ bgcolor: "success.dark", width: 50, height: 50, borderRadius: 2.5 }}>
           <AccountBalanceWalletRounded />

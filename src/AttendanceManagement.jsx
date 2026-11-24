@@ -278,7 +278,13 @@ export default function AttendanceManagement({ students = [], profile, loading =
   };
 
   return (
-    <Box sx={{ width: "100%", minWidth: 0, mx: "auto", maxWidth: 1650, pb: 10, mt: 1.5 }}>
+    <Box className="tkg-attendance-module" sx={{ width: "100%", minWidth: 0, mx: "auto", maxWidth: 1650, pb: 6, mt: 0 }}>
+      <div className="tkg-module-kpis" aria-label="Tình hình điểm danh">
+        <div className="tkg-module-kpi"><span>Danh sách lớp</span><strong>{locationStudents.length.toLocaleString('vi-VN')}</strong><small>{location || 'Điểm tập chưa chọn'}</small></div>
+        <div className="tkg-module-kpi"><span>Đã điểm danh</span><strong>{done.toLocaleString('vi-VN')}</strong><small>Trong buổi tập đang chọn</small></div>
+        <div className="tkg-module-kpi"><span>Chưa điểm danh</span><strong>{counts[STATUS.pending].toLocaleString('vi-VN')}</strong><small>Cần ghi nhận trạng thái</small></div>
+        <div className="tkg-module-kpi"><span>Tiến độ</span><strong>{progress}%</strong><small>Tính trên danh sách lớp</small></div>
+      </div>
       <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={2} sx={{ mb: 2.5 }}>
         <Stack direction="row" alignItems="center" gap={1.5}>
           <Box sx={{ bgcolor: "#e2f3e9", color: "#087a4a", width: 48, height: 48, borderRadius: 3, display: "grid", placeItems: "center" }}><AssignmentTurnedInRounded /></Box>

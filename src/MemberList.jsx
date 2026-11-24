@@ -202,10 +202,10 @@ export default function MemberList({
   );
 
   return (
-    <Box sx={{ display: "grid", gap: 2.5, mt: 2, minWidth: 0, pb: 3 }}>
+    <Box className="green-member-management" sx={{ display: "grid", gap: 2.5, mt: 2, minWidth: 0, pb: 3 }}>
       <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ md: "center" }} spacing={2}>
         <Box>
-          <Typography variant="overline" sx={{ color: "success.main", fontWeight: 900, letterSpacing: 1.2 }}>TKD GREEN · MEMBER MANAGEMENT</Typography>
+          <Typography variant="overline" sx={{ color: "success.main", fontWeight: 900, letterSpacing: 1.2 }}>CLB TAEKWONDO GREEN · HỘI VIÊN</Typography>
           <Typography variant="h5" fontWeight={900} sx={{ fontSize: { xs: 23, sm: 28 } }}>Quản lý hội viên</Typography>
           <Typography variant="body2" color="text.secondary">Theo dõi hồ sơ, cấp đai và tình trạng học tập của võ sinh</Typography>
         </Box>

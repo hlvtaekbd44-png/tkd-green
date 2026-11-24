@@ -1,0 +1,103 @@
+/* CLB TAEKWONDO GREEN — ALL MODULES DESIGN A / 24-11-2026
+   Scoped presentation system. Business logic and Firestore queries unchanged.
+   Uses the club's existing public logo assets. */
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
+:root { --tkg-forest:#07533c; --tkg-green:#087d4b; --tkg-lime:#15965d; --tkg-ink:#173e2c; --tkg-muted:#5b7465; --tkg-line:#dceae1; --tkg-paper:#fff; --tkg-canvas:#f3f8f5; }
+.tka-app, .tka-app .page-content,.tka-app .MuiTypography-root,.tka-app .MuiInputBase-root,.tka-app .MuiButton-root,.tkg-member-portal,.tkg-member-portal .MuiTypography-root {font-family:'Be Vietnam Pro','Segoe UI',sans-serif!important}
+.tka-app .page-content.tkg-all-modules{background:var(--tkg-canvas);max-width: none;padding:22px clamp(14px,2.25vw,36px) 42px!important}
+.tka-app .main-area{background:var(--tkg-canvas)}
+/* Page identity: clear, functional, compact; module's own actions stay in place. */
+.tkg-module-hero{border-radius:18px;min-height:117px;padding:21px 25px;display:flex;align-items:center;gap:18px;margin-bottom:18px;color:#fff;background:linear-gradient(110deg,#064a35,#087e4d 66%,#12995b);position:relative;overflow:hidden;box-shadow:0 9px 24px rgba(4,89,52,.12)}
+.tkg-module-hero:after{content:'';pointer-events:none;position:absolute;right:-50px;top:-90px;border-radius:50%;width:280px;height:280px;border:36px solid rgba(255,255,255,.055)}
+.tkg-module-hero-icon{height:52px;width:52px;flex-shrink:0;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.18);z-index:1}
+.tkg-module-hero-copy{min-width:0;flex:1;z-index:1}.tka-app .tkg-module-eyebrow{color:#c1f0d8!important;font-size:10px!important;font-weight:700!important;letter-spacing:.07em!important}.tka-app .tkg-module-hero-title{font-size:clamp(19px,2.15vw,27px)!important;font-weight:800!important;color:#fff!important;letter-spacing:-.025em!important;line-height:1.3!important;margin:4px 0!important}.tka-app .tkg-module-hero-subtitle{color:#e0f5ea!important;font-size:12px!important;line-height:1.6!important}
+.tkg-module-hero-meta{z-index:1;max-width:230px}.tkg-module-hero-meta span{border:1px solid rgba(255,255,255,.24);border-radius:30px;padding:8px 12px;background:rgba(255,255,255,.12);font-size:11px;line-height:1.5;display:inline-block}
+.tkg-all-modules .MuiPaper-root:not(.MuiDialog-paper){background-image:none;border-color:var(--tkg-line);border-radius:16px;box-shadow:0 4px 16px rgba(14,76,44,.035)}
+.tkg-all-modules .MuiTableCell-head{background:#f0f7f2;color:#28563a;font-weight:750;font-size:12px}
+.tkg-all-modules .MuiTableCell-body{font-size:13px;color:var(--tkg-ink)}
+.tkg-all-modules .MuiTableRow-root:hover{background:#f7fcf8}
+.tkg-all-modules .MuiButton-root{min-height:39px;border-radius:10px;font-weight:700;font-size:12px;box-shadow:none;text-transform:none}
+.tkg-all-modules .MuiButton-containedPrimary{background:var(--tkg-green);color:#fff}
+.tkg-all-modules .MuiInputBase-root{border-radius:10px;background:#fff}
+.tkg-all-modules .MuiInputBase-input{font-size:13px;color:var(--tkg-ink)}
+.tkg-all-modules .MuiInputLabel-root{font-size:13px;color:#476b56}
+.tkg-all-modules .MuiTypography-body2,.tkg-all-modules .MuiTypography-caption{line-height:1.65}
+/* Stats used by exam & attendance are real, drawn from the current component state. */
+.tkg-module-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:0 0 18px}
+.tkg-module-kpi{padding:17px 18px;min-width:0;background:#fff;border:1px solid var(--tkg-line);border-radius:15px;box-shadow:0 3px 13px rgba(9,66,36,.035)}
+.tkg-module-kpi span{display:block;color:#547462;font-size:11px;font-weight:700;line-height:1.5}
+.tkg-module-kpi strong{display:block;font-size:clamp(22px,2.2vw,30px);color:#104a30;font-weight:800;line-height:1.15;margin:12px 0 7px;white-space:normal;overflow-wrap:anywhere}
+.tkg-module-kpi small{color:#658170;font-size:11px;line-height:1.55}
+.tkg-module-kpi:nth-child(3){background:linear-gradient(130deg,#087a49,#0f9c63);border-color:#168d5b}.tkg-module-kpi:nth-child(3) span,.tkg-module-kpi:nth-child(3) strong,.tkg-module-kpi:nth-child(3) small{color:#fff}
+/* Exam panels: true layout changes, support dense controls and horizontal table. */
+.tkg-exam-module>div:first-of-type:not(.tkg-module-kpis){min-width:0}
+.tkg-exam-module>.MuiStack-root:first-of-type{background:#fff;border:1px solid var(--tkg-line);border-radius:16px;padding:17px 20px!important;margin-bottom:16px!important}
+.tkg-exam-module>.MuiStack-root:first-of-type .MuiTypography-h5{font-size:20px;font-weight:800;color:#16452e}
+.tkg-exam-module .MuiTableContainer-root{overflow-x:auto}
+.tkg-exam-module .MuiTable-root{min-width:700px}
+.tkg-exam-module .MuiButton-root{white-space:nowrap}
+/* Tuition cards fix washed-out text and backgrounds from earlier style. */
+.tkg-tuition-module>div:first-child{padding:15px 17px;background:#fff;border:1px solid var(--tkg-line);border-radius:16px}
+.tkg-tuition-module>div:first-child .MuiTypography-h5{color:#143c2a;font-size:21px;font-weight:800}
+.tkg-tuition-module>div:nth-child(n+2){min-width:0}
+.tkg-tuition-module .MuiPaper-root{background:#fff!important;color:var(--tkg-ink)!important;border-color:var(--tkg-line)!important}
+.tkg-tuition-module .MuiPaper-root .MuiTypography-caption{color:#577462!important;font-weight:600}
+.tkg-tuition-module .MuiPaper-root .MuiTypography-root[style*="color"]{color:var(--tkg-ink)}
+.tkg-tuition-module .MuiPaper-root .MuiSvgIcon-root{color:#087d4b}
+.tkg-tuition-module .MuiTableContainer-root{overflow-x:auto}
+/* Attendance / location controls */
+.tkg-attendance-module>.MuiStack-root:first-of-type{background:#fff;border:1px solid var(--tkg-line);border-radius:15px;padding:14px 16px!important}
+.tkg-attendance-module .MuiTableContainer-root{overflow-x:auto}
+.tkg-attendance-module .MuiTable-root{min-width:650px}
+/* Reports: two analytics panels, actual authorized member data. */
+.tkg-reports-module>.MuiStack-root:first-child{background:#fff;border:1px solid var(--tkg-line);border-radius:15px;padding:17px}
+.tkg-reports-module>.MuiStack-root:nth-of-type(2)>.MuiPaper-root{min-height:119px}
+.tkg-report-charts{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(250px,.8fr);gap:15px}
+.tkg-report-chart-card{padding:20px!important;min-width:0;min-height:308px}
+.tkg-report-chart-body{width:100%;height:222px;min-width:0}
+.tkg-report-status-bars{display:flex;flex-direction:column;gap:25px;padding-top:22px}
+.tkg-report-status>div:first-child{display:flex;justify-content:space-between;font-size:12px;color:#3b644b;gap:10px;margin-bottom:10px}
+.tkg-report-status strong{color:#17452c}
+.tkg-report-track{height:10px;background:#ecf4ee;border-radius:20px;overflow:hidden}.tkg-report-fill{display:block;height:100%;background:#11945a;border-radius:20px}.tkg-report-fill.paused{background:#efb53d}.tkg-report-fill.quit{background:#df7154}
+.tkg-reports-module>.MuiPaper-root{overflow:hidden}
+.tkg-reports-module .MuiTableContainer-root{max-width:100%;overflow-x:auto}
+/* Settings and achievements: visible, modular panels using existing actions */
+.tkg-settings-module>.MuiPaper-root,.tkg-settings-module>.MuiStack-root>.MuiPaper-root{border-radius:17px;padding:clamp(14px,2vw,23px)}
+.tkg-settings-module .MuiTabs-root{background:#f1f8f3;border-radius:12px;padding:5px;min-height:45px}
+.tkg-settings-module .MuiTab-root{font-weight:750;font-size:12px;min-height:38px;border-radius:9px}
+.tkg-achievement-module>.MuiPaper-root:first-child,.tkg-club-content-module>.MuiPaper-root:first-child{border-radius:18px;background:linear-gradient(115deg,#075338,#0c8a58)!important;color:white}
+.tkg-achievement-module .MuiTableContainer-root{overflow:auto}
+/* Member/parent portal: clear cards on real mobile screens. */
+.tkg-member-portal{background:#f3f8f5!important}
+.tkg-member-portal .tkdp-sections,.tkg-member-portal .tkdp-split{gap:15px}
+.tkg-member-portal .tkdp-section,.tkg-member-portal .tkdp-metric{border-radius:16px!important;border-color:#dceae1!important;box-shadow:0 4px 14px rgba(15,77,48,.04)!important}
+.tkg-member-portal .MuiTypography-root{overflow-wrap:break-word}
+.tkg-member-portal .MuiButton-root{min-height:42px;font-weight:700}
+.tkg-member-portal .MuiTableContainer-root{overflow-x:auto}
+.tkg-member-portal .MuiTable-root{min-width:560px}
+/* consistency across responsive widths */
+@media(max-width:1200px){.tkg-module-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.tkg-report-charts{grid-template-columns:1fr}}
+@media(max-width:899px){
+ .tka-app .page-content.tkg-all-modules{padding:14px 12px 105px!important}
+ .tkg-module-hero{padding:18px 16px;min-height:99px;gap:12px;margin-bottom:14px}
+ .tkg-module-hero-icon{width:42px;height:42px;border-radius:12px}
+ .tkg-module-hero-meta{display:none}
+ .tkg-module-kpis{gap:10px;margin-bottom:13px}
+ .tkg-module-kpi{padding:14px;min-height:119px}
+ .tkg-module-kpi strong{font-size:22px}
+ .tkg-tuition-module .MuiPaper-root{min-width:0}
+ .tkg-exam-module>.MuiStack-root:first-of-type{padding:14px!important;gap:14px}
+ .tkg-exam-module>.MuiStack-root:first-of-type>.MuiStack-root:last-child{width:100%;flex-wrap:wrap;gap:8px}
+ .tkg-exam-module>.MuiStack-root:first-of-type .MuiButton-root{flex:1 1 auto}
+ .tkg-report-chart-card{padding:15px!important}
+ .tkg-settings-module .MuiTabs-root{overflow:auto}
+ .tkg-member-portal .tkdp-split{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:480px){
+ .tkg-module-hero-copy .tkg-module-eyebrow{font-size:9px!important}
+ .tkg-module-hero-copy .tkg-module-hero-title{font-size:19px!important}
+ .tkg-module-hero-copy .tkg-module-hero-subtitle{font-size:11px!important}
+ .tkg-module-kpi{padding:12px}.tkg-module-kpi strong{font-size:21px}
+ .tkg-module-hero:after{display:none}
+ .tkg-member-portal .tkdp-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

@@ -737,8 +737,16 @@ export default function ExamManagement({
   // 6. GIAO DIỆN QUẢN LÝ THI CẤP
   // ============================================
 
+  const approvedCount = sortedRegistrations.filter(r => ['Đạt', 'DAT', 'PASS'].includes(String(r.ketQua || r.result || '').trim())).length;
+  const waitCount = sortedRegistrations.filter(r => !String(r.ketQua || r.result || '').trim()).length;
   return (
-    <Box sx={{ p: { xs: 2, md: 3 } }}>
+    <Box className={`tkg-exam-module tkg-exam-${examType}`} sx={{ p: { xs: 0, md: 0 }, minWidth:0 }}>
+      <div className="tkg-module-kpis" aria-label="Thống kê kỳ thi">
+        <div className="tkg-module-kpi"><span>Đợt thi</span><strong>{periods.length.toLocaleString('vi-VN')}</strong><small>{examType === 'dan' ? 'Kỳ thi đẳng' : 'Kỳ thi cấp'} đang theo dõi</small></div>
+        <div className="tkg-module-kpi"><span>Đăng ký</span><strong>{sortedRegistrations.length.toLocaleString('vi-VN')}</strong><small>Đúng điểm tập đang lọc</small></div>
+        <div className="tkg-module-kpi"><span>Đã đạt</span><strong>{approvedCount.toLocaleString('vi-VN')}</strong><small>Đã có kết quả Đạt</small></div>
+        <div className="tkg-module-kpi"><span>Chưa kết quả</span><strong>{waitCount.toLocaleString('vi-VN')}</strong><small>Chưa chốt trong danh sách lọc</small></div>
+      </div>
       <Stack
         direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"

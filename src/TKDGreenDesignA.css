@@ -1,0 +1,99 @@
+/* CLB TAEKWONDO GREEN · Approved Design A · React layout, not a recoloring-only patch.
+   Existing Firebase components & permissions remain in their original modules. */
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
+:root{--tka-ink:#173d2c;--tka-muted:#5a7565;--tka-green:#0a8352;--tka-surface:#fff;--tka-stroke:#dbe9df;--tka-bg:#f3f8f5;}
+body:has(.tka-app),body:has(.tka-app) input,body:has(.tka-app) button,body:has(.tka-app) select{font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif!important}
+body:has(.tka-app){background:var(--tka-bg)!important;color:var(--tka-ink)}
+.tka-app.app-shell{background:#f3f8f5!important;color:var(--tka-ink);font-family:'Be Vietnam Pro','Segoe UI',sans-serif;min-width:0}
+.tka-app .main-area{background:#f3f8f5!important}
+.tka-app .page-content{max-width:1610px!important;width:100%!important;padding:25px clamp(16px,2.45vw,35px) 80px!important;min-width:0}
+/* Material-UI drawer may be portaled outside the app root. */
+body:has(.tka-app) .MuiDrawer-paper{background:linear-gradient(165deg,#064731,#07583b 55%,#063d2e)!important;color:white!important;border-right:0!important;box-shadow:4px 0 24px rgba(16,54,34,.1)!important}
+body:has(.tka-app) .MuiDrawer-paper .sidebar-inner{padding:14px 12px 18px!important}
+body:has(.tka-app) .MuiDrawer-paper .brand{min-height:88px;padding:10px 6px 16px!important;gap:10px!important;align-items:center;border-bottom:1px solid rgba(255,255,255,.17)!important;margin-bottom:18px!important}
+body:has(.tka-app) .MuiDrawer-paper .brand-mark{width:48px!important;height:48px!important;background:#fff!important;border-radius:12px!important;padding:3px!important;flex:none!important}
+body:has(.tka-app) .MuiDrawer-paper .brand-mark img{object-fit:contain!important;max-width:100%;max-height:100%}
+body:has(.tka-app) .MuiDrawer-paper .brand-title{font-family:'Be Vietnam Pro',sans-serif!important;font-size:12px!important;line-height:1.45!important;font-weight:800!important;color:white!important;letter-spacing:0!important;white-space:normal!important}
+body:has(.tka-app) .MuiDrawer-paper .brand-subtitle{font-size:9px!important;letter-spacing:.04em!important;color:#bbe0cd!important;font-weight:500!important}
+body:has(.tka-app) .MuiDrawer-paper .sidebar-section-label{color:#a7d2b8!important;font-size:10px!important;font-weight:700!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item{min-height:44px!important;margin:3px 0!important;border-radius:10px!important;color:#dfefe5!important;transform:none!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item .MuiListItemText-primary{font-size:13px!important;font-weight:600!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item .MuiSvgIcon-root{color:#c2e2cf!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item:hover{background:rgba(255,255,255,.12)!important;color:#fff!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item.Mui-selected{background:#ebfff2!important;color:#0a6943!important;box-shadow:none!important}
+body:has(.tka-app) .MuiDrawer-paper .nav-item.Mui-selected .MuiListItemText-primary,body:has(.tka-app) .MuiDrawer-paper .nav-item.Mui-selected .MuiSvgIcon-root{color:#08613e!important}
+body:has(.tka-app) .MuiDrawer-paper .coach-card{background:rgba(255,255,255,.08)!important;border-color:rgba(255,255,255,.16)!important}
+body:has(.tka-app) .MuiDrawer-paper .coach-name{font-size:12px!important;color:#fff!important}
+body:has(.tka-app) .MuiDrawer-paper .coach-role{font-size:11px!important;color:#c6e0cf!important}
+.tka-app .topbar{background:#fff!important;border-bottom:1px solid #e1eae4!important;box-shadow:0 3px 16px rgba(14,69,38,.035)!important}
+.tka-app .topbar-toolbar{min-height:66px!important;padding:8px clamp(16px,2.45vw,35px)!important}
+.tka-app .topbar-title{font-size:16px!important;font-weight:700!important;color:#163b2a!important}
+.tka-app .topbar-eyebrow{color:#648675!important;font-size:10px!important;font-weight:600!important;letter-spacing:.06em!important}
+.tka-app .notification-button{background:#f4faf5!important;border:1px solid #dbe8de!important;color:#25734a!important}
+/* New dashboard's own React layout */
+.tka-dashboard{display:flex;flex-direction:column;gap:18px;min-width:0;color:var(--tka-ink)}
+.tka-dashboard .MuiPaper-root{background:white!important;border:1px solid #dfebe2!important;box-shadow:0 5px 23px rgba(29,85,52,.045)!important;color:var(--tka-ink)!important}
+.tka-hero{position:relative;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:25px 28px;overflow:hidden;border-radius:19px;background:linear-gradient(110deg,#075639 0%,#0b8252 67%,#0f9561 100%);color:#fff;min-height:164px}
+.tka-hero-content,.tka-hero-actions{position:relative;z-index:2}
+.tka-eyebrow{font-size:10px;line-height:1.7;font-weight:700;letter-spacing:.09em;color:#ccebdd;display:flex;gap:10px;align-items:center}
+.tka-eyebrow-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#93f7ae}
+.tka-dashboard .tka-hero-title{font-size:clamp(22px,2.3vw,31px)!important;font-weight:800!important;line-height:1.45!important;letter-spacing:-.04em!important;margin:7px 0 5px!important;color:#fff!important}
+.tka-dashboard .tka-hero-sub{font-size:13px!important;color:#e4f6ea!important;max-width:640px;line-height:1.7!important}
+.tka-hero-tags{margin-top:16px}.tka-hero-tags span{font-size:11px;font-weight:600;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.23);border-radius:20px;padding:5px 11px;color:#fff}
+.tka-hero-actions{display:flex;flex-direction:column;align-items:stretch;gap:10px;min-width:145px}
+.tka-dashboard .tka-hero-primary{background:#fff!important;color:#086741!important;font-weight:700!important;border-radius:10px!important;min-height:43px!important;padding:9px 16px!important;white-space:nowrap}
+.tka-dashboard .tka-hero-secondary{background:rgba(255,255,255,.12)!important;color:#fff!important;border:1px solid rgba(255,255,255,.38)!important;border-radius:10px!important;font-weight:600!important;min-height:42px!important;white-space:nowrap}
+.tka-hero-shape{pointer-events:none;position:absolute;right:9%;bottom:-145px;width:370px;height:370px;border-radius:50%;border:50px solid rgba(255,255,255,.045);box-shadow:0 0 0 70px rgba(255,255,255,.025)}
+.tka-dashboard .tka-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:11px 15px!important;border-radius:13px!important;min-height:62px}
+.tka-toolbar-label{color:#4d7260;font-size:12px;font-weight:600}.tka-toolbar-label .MuiChip-root{background:#e8f7ed!important;color:#08764a!important;font-weight:700!important}
+.tka-toolbar .tka-location{min-width:220px;max-width:100%}.tka-toolbar .MuiOutlinedInput-root{background:#fff!important;color:#1c4932!important;border-radius:10px!important;font-size:13px!important}
+.tka-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+.tka-dashboard .tka-metric{border-radius:15px!important;padding:19px 20px!important;min-height:142px!important;background:#fff!important}
+.tka-metric-top{display:flex;justify-content:space-between;align-items:flex-start;gap:5px;color:#627e6d;font-size:12px;font-weight:600;line-height:1.6}
+.tka-metric-icon{display:grid;place-items:center;color:#10895b;background:#e9f7ee;border-radius:11px;min-width:38px;height:38px}
+.tka-dashboard .tka-metric-value{font-size:clamp(23px,2.5vw,33px)!important;font-weight:800!important;color:#19432d!important;letter-spacing:-.045em;line-height:1.45!important;margin:7px 0 3px!important;overflow-wrap:anywhere}
+.tka-dashboard .tka-metric-note{color:#658473!important;font-size:11px!important;line-height:1.6!important}
+.tka-dashboard .tka-metric-featured{background:linear-gradient(130deg,#087347,#0d9560)!important;border-color:#0d8958!important}
+.tka-metric-featured .tka-metric-top,.tka-dashboard .tka-metric-featured .tka-metric-value,.tka-dashboard .tka-metric-featured .tka-metric-note{color:#fff!important}
+.tka-metric-featured .tka-metric-icon{background:rgba(255,255,255,.18);color:#fff}
+.tka-content-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(265px,1fr);gap:16px;min-width:0}
+.tka-dashboard .tka-section{border-radius:16px!important;padding:20px!important;min-width:0}
+.tka-section-heading{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:15px}
+.tka-dashboard .tka-section-heading h2{font-size:16px!important;font-weight:800!important;color:#214c34!important;letter-spacing:-.03em;line-height:1.5!important;margin:0}
+.tka-dashboard .tka-hint{font-size:11px!important;line-height:1.7!important;color:#6d8879!important;margin-top:1px}
+.tka-section-heading .MuiChip-root{background:#eaf7ee!important;color:#167e4e!important;font-weight:700!important}
+.tka-chart-body{height:250px;width:100%;min-width:0;overflow:hidden}
+.tka-empty{display:flex;min-height:84px;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:13px;color:#678575}
+.tka-shortcut-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.tka-shortcut{display:flex;gap:9px;align-items:center;background:#f8fbf8;border:1px solid #e3eee7;border-radius:11px;min-width:0;padding:11px;text-align:left;cursor:pointer;color:#26503a;font-family:inherit}
+.tka-shortcut:hover,.tka-shortcut:focus-visible{background:#edf8f0;border-color:#a4d7b8;outline:none}
+.tka-shortcut-icon{display:grid;place-items:center;color:#15885a;background:#e4f5eb;min-width:34px;height:34px;border-radius:9px}
+.tka-shortcut-icon svg{width:19px;height:19px}.tka-shortcut-copy{flex:1;display:flex;flex-direction:column;min-width:0;gap:3px}
+.tka-shortcut-copy strong{font-size:12px;font-weight:700;color:#1c4b32}.tka-shortcut-copy small{font-size:10px;line-height:1.5;color:#728b79}.tka-shortcut>svg:last-child{font-size:15px;color:#5e9876}
+.tka-members-heading{align-items:center;flex-wrap:wrap}.tka-member-search{width:min(270px,100%)}.tka-dashboard .tka-member-search .MuiOutlinedInput-root{background:#f9fcfa!important;font-size:13px!important;border-radius:10px!important}
+.tka-table-wrap{width:100%;overflow-x:auto}.tka-table{min-width:720px}.tka-table-row{display:grid;grid-template-columns:minmax(230px,2fr) minmax(118px,1fr) minmax(110px,1fr) minmax(120px,1fr) minmax(120px,1fr);align-items:center;gap:12px;min-height:66px;padding:11px 14px;border-bottom:1px solid #edf2ee;color:#385d47;font-size:12px}
+.tka-table-row:not(.tka-table-head):hover{background:#f8fcf9}.tka-table-head{background:#f4faf6;border:1px solid #eaf0e9;border-radius:9px;min-height:40px;font-size:10px;letter-spacing:.045em;font-weight:700;color:#688675}
+.tka-person{display:flex;gap:10px;align-items:center;min-width:0}.tka-person .MuiAvatar-root{width:35px;height:35px;background:#d5eee1;color:#16714a;font-weight:800;font-size:13px}
+.tka-person>div:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}.tka-person strong{color:#244834;font-size:12px;font-weight:700;overflow-wrap:anywhere}.tka-person small{font-size:10px;color:#759082;overflow-wrap:anywhere}
+.tka-belt{display:flex;align-items:center}.tka-status{display:inline-flex;padding:5px 8px;border-radius:9px;background:#f1f4f2;color:#657970;font-size:11px;font-weight:700;white-space:nowrap}
+.tka-status.is-active{background:#e2f7e9;color:#15774d}.tka-cell-fee{font-size:12px}.tka-dashboard .tka-view-all{margin-top:13px!important;color:#087c50!important;font-weight:700!important;font-size:12px!important}
+.tka-error{margin:10px 0;border-radius:8px;padding:11px 12px;background:#fff0ed;color:#a82c24;font-size:12px}
+/* Explicitly normalize other business pages; no logic is changed. */
+.tka-app .tka-subpage-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px;padding:0 2px;gap:12px}
+.tka-app .tka-subpage-kicker{font-size:10px!important;color:#668c75!important;font-weight:600!important;letter-spacing:.07em!important}
+.tka-app .tka-subpage-title{font-size:clamp(21px,2vw,27px)!important;font-weight:800!important;letter-spacing:-.04em!important;color:#163f2b!important;margin:3px 0!important}
+.tka-app .tka-subpage-description{font-size:12px!important;color:#688371!important;line-height:1.7!important}
+.tka-app .page-content .MuiTypography-root:not(.tka-hero-title):not(.tka-hero-sub):not(.tka-metric-value){font-family:'Be Vietnam Pro','Segoe UI',Arial,sans-serif}
+.tka-app .page-content .MuiButton-root{font-family:'Be Vietnam Pro','Segoe UI',sans-serif;letter-spacing:0;text-transform:none;}
+.tka-app .page-content .MuiTableCell-root{font-size:13px;line-height:1.6;color:#254c35}
+.tka-app .page-content .MuiTableCell-head{font-weight:700;background:#f1f8f3;color:#356348}
+.tka-app .page-content .MuiPaper-root{border-color:#dfeae2;border-radius:15px}
+.tka-app .page-content .MuiInputBase-input{color:#244b34;font-size:14px}
+.tka-app .page-content .MuiInputLabel-root{color:#526f5d}
+.tka-app .page-content .MuiButton-containedPrimary{background:#087d4b;color:white}
+.tka-app .page-content .MuiButton-containedPrimary:hover{background:#07663e}
+.tka-app .page-content .MuiTableContainer-root{overflow-x:auto;max-width:100%}
+.tka-app .footer{font-size:10px}
+@media(max-width:1250px){.tka-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.tka-content-grid{grid-template-columns:1fr}.tka-shortcut-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:899px){.tka-app .page-content{padding:16px 12px 100px!important}.tka-hero{padding:21px 19px;min-height:0;align-items:flex-start;flex-direction:column;gap:17px}.tka-hero-actions{flex-direction:row;align-items:center;min-width:0;flex-wrap:wrap}.tka-dashboard .tka-hero-title{font-size:24px!important}.tka-stats{gap:10px}.tka-dashboard .tka-metric{padding:14px!important;min-height:128px!important}.tka-dashboard .tka-metric-value{font-size:24px!important}.tka-dashboard .tka-section{padding:14px!important}.tka-dashboard .tka-toolbar{flex-wrap:wrap}.tka-toolbar .tka-location{flex:1;min-width:180px}.tka-shortcut-list{grid-template-columns:repeat(2,minmax(0,1fr))}.tka-shortcut>svg:last-child{display:none}body:has(.tka-app) .MuiDrawer-paper{background:linear-gradient(155deg,#064731,#075a3d)!important}body:has(.tka-app) .MuiDrawer-paper .nav-item:not(.Mui-selected) .MuiListItemText-primary{color:#e4f2e9!important}body:has(.tka-app) .MuiDrawer-paper .nav-item:not(.Mui-selected) .MuiListItemIcon-root,body:has(.tka-app) .MuiDrawer-paper .nav-item:not(.Mui-selected) .MuiSvgIcon-root{color:#cbe7d6!important}}
+@media(max-width:530px){.tka-hero-actions{width:100%}.tka-dashboard .tka-hero-primary,.tka-dashboard .tka-hero-secondary{flex:1;font-size:11px!important}.tka-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.tka-metric-top{font-size:11px}.tka-metric-icon{min-width:30px;width:30px;height:30px}.tka-metric-icon svg{width:18px}.tka-dashboard .tka-metric-value{font-size:22px!important}.tka-dashboard .tka-metric-note{font-size:10px!important}.tka-shortcut{padding:9px;gap:8px}.tka-shortcut-copy strong{font-size:11px}.tka-shortcut-copy small{font-size:10px}.tka-members-heading{align-items:stretch}.tka-member-search{width:100%}.tka-table{min-width:670px}.tka-chart-body{height:225px}}

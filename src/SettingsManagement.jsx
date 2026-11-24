@@ -1,6 +1,7 @@
 import AccountManagement from "./AccountManagement";
 import LocationManagement from "./LocationManagement";
 import PrintNoticeSettings from "./PrintNoticeSettings";
+import HonorAdmin from "./HonorAdmin";
 import { useEffect, useMemo, useState } from "react";
 import { collection, doc, onSnapshot, updateDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
@@ -157,15 +158,16 @@ export default function SettingsManagement({ profile }) {
     } finally { setBusy(false); }
   };
 
-  return <Stack spacing={3}>
+  return <Stack className="tkg-settings-module" spacing={3}>
     <Typography variant="h5" fontWeight={800}>Cài đặt hệ thống</Typography>
-    <Stack direction="row" spacing={1}>
+    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
       <Button variant={settingsTab === "locations" ? "contained" : "outlined"} onClick={() => setSettingsTab("locations")}>Quản lý điểm tập</Button>
       <Button variant={settingsTab === "coaches" ? "contained" : "outlined"} onClick={() => setSettingsTab("coaches")}>Phân quyền HLV</Button>
       <Button variant={settingsTab === "accounts" ? "contained" : "outlined"} onClick={() => setSettingsTab("accounts")}>Quản lý tài khoản</Button>
       <Button variant={settingsTab === "print" ? "contained" : "outlined"} onClick={() => setSettingsTab("print")}>Thông tin phiếu in</Button>
+      <Button variant={settingsTab === "honor" ? "contained" : "outlined"} onClick={() => setSettingsTab("honor")}>Quản lý tuyên dương</Button>
     </Stack>
-    {settingsTab === "locations" ? <LocationManagement /> : settingsTab === "accounts" ? <AccountManagement profile={profile} /> : settingsTab === "print" ? <PrintNoticeSettings profile={profile} /> : <>
+    {settingsTab === "locations" ? <LocationManagement /> : settingsTab === "accounts" ? <AccountManagement profile={profile} /> : settingsTab === "print" ? <PrintNoticeSettings profile={profile} /> : settingsTab === "honor" ? <HonorAdmin profile={profile} /> : <>
     <Alert severity="info">Tạo HLV bằng tên đăng nhập và mật khẩu; tài khoản mới chưa có quyền nào cho đến khi Admin cấp. Chức năng phân quyền cần được bảo vệ bằng Firestore Rules.</Alert>
     <Paper sx={{ p: 3, borderRadius: 3 }}>
       <Button variant="outlined" onClick={() => setCreateOpen(v => !v)} disabled={creating}>

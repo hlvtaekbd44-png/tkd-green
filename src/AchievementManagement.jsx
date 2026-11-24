@@ -61,7 +61,7 @@ export default function AchievementManagement({profile, students=[]}) {
     try {if(editing)await updateDoc(doc(db,'memberAchievements',editing),payload);else await addDoc(collection(db,'memberAchievements'),{...payload,createdAt:serverTimestamp()});setDialog(false);setNotice('Đã lưu thành tích vào hồ sơ hội viên.');}catch(e){setError(`Lưu thất bại: ${e.message}`);}finally{setBusy(false);}
   };
   const remove=async row=>{if(!admin||busy||!window.confirm(`Xóa thành tích “${row.competition}” của ${row.memberName}?`))return;setBusy(true);try{await deleteDoc(doc(db,'memberAchievements',row.id));setNotice('Đã xóa thành tích.');}catch(e){setError(e.message);}finally{setBusy(false);}};
-  return <Stack spacing={2.5} sx={{minWidth:0,fontFamily:'"Segoe UI",Arial,sans-serif'}}>
+  return <Stack className="tkg-achievement-module" spacing={2.5} sx={{minWidth:0,fontFamily:'"Segoe UI",Arial,sans-serif'}}>
     <Paper sx={{p:{xs:2.5,md:3},borderRadius:3,background:'linear-gradient(115deg,#075d3d,#098354)',color:'#fff !important','& .MuiTypography-root':{color:'#fff !important'}}}>
       <Stack direction="row" alignItems="center" spacing={2}><EmojiEventsRounded sx={{fontSize:42,color:'#fff'}}/><Box><Typography variant="h5" fontWeight={800}>Bảng thành tích võ sinh</Typography><Typography>Ghi nhận thành tích thi đấu và lưu vào từng hồ sơ hội viên.</Typography></Box></Stack>
     </Paper>
