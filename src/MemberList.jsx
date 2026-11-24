@@ -1,3 +1,5 @@
+import DownloadRounded from "@mui/icons-material/DownloadRounded";
+import * as XLSX from "xlsx";
 import useRetainedFilter from "./useRetainedFilter";
 import { useMemo, useState } from "react";
 import {
@@ -150,6 +152,26 @@ export default function MemberList({
 
   // Hiển thị toàn bộ dữ liệu ĐÃ được giới hạn quyền và lọc, không cắt theo trang.
 
+  // Xuất danh sách ĐANG hiển thị; không truy vấn thêm hội viên ngoài phân quyền.
+  const exportFilteredExcel = () => {
+    const rows = filteredStudents.map((s, i) => ({
+      STT: i + 1, "Mã VTF": s.maHV || "", "Mã nội bộ": s.maHoiVienNoiBo || "",
+      "Họ và tên": s.name || "", "Ngày sinh": s.ngaySinh || "",
+      "Giới tính": s.gioiTinh || "", "Điểm tập": s.location || "",
+      "Cấp đai/Đẳng": s.belt || "", "Trạng thái": s.status || "",
+      "Loại học phí": s.loaiHocPhi || "", "Ngày bắt đầu": s.ngayBatDau || "",
+      "Ngày hết hạn": s.ngayHetHan || ""
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [6, 19, 19, 30, 17, 12, 25, 18, 16, 16, 18, 18].map(wch => ({ wch }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "DanhSachHoiVien");
+    const filename = (location === "Tất cả điểm tập" ? "TatCaDiemTap" : location)
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "_");
+    XLSX.writeFile(wb, `TKD_GREEN_HOI_VIEN_${filename}.xlsx`);
+  };
+
   const clearFilters = () => {
     setSearch("");
     setStatusFilter(ALL);
@@ -188,6 +210,9 @@ export default function MemberList({
           <Typography variant="body2" color="text.secondary">Theo dõi hồ sơ, cấp đai và tình trạng học tập của võ sinh</Typography>
         </Box>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Button variant="outlined" startIcon={<DownloadRounded />}
+            disabled={loading || filteredStudents.length === 0} onClick={exportFilteredExcel}
+            sx={{ borderRadius: 2, minHeight: 44 }}>Xuất Excel ({filteredStudents.length})</Button>
           {canCreateMember && (
             <Button variant="outlined" startIcon={<UploadFileRounded />} onClick={() => setImportOpen(true)} sx={{ borderRadius: 2, minHeight: 44 }}>Import Excel</Button>
           )}

@@ -179,6 +179,7 @@ async function handleSubmit(event) {
         value={form.loaiHocPhi}
         onChange={handleChange}
       >
+        <MenuItem value="Ngày">Ngày</MenuItem>
         <MenuItem value="Tháng">Tháng</MenuItem>
         <MenuItem value="Quý">Quý</MenuItem>
       </TextField>

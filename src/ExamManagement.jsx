@@ -126,6 +126,7 @@ export default function ExamManagement({
   const [registrations, setRegistrations] = useState([]);
 
   const [selectedPeriod, setSelectedPeriod] = useState("");
+  const [filterExamLocation, setFilterExamLocation] = useState(location);
 
   const [periodDialog, setPeriodDialog] = useState(false);
   const [registerDialog, setRegisterDialog] = useState(false);
@@ -258,22 +259,15 @@ export default function ExamManagement({
   // 3. DANH SÁCH VÕ SINH ĐƯỢC PHÉP QUẢN LÝ
   // ============================================
 
-  const visibleStudents = useMemo(() => {
-    return students.filter((student) => {
-      const locationMatches =
-        location === "Tất cả điểm tập" ||
-        student.location === location;
-
-      const assignedLocations = Array.isArray(profile?.diemTap)
-        ? profile.diemTap
-        : [];
-
-      const permissionMatches =
-        isAdmin || assignedLocations.includes(student.location);
-
-      return locationMatches && permissionMatches;
-    });
-  }, [students, location, profile, isAdmin]);
+  // Danh sách hội viên đã được App.jsx giới hạn quyền đọc từ Firestore.
+  // Chỉ lọc thêm theo điểm tập tại trang Thi cấp/Thi đẳng.
+  const examLocationOptions = useMemo(() => ['Tất cả điểm tập', ...new Set(
+    students.map(s => String(s.location || '').trim()).filter(Boolean)
+  )].sort((a, b) => a === 'Tất cả điểm tập' ? -1 : b === 'Tất cả điểm tập' ? 1 : a.localeCompare(b, 'vi')), [students]);
+  const validExamLocation = examLocationOptions.includes(filterExamLocation) ? filterExamLocation : 'Tất cả điểm tập';
+  const visibleStudents = useMemo(() => students.filter(student =>
+    validExamLocation === 'Tất cả điểm tập' || student.location === validExamLocation
+  ), [students, validExamLocation]);
 
   const selectedPeriodData = periods.find(
     (period) => period.id === selectedPeriod
@@ -322,7 +316,12 @@ export default function ExamManagement({
   const canManage = isAdmin || (profile?.role === "hlv" && profile?.permissions?.exams?.manage === true);
   const eligibleStudents = useMemo(() => visibleStudents.filter(s => !eligibility(s, selectedPeriodData?.examDate, registeredIds, examType)), [visibleStudents, selectedPeriodData?.examDate, registeredIds, examType]);
   const eligibleCount = eligibleStudents.length;
-  const sortedRegistrations = useMemo(() => registrations.filter(r => r.status !== "Không dự thi").sort(sortExamRows), [registrations]);
+  const sortedRegistrations = useMemo(() => registrations.filter(r => {
+    if (r.status === 'Không dự thi') return false;
+    if (validExamLocation === 'Tất cả điểm tập') return true;
+    const name = r.diemTap || students.find(s => s.id === r.memberDocId)?.location;
+    return name === filterExamLocation;
+  }).sort(sortExamRows), [registrations, validExamLocation, students]);
   const bulkCandidates = useMemo(() => visibleStudents.filter(s => {
     if (isQuitMember(s)) return false;
     const proposed = nextLevel(currentLevel(s));
@@ -779,6 +778,17 @@ export default function ExamManagement({
         </Stack>
       </Stack>
 
+      <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+        <TextField select fullWidth size="small" label="Lọc điểm tập tham gia thi"
+          value={validExamLocation}
+          onChange={e => setFilterExamLocation(e.target.value)}>
+          {examLocationOptions.map(point => <MenuItem key={point} value={point}>{point}</MenuItem>)}
+        </TextField>
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+          Bộ lọc áp dụng cho danh sách đề xuất, đăng ký, Excel và đối chiếu kết quả.
+        </Typography>
+      </Paper>
+
       {examType === "dan" && selectedPeriodData && <Paper variant="outlined" sx={{p:2,mb:2,borderRadius:2}}>
         <Typography fontWeight={800} sx={{mb:1}}>Biểu phí thi đẳng · {selectedPeriodData.name}</Typography>
         <Stack direction="row" gap={1} useFlexGap flexWrap="wrap">
@@ -919,7 +929,7 @@ export default function ExamManagement({
         )}
       </Paper>
 
-      <ExamTopScorers period={selectedPeriodData} registrations={registrations} profile={profile} />
+      <ExamTopScorers period={selectedPeriodData} registrations={sortedRegistrations} profile={profile} />
 
       {/* DANH SÁCH ĐĂNG KÝ THI */}
 

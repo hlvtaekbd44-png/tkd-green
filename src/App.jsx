@@ -5,6 +5,7 @@ import PublicLocationIntroduction from "./PublicLocationIntroduction";
 import useDashboardLiveMetrics from "./useDashboardLiveMetrics";
 import MemberSelfPortal from "./MemberSelfPortal";
 import MemberDashboard from "./MemberDashboard";
+import ReportsManagementLive from "./ReportsManagementLive";
 import MemberContentFrame from "./MemberContentFrame";
 import './MemberPortalFullPro.css';
 import {
@@ -302,23 +303,19 @@ const assignedKey = assignedPoints.join('\u0001');
 // đã được Admin đọc, tránh bộ lọc chỉ còn "Tất cả điểm tập".
 // Không dùng dữ liệu hội viên của Admin làm nguồn cho HLV: HLV vẫn theo phân quyền.
 const availableLocations = useMemo(() => {
+  const configured = (Array.isArray(clubLocations) ? clubLocations : [])
+    .filter(x => x && x.deleted !== true && typeof x.name === 'string');
+  const fromMembers = students.map(s => s.location).filter(Boolean);
   if (profile?.role === 'admin') {
-    const fromConfig = (Array.isArray(clubLocations) ? clubLocations : [])
-      .filter(item => item && item.deleted !== true)
-      .map(item => typeof item === 'string' ? item : item.name)
-      .filter(name => typeof name === 'string' && name.trim())
-      .map(name => name.trim());
-    const fromMembers = students
-      .map(item => item.location)
-      .filter(name => typeof name === 'string' && name.trim())
-      .map(name => name.trim());
-    const uniqueNames = [...new Set([...fromConfig, ...fromMembers])]
-      .sort((a, b) => a.localeCompare(b, 'vi'));
-    return ['Tất cả điểm tập', ...uniqueNames];
+    return ['Tất cả điểm tập', ...[...new Set([...configured.map(x => x.name), ...fromMembers])]
+      .sort((a, b) => a.localeCompare(b, 'vi'))];
   }
-  return ['Tất cả điểm tập',
-    ...namesForProfile(clubLocations, profile, { activeOnly: false })];
-}, [clubLocations, profile, students]);
+  // HLV chỉ nhìn điểm tập được phân công trong profile; không dùng tất cả hồ sơ làm quyền.
+  const assignedNames = assignedPoints.filter(name =>
+    configured.some(x => x.name === name) || fromMembers.includes(name));
+  return ['Tất cả điểm tập', ...[...new Set(assignedNames)]
+    .sort((a, b) => a.localeCompare(b, 'vi'))];
+}, [clubLocations, profile?.role, students, assignedPoints]);
 
 // Không giữ bộ lọc điểm tập cũ khi chuyển sang tài khoản HLV khác.
 useEffect(() => {
@@ -620,6 +617,9 @@ useEffect(() => {
 
             {activePage === 'Giới thiệu' ? (
               <PublicLocationIntroduction embedded />
+            ) : activePage === 'Báo cáo' ? (
+              <ReportsManagementLive students={students} profile={profile}
+                location={location} onLocationChange={setLocation} locations={availableLocations} />
             ) : activePage === 'Thành tích' ? (
               <AchievementManagement profile={profile} students={students} />
             ) : activePage === 'Sự kiện' || activePage === 'Đào tạo' ? (
