@@ -241,10 +241,10 @@ export default function AttendanceManagement({ students = [], profile, loading =
     try {
       // Giữ nguyên API và cấu trúc Firebase của hệ thống TKD Green.
       const snapshot = { ...statuses };
-      const result = await saveAttendance({ location, date, students: locationStudents, statuses: snapshot, user: auth.currentUser });
+      const result = await saveAttendance({ location, date, students: locationStudents, statuses: snapshot, savedStatuses, user: auth.currentUser });
       setSavedStatuses(snapshot);
       setSessionExists(true);
-      setMessage(`Đã lưu điểm danh ${result.count} võ sinh ngày ${formatDate(date)} thành công.`);
+      setMessage(`Đã lưu ${result.count} trạng thái điểm danh thay đổi ngày ${formatDate(date)} thành công.`);
     } catch (e) {
       setError(`Lưu thất bại: ${e.message}. Hãy tải lại buổi này và đối chiếu trước khi lưu tiếp.`);
     } finally { setBusy(false); }

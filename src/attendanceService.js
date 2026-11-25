@@ -52,12 +52,17 @@ export async function loadAttendance(location, date) {
   };
 }
 
-export async function saveAttendance({ location, date, students, statuses, existingRecords = {}, user }) {
+export async function saveAttendance({ location, date, students, statuses, savedStatuses = {}, existingRecords = {}, user }) {
   if (!user?.uid) throw new Error("Bạn cần đăng nhập.");
   const id = await attendanceSessionId(location, date);
   const sessionRef = doc(db, "attendanceSessions", id);
   const validStudents = students.filter((s) => s.id && s.location === location);
   if (!validStudents.length) throw new Error("Không có võ sinh để lưu.");
+  // Chỉ lưu các trạng thái đã thay đổi; tránh ghi lại hàng trăm hồ sơ không liên quan.
+  const changedStudents = validStudents.filter((s) =>
+    (statuses[s.id] || "Chưa điểm danh") !== (savedStatuses[s.id] || "Chưa điểm danh")
+  );
+  if (!changedStudents.length) return { sessionId: id, count: 0 };
 
   // Tạo buổi tập nếu chưa tồn tại; không ghi đè người tạo hay ngày tạo.
   const existing = await getDoc(sessionRef);
@@ -74,10 +79,12 @@ export async function saveAttendance({ location, date, students, statuses, exist
     }
   }
 
-  // Ghi theo lô 10 để phù hợp giới hạn đọc tài liệu của Firestore Rules trong batch.
-  for (let start = 0; start < validStudents.length; start += 10) {
+  // Mỗi record cần Rules đọc tài liệu session, member và users.
+  // Tối đa 20 lần đọc Rules cho một atomic batch; 3 record/lô chừa dự phòng.
+  const BATCH_SIZE = 3;
+  for (let start = 0; start < changedStudents.length; start += BATCH_SIZE) {
     const batch = writeBatch(db);
-    const chunk = validStudents.slice(start, start + 10);
+    const chunk = changedStudents.slice(start, start + BATCH_SIZE);
     for (const student of chunk) {
       const status = statuses[student.id] || "Chưa điểm danh";
       if (!ATTENDANCE_STATUSES.includes(status)) {
@@ -91,7 +98,15 @@ export async function saveAttendance({ location, date, students, statuses, exist
         updatedAt: serverTimestamp(),
       }, { merge: true });
     }
-    await batch.commit();
+    try {
+      await batch.commit();
+    } catch (error) {
+      const label = chunk.map(s => s.name || s.id).join(", ");
+      const hint = error?.code === "permission-denied"
+        ? " Kiểm tra quyền điểm tập, trạng thái tài khoản HLV và vị trí hồ sơ hội viên trong Firestore."
+        : "";
+      throw new Error(`Không ghi được lô điểm danh (${label}): ${error?.message || error}.${hint}`);
+    }
   }
-  return { sessionId: id, count: validStudents.length };
+  return { sessionId: id, count: changedStudents.length };
 }
