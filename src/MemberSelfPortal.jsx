@@ -32,7 +32,9 @@ function Info({ label, value }) {
     <Typography fontWeight={600}>{show(value)}</Typography></Box>;
 }
 
-function LeaveForm({ member, profile }) {
+function LeaveForm({ member, profile, verifiedLocationId = "" }) {
+  // App.jsx resolves the active location from Firestore, including legacy member records.
+  const resolvedLocationId = member?.locationId || verifiedLocationId;
   const [from, setFrom] = useState(dateISO());
   const [to, setTo] = useState(dateISO());
   const [reason, setReason] = useState('');
@@ -57,7 +59,7 @@ function LeaveForm({ member, profile }) {
   const submit = async (event) => {
     event.preventDefault();
     setError(''); setMessage('');
-    if (!member || !member.locationId || !profile?.memberDocId) {
+    if (!member || !resolvedLocationId || !profile?.memberDocId) {
       setError('Hồ sơ chưa liên kết mã điểm tập (locationId). Liên hệ Admin.'); return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || to < from) {
@@ -65,13 +67,13 @@ function LeaveForm({ member, profile }) {
     }
     const trimmed = reason.trim();
     if (!trimmed || trimmed.length > 500) { setError('Lý do phải có từ 1 đến 500 ký tự.'); return; }
-    if (!auth.currentUser || auth.currentUser.uid !== profile.uid) { setError('Phiên đăng nhập không hợp lệ.'); return; }
+    if (!auth.currentUser || (profile?.uid && auth.currentUser.uid !== profile.uid)) { setError('Phiên đăng nhập không hợp lệ.'); return; }
     setBusy(true);
     try {
       await addDoc(collection(db, 'leaveRequests'), {
         memberDocId: profile.memberDocId,
         diemTap: member.diemTap,
-        locationId: member.locationId,
+        locationId: resolvedLocationId,
         tuNgay: from,
         denNgay: to,
         lyDo: trimmed,
@@ -84,7 +86,7 @@ function LeaveForm({ member, profile }) {
     } catch (err) {
       console.error('Lỗi gửi đơn xin nghỉ:', err);
       setError(err?.code === 'permission-denied'
-        ? 'Firestore chưa cho phép gửi đơn. Kiểm tra Rules, locationId và chức năng Xin phép nghỉ của điểm tập.'
+        ? 'Firebase từ chối gửi đơn. Kiểm tra tài khoản có vai trò member, điểm tập đang hoạt động, tên điểm tập khớp và chức năng Xin phép nghỉ đã bật. Nếu hồ sơ có locationId, mã này phải trùng với điểm tập.'
         : `Không gửi được đơn: ${err?.message || 'Lỗi không xác định'}`);
     } finally { setBusy(false); }
   };
@@ -202,7 +204,7 @@ function MemberAttendance({member, memberId}) {
   </Stack>;
 }
 
-export default function MemberSelfPortal({ profile, embedded = false, view = 'Hội viên', leaveEnabled = false, examAccess = true }) {
+export default function MemberSelfPortal({ profile, embedded = false, view = 'Hội viên', leaveEnabled = false, examAccess = true, locationId = '' }) {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -281,7 +283,7 @@ export default function MemberSelfPortal({ profile, embedded = false, view = 'H�
     {loading && <CircularProgress />}
     {error && <Alert severity="error">{error}</Alert>}
     {member && (view === 'Xin phép nghỉ' ? (
-      leaveEnabled ? <LeaveForm member={member} profile={profile} />
+      leaveEnabled ? <LeaveForm member={member} profile={profile} verifiedLocationId={locationId} />
         : <Alert severity="warning">Điểm tập chưa mở chức năng Xin phép nghỉ.</Alert>
     ) : view === 'Học phí' ? <MemberTuition member={member} memberId={member.id} />
       : view === 'Điểm danh' ? <MemberAttendance member={member} memberId={member.id} />
