@@ -3,19 +3,21 @@ import { Box, Button, Dialog, DialogContent, IconButton, Stack, Typography } fro
 import { CloseRounded, LoginRounded, ArrowBackRounded } from '@mui/icons-material';
 import PublicLocationIntroduction from './PublicLocationIntroduction';
 import LoginScreen from './LoginScreen';
+import { useClubAppearance } from "./ClubAppearance";
 import HonorPublic from './HonorPublic';
 import HonorGallery from './HonorGallery';
 
 /** Public landing page. No Firebase login required to read publicLocations. */
 export default function PublicHome() {
   const [loginOpen, setLoginOpen] = useState(false);
+  const { logoUrl } = useClubAppearance();
   const [showHonorGallery,setShowHonorGallery] = useState(() => window.location.hash.startsWith('#vinh-danh'));
   useEffect(() => { const onHash=()=>setShowHonorGallery(window.location.hash.startsWith('#vinh-danh')); window.addEventListener('hashchange',onHash); return ()=>window.removeEventListener('hashchange',onHash); },[]);
   return <Box sx={{minHeight:'100vh', bgcolor:'#f3f8f5', fontFamily:'"Segoe UI", Arial, sans-serif', '& .MuiTypography-root, & .MuiButton-root':{fontFamily:'"Segoe UI", Arial, sans-serif', letterSpacing:'normal'}}}>
     <Box component="header" sx={{position:'sticky',top:0,zIndex:10,bgcolor:'#fff',borderBottom:'1px solid #dce9df',px:{xs:2,md:5},py:1.2}}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
         <Stack direction="row" alignItems="center" spacing={1.5}>
-          <Box component="img" src="/branding/green-emblem.png" alt="Logo CLB" sx={{width:42,height:42,objectFit:'contain'}}/>
+          <Box component="img" src={logoUrl || "/branding/green-emblem.png"} alt="Logo CLB" sx={{width:42,height:42,objectFit:'contain'}}/>
           <Box><Typography fontWeight={800} sx={{color:'#075d3d',lineHeight:1.2}}>CLB TAEKWONDO GREEN</Typography>
             <Typography variant="caption" sx={{color:'#638273'}}>Giới thiệu & hệ thống điểm tập</Typography></Box>
         </Stack>

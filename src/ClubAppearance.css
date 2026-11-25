@@ -1,0 +1,37 @@
+/* TKDG APPEARANCE V1 — shared across public, admin, HLV, member screens.
+   This stylesheet intentionally loads last and is limited to visual properties. */
+:root { --tkda-primary:#087d4b; --tkda-secondary:#bc923d; --tkda-background:#f4f8f5; --tkda-surface:#ffffff; --tkda-text:#18362a; --tkda-on-primary:#ffffff; --tkda-sidebar:#083D2F; --tkda-on-sidebar:#ffffff; --tkda-header:#ffffff; --tkda-accent:#E6B957; --tkda-border:#D6E5DB; --tkda-menu-active:#176348; }
+body, #root { background: var(--tkda-background) !important; }
+.app-shell, .main-area, .page-content, .tkdg-public, .tkg-member-portal,
+.tkdg-approved .main-area, .tkdg-approved .page-content { background-color: var(--tkda-background) !important; }
+.sidebar-inner, .tkdg-approved .sidebar-inner, .MuiDrawer-paper .sidebar-inner,
+.MuiDrawer-paper { background: var(--tkda-sidebar) !important; }
+.sidebar-inner .brand-title, .sidebar-inner .brand-subtitle,
+.sidebar-inner .nav-item, .sidebar-inner .MuiListItemIcon-root,
+.sidebar-inner .sidebar-section-label { color: var(--tkda-on-sidebar) !important; }
+.sidebar-inner .nav-item.Mui-selected, .sidebar-inner .nav-item:hover { background: var(--tkda-menu-active) !important; }
+.topbar, .tkdg-approved .topbar { background: var(--tkda-header) !important; }
+.topbar .topbar-title { color: var(--tkda-text) !important; }
+.topbar .topbar-eyebrow { color: var(--tkda-primary) !important; }
+.app-shell .MuiButton-containedPrimary,
+.tkdg-public .MuiButton-containedPrimary,
+.tkg-member-portal .MuiButton-containedPrimary { background: var(--tkda-primary) !important; color: var(--tkda-on-primary) !important; }
+.app-shell .MuiButton-outlinedPrimary, .app-shell .MuiButton-textPrimary,
+.tkdg-public .MuiButton-outlinedPrimary, .tkg-member-portal .MuiButton-outlinedPrimary { color: var(--tkda-primary) !important; border-color: var(--tkda-primary) !important; }
+.app-shell .MuiTabs-indicator, .tkg-member-portal .MuiTabs-indicator { background: var(--tkda-primary) !important; }
+.app-shell .MuiTab-root.Mui-selected, .app-shell .MuiCheckbox-root.Mui-checked,
+.app-shell .MuiRadio-root.Mui-checked { color: var(--tkda-primary) !important; }
+.app-shell .MuiPaper-root:not(.MuiDrawer-paper):not(.MuiDialog-paper),
+.tkg-member-portal .MuiPaper-root:not(.MuiDrawer-paper),
+.tkdg-public .MuiPaper-root:not(.MuiDialog-paper) { background-color: var(--tkda-surface); }
+.app-shell .MuiTableCell-head { color: var(--tkda-text) !important; }
+/* Public Home has inline sx colors: explicit override for its stable header. */
+.tkdg-public > div, .tkdg-public > .MuiBox-root { background-color: var(--tkda-background) !important; }
+.tkdg-public header { background-color: var(--tkda-surface) !important; }
+.tkdg-public header .MuiTypography-root { color: var(--tkda-text) !important; }
+@media (prefers-reduced-motion: reduce) { .app-shell *, .tkdg-public * { scroll-behavior:auto !important; } }
+
+/* Additional customizable visual tokens (palette expansion V2). */
+.app-shell .MuiDivider-root, .tkdg-public .MuiDivider-root { border-color: var(--tkda-border); }
+.app-shell .MuiPaper-root:not(.MuiDrawer-paper):not(.MuiDialog-paper) { border-color: var(--tkda-border); }
+.app-shell .MuiChip-colorSecondary { background-color: var(--tkda-accent); }

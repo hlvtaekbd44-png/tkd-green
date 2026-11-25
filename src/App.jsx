@@ -48,6 +48,7 @@ import './App.css'
 import './TKDPro.css'
 import './TKDFontReadability.css'
 import HeaderAccount from "./HeaderAccount";
+import { ClubLogo, useClubAppearance } from "./ClubAppearance";
 // TKDG_APPROVED_UI_V1: visually approved club UI – no business logic changes.
 import './TKDGreenApproved.css';
 import './TKDGreenVisualV2.css';
@@ -153,6 +154,9 @@ function StatCard({ title, value, note, icon, accent = false }) {
 // Khu vực riêng: chỉ có Hội viên của tôi và Xin phép nghỉ khi điểm tập đã bật.
 // Component tách riêng để các hook của khu vực võ sinh không ảnh hưởng hook của App.
 function MemberPortalLayout({ profile, user }) {
+  const appearance = useClubAppearance();
+  const liveTheme = useMemo(() => createTheme(theme, { palette: { primary: { main: appearance.primary }, secondary: { main: appearance.secondary }, background: { default: appearance.background, paper: appearance.surface }, text: { primary: appearance.text } } }), [appearance.primary, appearance.secondary, appearance.background, appearance.surface, appearance.text]);
+  
   const [page, setPage] = useState('Tổng quan');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [member, setMember] = useState(null);
@@ -212,7 +216,7 @@ function MemberPortalLayout({ profile, user }) {
   ];
   const visiblePage = items.some(x => x.label === page) ? page : (items[0]?.label || '');
   const side = <Box className="sidebar-inner">
-    <Box className="brand"><Box className="brand-mark"><img src="/branding/green-emblem.png" alt="Logo Green Taekwondo" /></Box>
+    <Box className="brand"><Box className="brand-mark"><ClubLogo alt="Logo Green Taekwondo" /></Box>
       <Box><Typography className="brand-title">CLB TAEKWONDO GREEN</Typography><Typography className="brand-subtitle">HỆ THỐNG QUẢN LÝ CLB</Typography></Box>
     </Box>
     <Box className="sidebar-section-label">VÕ SINH / PHỤ HUYNH</Box>
@@ -226,7 +230,7 @@ function MemberPortalLayout({ profile, user }) {
       <Typography className="sidebar-version">TKD GREEN CLUB · MEMBER</Typography>
     </Box>
   </Box>;
-  return <ThemeProvider theme={theme}><CssBaseline/><Box className="app-shell tkdg-approved tka-app green-design-final">
+  return <ThemeProvider theme={liveTheme}><CssBaseline/><Box className="app-shell tkdg-approved tka-app green-design-final">
     <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
       {mobile ? <Drawer variant="temporary" open={mobileOpen} onClose={() => setMobileOpen(false)}
         ModalProps={{ keepMounted: true }} sx={{ '& .MuiDrawer-paper': { width: drawerWidth } }}>{side}</Drawer>
@@ -263,6 +267,9 @@ function MemberPortalLayout({ profile, user }) {
 }
 
 function App() {
+  const appearance = useClubAppearance();
+  const liveTheme = useMemo(() => createTheme(theme, { palette: { primary: { main: appearance.primary }, secondary: { main: appearance.secondary }, background: { default: appearance.background, paper: appearance.surface }, text: { primary: appearance.text } } }), [appearance.primary, appearance.secondary, appearance.background, appearance.surface, appearance.text]);
+  
   // TKD_GREEN_DYNAMIC_LOCATION_FILTER_V9
   const { locations: clubLocations, loadingLocations, locationError } = useClubLocations();
   const { user, profile, loading, error } = useUserRole();
@@ -467,7 +474,7 @@ useEffect(() => {
   const drawerContent = (
     <Box className="sidebar-inner">
       <Box className="brand">
-        <Box className="brand-mark"><img src="/branding/green-emblem.png" alt="Logo Green Taekwondo" /></Box>
+        <Box className="brand-mark"><ClubLogo alt="Logo Green Taekwondo" /></Box>
         <Box>
           <Typography className="brand-title">CLB TAEKWONDO GREEN</Typography>
           <Typography className="brand-subtitle">HỆ THỐNG QUẢN LÝ CLB</Typography>
@@ -547,7 +554,7 @@ useEffect(() => {
   )
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={liveTheme}>
       <CssBaseline />
       <Box className="app-shell tkdg-approved tka-app green-design-final">
         {/* Desktop: menu cố định 256px. Mobile: menu mở/đóng bằng nút trên thanh đầu. */}
