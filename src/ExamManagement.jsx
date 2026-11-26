@@ -211,9 +211,12 @@ export default function ExamManagement({
 
     const registrationsRef = collection(db, "examRegistrations");
 
-    const assignedLocations = Array.isArray(profile.diemTap)
-      ? profile.diemTap
-      : [];
+    const moduleKey = examType === "dan" ? "dan" : "exams";
+    const assignedLocations = profile.role === "admin"
+      ? []
+      : Array.isArray(profile.locationPermissions?.[moduleKey])
+        ? profile.locationPermissions[moduleKey]
+        : [];
 
     // HLV chưa được phân công điểm tập thì không truy vấn.
     if (profile.role !== "admin" && assignedLocations.length === 0) {
@@ -253,7 +256,7 @@ export default function ExamManagement({
     );
 
     return unsubscribe;
-  }, [selectedPeriod, profile]);
+  }, [selectedPeriod, profile, examType]);
 
   // ============================================
   // 3. DANH SÁCH VÕ SINH ĐƯỢC PHÉP QUẢN LÝ
@@ -313,7 +316,12 @@ export default function ExamManagement({
   };
 
   const registeredIds = useMemo(() => new Set(registrations.filter(item => item.status !== "Không dự thi").map(item => item.memberDocId)), [registrations]);
-  const canManage = isAdmin || (profile?.role === "hlv" && profile?.permissions?.exams?.manage === true);
+  const moduleKey = examType === "dan" ? "dan" : "exams";
+  const assignedExamLocations = profile?.locationPermissions?.[moduleKey] || [];
+  const canManage = isAdmin || (profile?.role === "hlv"
+    && profile?.permissions?.[moduleKey]?.manage === true
+    && Array.isArray(assignedExamLocations)
+    && assignedExamLocations.length > 0);
   const eligibleStudents = useMemo(() => visibleStudents.filter(s => !eligibility(s, selectedPeriodData?.examDate, registeredIds, examType)), [visibleStudents, selectedPeriodData?.examDate, registeredIds, examType]);
   const eligibleCount = eligibleStudents.length;
   const sortedRegistrations = useMemo(() => registrations.filter(r => {
@@ -383,7 +391,9 @@ export default function ExamManagement({
   };
 
   const saveRegistration = async (student) => {
-    if (!canManage) throw new Error("Tài khoản chưa có quyền quản lý thi cấp.");
+    if (!canManage) throw new Error(`Tài khoản chưa có quyền đăng ký ${examType === "dan" ? "Thi đẳng" : "Thi cấp"}.`);
+    if (!isAdmin && !assignedExamLocations.includes(student.location))
+      throw new Error("Hội viên không thuộc điểm tập được phân quyền đăng ký kỳ thi này.");
     if (!registrationOpen) throw new Error("Đợt thi đang khóa đăng ký.");
     const reason = eligibility(student, selectedPeriodData?.examDate, registeredIds, examType);
     if (reason) throw new Error(reason);
@@ -417,8 +427,9 @@ export default function ExamManagement({
       if (!configSnap.exists() || !memberSnap.exists()) throw new Error("Thiếu hồ sơ hoặc cấu hình điểm tập.");
       const config = configSnap.data();
       const actual = memberSnap.data();
-      if (config.active === false || config.features?.exams === false || config.name !== actual.diemTap || config.name !== student.location)
-        throw new Error("Điểm tập đã thay đổi hoặc chưa bật chức năng Thi cấp.");
+      const featureKey = examType === "dan" ? "dan" : "exams";
+      if (config.active === false || config.features?.[featureKey] !== true || config.name !== actual.diemTap || config.name !== student.location)
+        throw new Error(`Điểm tập đã thay đổi hoặc chưa bật chức năng ${examType === "dan" ? "Thi đẳng" : "Thi cấp"}.`);
       const tuitionEnabled = config.features?.tuition !== false;
       // Thi cấp dùng mức phí của điểm tập; Thi đẳng dùng biểu phí riêng theo
       // ĐẲNG DỰ THI và theo từng đợt. Không dùng phí thi cấp cho thi đẳng.
