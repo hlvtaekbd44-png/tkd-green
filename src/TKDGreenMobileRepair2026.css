@@ -1,0 +1,29 @@
+/* CLB TAEKWONDO GREEN — mobile width and exam usability, 27 Nov 2026.
+   Scoped to the app, does not modify business permissions or Firestore data. */
+@media (max-width: 899.95px) {
+  html, body, #root { width: 100%; max-width: 100%; min-width: 0; }
+  .tka-app.app-shell { width: 100%; max-width: 100%; min-width: 0; overflow-x: clip; }
+  .tka-app.app-shell > .main-area { width: 100% !important; max-width: 100% !important; min-width: 0 !important; flex: 1 1 100% !important; }
+  .tka-app .main-area .topbar { width: 100%; min-width: 0; }
+  .tka-app .main-area .topbar-toolbar { width: 100%; min-width: 0; }
+  .tka-app .topbar-toolbar > .MuiBox-root { min-width: 0; }
+  .tka-app .topbar-title, .tka-app .topbar-eyebrow { overflow-wrap: anywhere; }
+  .tka-app .page-content { box-sizing: border-box; width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow-x: clip; }
+  .tka-app .page-content .tkg-exam-module { width: 100%; max-width: 100%; min-width: 0; }
+  .tka-app .tkg-exam-module .tkg-module-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 10px; }
+  .tka-app .tkg-exam-module .tkg-module-kpi { min-width: 0; padding: 12px; }
+  .tka-app .tkg-exam-module .tkg-module-kpi strong { font-size: 21px; }
+  .tka-app .tkg-exam-module > .MuiStack-root:first-of-type { min-width: 0; width: 100%; }
+  .tka-app .tkg-exam-module > .MuiStack-root:first-of-type > .MuiStack-root:last-child { min-width: 0; width: 100%; gap: 8px; margin: 0; }
+  .tka-app .tkg-exam-module .tkg-exam-actions .MuiButton-root { min-height: 43px; max-width: 100%; white-space: normal !important; overflow-wrap: anywhere; line-height: 1.35; }
+  .tka-app .tkg-exam-module .MuiChip-root { max-width: 100%; min-width: 0; height: auto; min-height: 30px; }
+  .tka-app .tkg-exam-module .MuiChip-label { white-space: normal; overflow-wrap: anywhere; padding-block: 5px; }
+  .tka-app .tkg-exam-module .MuiFormControl-root { min-width: 0; max-width: 100%; }
+  .tka-app .tkg-exam-module .tkg-exam-table-scroll { width: 100%; max-width: 100%; overflow-x: auto !important; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+  .tka-app .tkg-exam-module .tkg-exam-table-scroll .MuiTable-root { min-width: 760px; }
+  .tka-app .page-content .MuiPaper-root { max-width: 100%; }
+  .tka-app .footer { min-width: 0; overflow-wrap: anywhere; }
+}
+@media (max-width: 390px) {
+  .tka-app .tkg-exam-module .tkg-exam-actions .MuiButton-root { flex-basis: 100% !important; }
+}

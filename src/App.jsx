@@ -61,6 +61,7 @@ import "./TKDGreenDesignA.css";
 import "./TKDGreenUnified2026.css";
 import "./TKDGreenDesignFinal.css"; // Design A consolidated visual layout — loaded last
 import "./TKDGreenInterface2026.css"; // UI rebuild: compact workspace & module hierarchy
+import "./TKDGreenMobileRepair2026.css"; // mobile width + exam touch layout, loaded last
 
 const drawerWidth = 256
 
@@ -236,7 +237,7 @@ function MemberPortalLayout({ profile, user }) {
         ModalProps={{ keepMounted: true }} sx={{ '& .MuiDrawer-paper': { width: drawerWidth } }}>{side}</Drawer>
         : <Drawer variant="permanent" open sx={{ '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box' } }}>{side}</Drawer>}
     </Box>
-    <Box className="main-area"><AppBar position="sticky" elevation={0} className="topbar"><Toolbar className="topbar-toolbar">
+    <Box className="main-area" sx={{ width: { xs: '100%', md: 0 }, flex: { xs: '1 1 100%', md: '1 1 0%' }, minWidth: 0, maxWidth: '100%' }}><AppBar position="sticky" elevation={0} className="topbar"><Toolbar className="topbar-toolbar">
       {mobile && <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}><MenuIcon/></IconButton>}
       <Box sx={{ flexGrow: 1 }}><Typography className="topbar-eyebrow">CLB TAEKWONDO GREEN / HỘI VIÊN</Typography>
       <Typography className="topbar-title">{visiblePage || 'Chưa được mở chức năng'}</Typography></Box><HeaderAccount />
@@ -571,7 +572,7 @@ useEffect(() => {
           )}
         </Box>
 
-        <Box className="main-area" sx={{ flex: 1, minWidth: 0, width: 0, transition: 'width 220ms ease' }}>
+        <Box className="main-area" sx={{ flex: { xs: '1 1 100%', md: '1 1 0%' }, minWidth: 0, width: { xs: '100%', md: 0 }, maxWidth: '100%', transition: 'width 220ms ease' }}>
           <AppBar position="sticky" elevation={0} className="topbar">
             <Toolbar className="topbar-toolbar">
               {isMobile && (

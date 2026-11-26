@@ -28,6 +28,7 @@ import {
 } from "@mui/material";
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import { db } from "./firebase";
+import MemberEditHistory from "./MemberEditHistory";
 import { POLICY_LABELS, validateTuitionPolicy, calculateTuitionPolicy } from "./tuitionPolicy";
 
 const money = (value) =>
@@ -347,6 +348,7 @@ export default function MemberProfile({
           <Tab label="Thi cấp" />
           <Tab label="Học phí" />
           <Tab label="Chính sách học phí" />
+          <Tab label="Lịch sử chỉnh sửa" />
         </Tabs>
 
         {tab === 0 && (
@@ -541,6 +543,7 @@ export default function MemberProfile({
               : <Alert severity="info">Chỉ Admin được thay đổi chính sách học phí.</Alert>}
           </Stack>
         )}
+        {tab === 5 && <MemberEditHistory memberId={member?.id} />}
       </DialogContent>
     </Dialog>
   );

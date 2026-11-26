@@ -740,7 +740,7 @@ export default function ExamManagement({
   const approvedCount = sortedRegistrations.filter(r => ['Đạt', 'DAT', 'PASS'].includes(String(r.ketQua || r.result || '').trim())).length;
   const waitCount = sortedRegistrations.filter(r => !String(r.ketQua || r.result || '').trim()).length;
   return (
-    <Box className={`tkg-exam-module tkg-exam-${examType}`} sx={{ p: { xs: 0, md: 0 }, minWidth:0 }}>
+    <Box className={`tkg-exam-module tkg-exam-${examType}`} sx={{ p: { xs: 0, md: 0 }, minWidth:0, width:"100%", maxWidth:"100%" }}>
       <div className="tkg-module-kpis" aria-label="Thống kê kỳ thi">
         <div className="tkg-module-kpi"><span>Đợt thi</span><strong>{periods.length.toLocaleString('vi-VN')}</strong><small>{examType === 'dan' ? 'Kỳ thi đẳng' : 'Kỳ thi cấp'} đang theo dõi</small></div>
         <div className="tkg-module-kpi"><span>Đăng ký</span><strong>{sortedRegistrations.length.toLocaleString('vi-VN')}</strong><small>Đúng điểm tập đang lọc</small></div>
@@ -764,7 +764,10 @@ export default function ExamManagement({
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1} flexWrap="wrap">
+        <Stack className="tkg-exam-actions" direction="row" spacing={1} useFlexGap flexWrap="wrap"
+          sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: 0, alignItems: 'stretch',
+            '& .MuiButton-root': { whiteSpace: 'normal', textAlign: 'center', minWidth: 0,
+              flex: { xs: '1 1 calc(50% - 8px)', sm: '0 1 auto' } } }}>
           {isAdmin && (
             <Button
               variant="outlined"
@@ -941,7 +944,7 @@ export default function ExamManagement({
 
       {/* DANH SÁCH ĐĂNG KÝ THI */}
 
-      <TableContainer component={Paper} variant="outlined">
+      <TableContainer component={Paper} variant="outlined" className="tkg-exam-table-scroll" sx={{ width: "100%", maxWidth: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
         <Table size="small">
           <TableHead>
             <TableRow>

@@ -1,11 +1,19 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   doc,
-  updateDoc,
+  collection,
+  getDocs,
+  runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Chip,
+  CircularProgress,
+  Divider,
   Alert,
   Box,
   Button,
@@ -15,12 +23,32 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import { transferMemberLocation } from "./memberIdService";
 import { useClubLocations, namesForProfile } from "./useClubLocations";
 import { EDUCATION_LEVELS } from "./educationLevels";
 
 
+
+
+// TKD_HLV_EDIT_AUDIT_V1: Lich su bat bien, ghi nguyen tu voi chinh sua.
+const MEMBER_EDIT_FIELDS = [
+  'hoTen', 'ngaySinh', 'gioiTinh', 'trinhDoVanHoa',
+  'soDienThoaiPhuHuynh', 'loaiHocPhi', 'ngayBatDau',
+  'capDaiDang', 'trangThai',
+];
+const MEMBER_FIELD_LABELS = {
+  hoTen: 'Họ và tên', ngaySinh: 'Ngày sinh', gioiTinh: 'Giới tính',
+  trinhDoVanHoa: 'Trình độ văn hóa', soDienThoaiPhuHuynh: 'SĐT phụ huynh',
+  loaiHocPhi: 'Loại học phí', ngayBatDau: 'Ngày bắt đầu tập',
+  capDaiDang: 'Cấp đai/đẳng', trangThai: 'Trạng thái hội viên',
+};
+function auditValue(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (value?.toDate instanceof Function) return value.toDate().toLocaleString('vi-VN');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
 
 export default function EditMember({
   member,
@@ -43,6 +71,10 @@ export default function EditMember({
     trangThai: member?.status || "Đang học",
   });
 
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [historyRefresh, setHistoryRefresh] = useState(0);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -50,6 +82,23 @@ export default function EditMember({
   const isAdmin = profile?.role === "admin";
 
   const allowedLocations = namesForProfile(locations, profile);
+
+  useEffect(() => {
+    if (!member?.id) return;
+    let live = true;
+    setHistoryLoading(true);
+    setHistoryError('');
+    getDocs(collection(db, 'members', member.id, 'editHistory'))
+      .then(snapshot => {
+        if (!live) return;
+        const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        items.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        setHistory(items);
+      })
+      .catch(e => { if (live) setHistoryError(e.message || 'Không tải được lịch sử chỉnh sửa.'); })
+      .finally(() => { if (live) setHistoryLoading(false); });
+    return () => { live = false; };
+  }, [member?.id, historyRefresh]);
 
   function handleChange(event) {
     setForm((previous) => ({
@@ -87,8 +136,10 @@ export default function EditMember({
     setSaving(true);
 
     try {
-      const updateData = {
-        maHV: form.maHV.trim(),
+
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      const nextValues = {
         hoTen: form.hoTen.trim(),
         ngaySinh: form.ngaySinh,
         gioiTinh: form.gioiTinh,
@@ -98,17 +149,58 @@ export default function EditMember({
         ngayBatDau: form.ngayBatDau,
         capDaiDang: form.capDaiDang.trim(),
         trangThai: form.trangThai,
-        updatedAt: serverTimestamp(),
       };
-
-      const previousLocation = originalLocation;
-      if (isAdmin && form.diemTap !== previousLocation) {
-        // Chuyển điểm tập đúng nghiệp vụ: cập nhật bộ đếm mã CLB và ghi lịch sử.
-        // Không dùng updateDoc(diemTap) trực tiếp vì sẽ làm lệch mã CLB.
-        await transferMemberLocation(member.id, form.diemTap, updateData);
-      } else {
-        await updateDoc(doc(db, "members", member.id), updateData);
+      if (!isAdmin && form.diemTap !== originalLocation) {
+        throw new Error('HLV không được chuyển điểm tập.');
       }
+      if (isAdmin && form.diemTap !== originalLocation) {
+        // Giu nguyen giao dich chuyen diem tap cua Admin va lich su chuyen.
+        await transferMemberLocation(member.id, form.diemTap, {
+          ...nextValues,
+          maHV: form.maHV.trim(),
+        });
+        setMessage('Đã chuyển điểm tập và cập nhật hồ sơ. Lịch sử chuyển điểm tập được ghi riêng.');
+        if (onSaved) onSaved();
+        return;
+      }
+      const memberRef = doc(db, 'members', member.id);
+      const historyRef = doc(collection(db, 'members', member.id, 'editHistory'));
+      const changed = await runTransaction(db, async tx => {
+        const snapshot = await tx.get(memberRef);
+        if (!snapshot.exists()) throw new Error('Hồ sơ hội viên không còn tồn tại.');
+        const before = snapshot.data();
+        if (!isAdmin && before.diemTap !== originalLocation) {
+          throw new Error('Điểm tập hội viên đã thay đổi. Hãy tải lại hồ sơ.');
+        }
+        const differences = {};
+        for (const field of MEMBER_EDIT_FIELDS) {
+          if (before[field] !== nextValues[field]) differences[field] = nextValues[field];
+        }
+        // Admin được sửa mã VTF; mã nội bộ và chuyển điểm tập
+        // vẫn chỉ xử lý bằng quy trình chuyển điểm tập chuyên biệt.
+        if (isAdmin && before.maHV !== form.maHV.trim()) differences.maHV = form.maHV.trim();
+        const changeKeys = Object.keys(differences);
+        if (!changeKeys.length) return false;
+        const updatedData = {
+          ...differences,
+          updatedAt: serverTimestamp(),
+          lastEditAuditId: historyRef.id,
+        };
+        tx.update(memberRef, updatedData);
+        tx.set(historyRef, {
+          memberId: member.id,
+          actorUid: currentUser.uid,
+          actorEmail: currentUser.email || '',
+          actorRole: isAdmin ? 'admin' : 'hlv',
+          location: before.diemTap || '',
+          createdAt: serverTimestamp(),
+          changeKeys,
+          before,
+          after: { ...before, ...updatedData },
+        });
+        return true;
+      });
+      if (changed) setHistoryRefresh(n => n + 1);
 
       setMessage("Đã cập nhật hồ sơ hội viên thành công.");
 
@@ -153,6 +245,7 @@ export default function EditMember({
           <Stack spacing={2}>
             <TextField
               name="maHV"
+              disabled={!isAdmin}
               label="Mã hội viên VTF"
               value={form.maHV}
               onChange={handleChange}
@@ -203,7 +296,7 @@ export default function EditMember({
               value={form.diemTap}
               onChange={handleChange}
               disabled={!isAdmin || loadingLocations || Boolean(locationError)}
-              helperText={loadingLocations ? "Đang tải điểm tập từ Cài đặt..." : "Danh sách lấy trực tiếp từ Cài đặt điểm tập (Firebase)."}
+              helperText={isAdmin ? "Admin chuyển điểm tập qua quy trình ghi lịch sử và đổi mã CLB tự động." : "HLV không được chuyển điểm tập."}
               required
               fullWidth
             >
@@ -286,6 +379,40 @@ export default function EditMember({
             </Stack>
           </Stack>
         </Box>
+        <Accordion sx={{ mt: 3 }} defaultExpanded>
+          <AccordionSummary expandIcon={<span aria-hidden="true">▾</span>}>
+            <Typography fontWeight={700}>Lịch sử chỉnh sửa ({history.length})</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            {historyLoading && <CircularProgress size={22} />}
+            {historyError && <Alert severity="warning">{historyError}</Alert>}
+            {!historyLoading && !historyError && history.length === 0 && (
+              <Typography color="text.secondary">Chưa có lịch sử chỉnh sửa kể từ khi kích hoạt tính năng.</Typography>
+            )}
+            <Stack spacing={2}>
+              {history.map(item => (
+                <Box key={item.id} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, overflowWrap: 'anywhere' }}>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 1 }}>
+                    <Chip size="small" label={item.actorRole === 'admin' ? 'Admin' : 'HLV'} />
+                    <Typography variant="body2" fontWeight={700}>{item.actorEmail || item.actorUid}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {item.createdAt?.toDate?.()?.toLocaleString('vi-VN') || 'Đang đồng bộ thời gian'}
+                    </Typography>
+                  </Stack>
+                  {(item.changeKeys || []).map(key => (
+                    <Box key={key} sx={{ py: 0.5 }}>
+                      <Typography variant="body2" fontWeight={600}>{MEMBER_FIELD_LABELS[key] || key}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {auditValue(item.before?.[key])} → {auditValue(item.after?.[key])}
+                      </Typography>
+                    </Box>
+                  ))}
+                  <Divider sx={{ mt: 1 }} />
+                </Box>
+              ))}
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
       </Paper>
     </Box>
   );
