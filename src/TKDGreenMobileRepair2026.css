@@ -54,3 +54,48 @@
 @media (max-width: 360px) {
   .tka-app .tkg-exam-module .tkg-exam-period-meta {grid-template-columns: minmax(0, 1fr);}
 }
+
+/* TKDG_MOBILE_EXAM_ACTION_GRID_FIX_V2: action buttons never collapse into vertical text on phones.
+   CSS Grid overrides legacy MUI Stack flex-basis and flex-wrap. */
+@media (max-width: 899.95px) {
+  .tka-app .tkg-exam-module .tkg-exam-actions.MuiStack-root {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    align-items: stretch !important;
+  }
+  .tka-app .tkg-exam-module .tkg-exam-actions.MuiStack-root > .MuiButton-root {
+    display: inline-flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 48px !important;
+    margin: 0 !important;
+    padding: 10px 12px !important;
+    flex: none !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.4 !important;
+    text-align: center !important;
+    font-size: 13px !important;
+  }
+  /* Longer workflows use full width for clear touch targets. */
+  .tka-app .tkg-exam-module .tkg-exam-actions.MuiStack-root > .MuiButton-root:nth-last-child(2) {
+    grid-column: 1 / -1;
+  }
+  /* Full-width export button is predictable for both Admin and HLV. */
+  .tka-app .tkg-exam-module .tkg-exam-actions.MuiStack-root > .MuiButton-root:last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 360px) {
+  .tka-app .tkg-exam-module .tkg-exam-actions.MuiStack-root {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
