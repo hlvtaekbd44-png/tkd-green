@@ -903,7 +903,7 @@ export default function ExamManagement({
         </TextField>
 
         {selectedPeriodData && (
-          <Stack
+          <Stack className="tkg-exam-period-meta"
             direction="row"
             spacing={1}
             useFlexGap
