@@ -267,7 +267,7 @@ const addDays = (date, days) => {
     const matches = source.filter(x => String(x.name || "").trim() === point);
     if (matches.length !== 1) return { error: matches.length ? "Tên điểm tập bị trùng trong bảng giá." : `Chưa có cấu hình mức thu cho điểm tập ${point || "(trống)"}.` };
     const config = matches[0];
-    if (config.active === false || config.features?.tuition === false) return { error: "Điểm tập đang ngừng hoạt động hoặc đã tắt chức năng Học phí." };
+    if (config.active === false || config.features?.tuition !== true) return { error: "Điểm tập đang ngừng hoạt động hoặc đã tắt chức năng Học phí." };
     const value = config.fees?.[feeKey(type)];
     if (value === null || value === undefined || value === "" || !Number.isSafeInteger(Number(value)) || Number(value) <= 0) {
       return { error: `Chưa thiết lập mức Học phí ${type} hợp lệ cho ${point}.` };
@@ -513,6 +513,11 @@ const addDays = (date, days) => {
   ), [payments]);
   const visibleMembers = filteredStudents.slice(memberPage * memberRows, (memberPage + 1) * memberRows);
   const visiblePayments = orderedPayments.slice(paymentPage * paymentRows, (paymentPage + 1) * paymentRows);
+  // TKD_VTF_SYNC_V1: Giữ nguyên mã VTF gốc trong chứng từ; chỉ tra mã hiện tại để hiển thị.
+  const currentVtfByMemberId = useMemo(() => new Map(students.map(m => [m.id, String(m.maHV || "").trim()])), [students]);
+  const paymentCurrentVtf = payment => currentVtfByMemberId.has(payment.memberId || payment.memberDocId)
+    ? (currentVtfByMemberId.get(payment.memberId || payment.memberDocId) || "Chưa cấp")
+    : "Không có hồ sơ liên kết";
   useEffect(() => { setMemberPage(0); }, [search, location, feeFilter, dueFilter]);
   const totalCollected = useMemo(() => {
     const now = new Date();
@@ -623,7 +628,7 @@ const addDays = (date, days) => {
         if (quitNow !== isQuitMember(selectedMember)) throw new Error('Trạng thái học tập vừa thay đổi. Đóng và mở lại phiếu thu.');
         if(String(memberData.diemTap||'').trim()!==pointName || config.name!==pointName)
           throw new Error('Điểm tập đã thay đổi. Hãy mở lại hồ sơ.');
-        if (!quitNow && (config.active === false || config.features?.tuition === false))
+        if (!quitNow && (config.active === false || config.features?.tuition !== true))
           throw new Error('Điểm tập đã ngừng hoạt động hoặc đã tắt Học phí.');
         const liveRate = quitNow ? 0 : Number(config.fees?.[feeKey(period)]);
         if (!quitNow && (!Number.isSafeInteger(liveRate) || liveRate <= 0 || liveRate !== Number(baseFee)))
@@ -641,7 +646,7 @@ const addDays = (date, days) => {
         const remainingDebt=newLedger.reduce((n,c)=>n+cycleDebt(c),0);
         const affected=allocation.allocations;
         tx.set(paymentRef,{
-          memberId:selectedMember.id, maHV:memberData.maHV||selectedMember.id,
+          memberId:selectedMember.id, maHV:memberData.maHV||"",
           hoTen:memberData.hoTen||selectedMember.name||'',diemTap:pointName,
           ngayThu:paymentDate, soTien:received, loaiHocPhi:period,
           ngayBatDauKy:affected[0]?.ngayBatDauKy||newLedger.at(-1)?.ngayBatDau||'',
@@ -833,15 +838,15 @@ const addDays = (date, days) => {
                   <Typography variant="caption" color="text.secondary">{dateVN(payment.ngayThu)} · {payment.loaiHocPhi || "—"}</Typography></Box>
                 <Typography fontWeight={900} color="success.main" sx={{ whiteSpace: "nowrap" }}>{money(payment.soTien)}</Typography>
               </Stack>
-              <Typography variant="caption" color="text.secondary">VTF: {payment.maHV || "—"}</Typography>
+              <Typography variant="caption" color="text.secondary">VTF hiện tại: {paymentCurrentVtf(payment)}</Typography>
               {payment.ghiChu && <Typography variant="body2" sx={{ mt: 1 }}>{payment.ghiChu}</Typography>}
             </Paper>)}
           </Stack>
           <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
             <Table size="small" sx={{ "& th": { fontWeight: 800, bgcolor: "action.hover" } }}>
-              <TableHead><TableRow><TableCell>Ngày thu</TableCell><TableCell>Mã VTF</TableCell><TableCell>Họ tên</TableCell><TableCell>Loại HP</TableCell><TableCell align="right">Số tiền</TableCell><TableCell>Ghi chú</TableCell></TableRow></TableHead>
+              <TableHead><TableRow><TableCell>Ngày thu</TableCell><TableCell>VTF hiện tại</TableCell><TableCell>Họ tên</TableCell><TableCell>Loại HP</TableCell><TableCell align="right">Số tiền</TableCell><TableCell>Ghi chú</TableCell></TableRow></TableHead>
               <TableBody>{visiblePayments.map((payment) => <TableRow hover key={payment.id}>
-                <TableCell>{dateVN(payment.ngayThu)}</TableCell><TableCell>{payment.maHV || "—"}</TableCell><TableCell>{payment.hoTen || "—"}</TableCell>
+                <TableCell>{dateVN(payment.ngayThu)}</TableCell><TableCell>{paymentCurrentVtf(payment)}</TableCell><TableCell>{payment.hoTen || "—"}</TableCell>
                 <TableCell>{payment.loaiHocPhi || "—"}</TableCell><TableCell align="right"><Typography fontWeight={800} color="success.main">{money(payment.soTien)}</Typography></TableCell><TableCell>{payment.ghiChu || "—"}</TableCell>
               </TableRow>)}
               {!visiblePayments.length && <TableRow><TableCell colSpan={6} align="center">Chưa có giao dịch thu học phí.</TableCell></TableRow>}

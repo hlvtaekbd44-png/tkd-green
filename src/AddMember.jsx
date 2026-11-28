@@ -3,6 +3,9 @@ import { useState } from "react";
 import {
   addDoc,
   collection,
+  getDocs,
+  query,
+  where,
   serverTimestamp,
 } from "firebase/firestore";
 import {
@@ -52,8 +55,9 @@ async function handleSubmit(event) {
 
   setMessage("");
 
-  if (!form.maHV.trim() || !form.hoTen.trim()) {
-    setMessage("Vui lòng nhập mã hội viên VTF và họ tên.");
+  // TKD_GREEN_VTF_OPTIONAL_20261128: VTF có thể bổ sung sau; chỉ bắt buộc họ tên.
+  if (!form.hoTen.trim()) {
+    setMessage("Vui lòng nhập họ và tên hội viên.");
     return;
   }
 
@@ -66,9 +70,16 @@ async function handleSubmit(event) {
   setMessage("Đang lưu hồ sơ hội viên...");
 
   try {
+    // TKD_VTF_SYNC_V1: Mã VTF có thể được cấp sau; nếu có thì từ chối trùng.
+    const vtf = form.maHV.trim().toUpperCase();
+    if (vtf && profile?.role !== "admin") throw new Error("Chỉ Admin được nhập mã VTF chính thức.");
+    if (vtf) {
+      const existing = await getDocs(query(collection(db, "members"), where("maHV", "==", vtf)));
+      if (!existing.empty) throw new Error("Mã VTF đã tồn tại trong hệ thống.");
+    }
     const docRef = await addDoc(collection(db, "members"), {
       ...form,
-      maHV: form.maHV.trim(),
+      maHV: vtf,
       hoTen: form.hoTen.trim(),
       trangThai: "Đang học",
       capDaiDang: "Chưa cập nhật",
@@ -114,7 +125,7 @@ async function handleSubmit(event) {
         label="Mã hội viên VTF"
         value={form.maHV}
         onChange={handleChange}
-        required
+        helperText="Chưa có mã VTF có thể để trống và cập nhật sau."
       />
 
       <TextField

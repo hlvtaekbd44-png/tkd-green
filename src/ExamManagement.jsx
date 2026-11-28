@@ -339,12 +339,17 @@ export default function ExamManagement({
   }), [visibleStudents, bulkSearch, examType]);
   const studentForSingle = visibleStudents.find(s => s.id === studentId);
 
+  // TKD_VTF_SYNC_V1: Mã VTF luôn lấy từ hồ sơ, không từ bản sao đăng ký.
+  const vtfByMemberId = useMemo(() => new Map(students.map(s => [s.id, String(s.maHV || "").trim()])), [students]);
+  const currentVtf = (registration) => vtfByMemberId.has(registration.memberDocId)
+    ? vtfByMemberId.get(registration.memberDocId)
+    : "";
   const exportExcel = () => {
     if (!selectedPeriodData || !sortedRegistrations.length) return;
     const rows = sortedRegistrations.map((r, i) => ({
       "STT": i + 1,
       "SBD": r.sbd || "",
-      "VTF ID": String(r.maHV || ""),
+      "VTF ID": currentVtf(r),
       "Họ và Tên": r.hoTen || "",
       "Giới tính": r.gioiTinh || "",
       "Ngày sinh": formatBirth(r.ngaySinh),
@@ -430,13 +435,13 @@ export default function ExamManagement({
       const featureKey = examType === "dan" ? "dan" : "exams";
       if (config.active === false || config.features?.[featureKey] !== true || config.name !== actual.diemTap || config.name !== student.location)
         throw new Error(`Điểm tập đã thay đổi hoặc chưa bật chức năng ${examType === "dan" ? "Thi đẳng" : "Thi cấp"}.`);
-      const tuitionEnabled = config.features?.tuition !== false;
+      const tuitionEnabled = config.features?.tuition === true;
       // Thi cấp dùng mức phí của điểm tập; Thi đẳng dùng biểu phí riêng theo
       // ĐẲNG DỰ THI và theo từng đợt. Không dùng phí thi cấp cho thi đẳng.
       const feeAmount = examType === "dan"
         ? getDanExamFee(periodData.danFees, level)
         : config.fees?.exam;
-      if (examType === "dan" && feeAmount === null)
+      if (examType === "dan" && tuitionEnabled && feeAmount === null)
         throw new Error(`Đợt ${periodData.name} chưa cấu hình lệ phí thi lên ${level}. Admin cần thiết lập biểu phí trước khi đăng ký.`);
       if (examType === "cap" && tuitionEnabled && (feeAmount === null || feeAmount === undefined || feeAmount === "" || !Number.isSafeInteger(Number(feeAmount)) || Number(feeAmount) < 0))
         throw new Error("Điểm tập có Học phí nhưng chưa cấu hình lệ phí thi cấp. Hãy thiết lập trong Cài đặt.");
@@ -446,7 +451,7 @@ export default function ExamManagement({
       const reason = eligibility(current, selectedPeriodData?.examDate, new Set(), examType);
       if (reason) throw new Error(reason);
       if (nextLevel(actual.capDaiDang) !== level) throw new Error("Cấp đai đã thay đổi; vui lòng tải lại danh sách trước khi đăng ký.");
-      const examFee = (examType === "dan" || tuitionEnabled) ? {
+      const examFee = tuitionEnabled ? {
         phaiThu: Number(feeAmount), daThu:0, conNo:Number(feeAmount),
         trangThai:Number(feeAmount) === 0 ? "Đã miễn" : "Chưa đóng",
         diemTap:config.name, ngayGhiNhan: periodData.examDate,
@@ -976,7 +981,7 @@ export default function ExamManagement({
             {sortedRegistrations.map((item, index) => (
               <TableRow key={item.id}>
                 <TableCell>{index + 1}</TableCell>
-                <TableCell>{item.maHV}</TableCell>
+                <TableCell>{currentVtf(item) || "Chưa cấp"}</TableCell>
                 <TableCell>{item.hoTen}</TableCell>
                 <TableCell>{item.gioiTinh || "—"}</TableCell>
                 <TableCell>{formatBirth(item.ngaySinh) || "—"}</TableCell>

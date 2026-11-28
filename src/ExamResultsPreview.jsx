@@ -100,6 +100,12 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
     setReport([]);
     setNotice("");
     try {
+      // TKD_VTF_SYNC_V1: Excel tra mã VTF hiện tại ở hồ sơ trước khi tìm đăng ký theo ID cố định.
+      const membersByVtf = new Map();
+      for (const vtf of new Set(records.map(row => key(row["VTF ID"])).filter(Boolean))) {
+        const snapshot = await getDocs(query(collection(db, "members"), where("maHV", "==", vtf)));
+        membersByVtf.set(vtf, snapshot.docs);
+      }
       const seen = new Set();
       const all = records.map((row) => {
         const vtf = key(row["VTF ID"]);
@@ -110,7 +116,8 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
         const evalResult = evaluateExamResult(row["Đẳng dự thi"], row["Kết quả"]);
         if (evalResult.valid && isDanExamLevel(evalResult.capDai) !== ((period?.examType || "cap") === "dan")) errors.push("Bậc dự thi không thuộc loại đợt thi này");
         if (!evalResult.valid) errors.push(evalResult.error || "Kết quả không hợp lệ");
-        const regs = registrations.filter((reg) => key(reg.maHV) === vtf);
+        const matchingMembers = membersByVtf.get(vtf) || [];
+        const regs = registrations.filter((reg) => matchingMembers.some(m => m.id === reg.memberDocId));
         const sbd = key(row["SBD"]);
         if (regs.length !== 1) errors.push(regs.length ? "Trùng đăng ký thi" : "Chưa đăng ký thi");
         const reg = regs.length === 1 ? regs[0] : null;
@@ -127,8 +134,7 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
       for (const item of all) {
         if (!item.vtf || !item.reg) continue;
         if (!cache.has(item.vtf)) {
-          const snapshot = await getDocs(query(collection(db, "members"), where("maHV", "==", item.vtf)));
-          cache.set(item.vtf, snapshot.docs);
+          cache.set(item.vtf, membersByVtf.get(item.vtf) || []);
         }
         const matches = cache.get(item.vtf);
         if (matches.length !== 1) {
@@ -193,7 +199,7 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
           if (reg.periodId !== period.id || reg.memberDocId !== item.memberId ||
               isDanExamLevel(reg.dangDuThi) !== ((period?.examType || "cap") === "dan") ||
               (key(item.row["SBD"]) && key(reg.sbd) && key(item.row["SBD"]) !== key(reg.sbd)) ||
-              key(reg.maHV) !== item.vtf || key(member.maHV) !== item.vtf ||
+              key(member.maHV) !== item.vtf ||
               normalizeExamLevel(reg.dangDuThi) !== item.evalResult.capDai ||
               fold(member.hoTen) !== fold(item.row["Họ và Tên"]) ||
               dateKey(member.ngaySinh) !== dateKey(item.row["Ngày sinh"])) {
@@ -257,7 +263,7 @@ export default function ExamResultsPreview({ period, registrations = [], isAdmin
           const member = memberSnap.data();
           if (reg.periodId !== period.id || reg.memberDocId !== item.memberId ||
               isDanExamLevel(reg.dangDuThi) !== ((period?.examType || "cap") === "dan") ||
-              key(reg.maHV) !== item.vtf || key(member.maHV) !== item.vtf ||
+              key(member.maHV) !== item.vtf ||
               (key(item.row["SBD"]) && key(reg.sbd) && key(item.row["SBD"]) !== key(reg.sbd)) ||
               normalizeExamLevel(reg.dangDuThi) !== normalizeExamLevel(item.row["Đẳng dự thi"]) ||
               fold(member.hoTen) !== fold(item.row["Họ và Tên"]) ||

@@ -102,7 +102,13 @@ export default function DanExamResultsPreview({ period, registrations = [], isAd
         if (!/^[1-7]\s*Đẳng$/i.test(target)) errors.push('Thi thăng phải có dạng 1 Đẳng đến 7 Đẳng');
         if (danNext(existing) !== normalizeBeltLevel(target)) errors.push('Không đúng bậc thăng kế tiếp');
         if (!dateKey(row['Năm sinh'])) errors.push('Ngày sinh không đúng dd/mm/yyyy');
-        const matches = registrations.filter(r => key(r.maHV) === vtf && (!r.periodId || r.periodId === period.id));
+        // TKD_VTF_SYNC_V1: Tìm hồ sơ bằng VTF chính thức, rồi liên kết đăng ký bằng memberDocId.
+        if (vtf && !memberCache.has(vtf)) {
+          const snap = await getDocs(query(collection(db, 'members'), where('maHV', '==', vtf)));
+          memberCache.set(vtf, snap.docs);
+        }
+        const matchingMemberIds = new Set((memberCache.get(vtf) || []).map(m => m.id));
+        const matches = registrations.filter(r => matchingMemberIds.has(r.memberDocId) && (!r.periodId || r.periodId === period.id));
         if (matches.length !== 1) errors.push(matches.length ? 'Trùng đăng ký thi trong đợt' : 'Chưa có đăng ký trong đợt');
         const reg = matches.length === 1 ? matches[0] : null;
         if (reg) {
@@ -161,7 +167,7 @@ export default function DanExamResultsPreview({ period, registrations = [], isAd
             if (!regSnap.exists() || !memberSnap.exists()) throw new Error('Không tìm thấy hồ sơ/đăng ký.');
             const reg = regSnap.data(), member = memberSnap.data();
             if (reg.periodId !== period.id || (reg.examType && reg.examType !== 'dan') ||
-                reg.memberDocId !== item.memberId || key(reg.maHV) !== item.vtf ||
+                reg.memberDocId !== item.memberId ||
                 key(member.maHV) !== item.vtf) throw new Error('Đăng ký hoặc mã VTF đã thay đổi.');
             if (cancelled(reg) || priorResult(reg)) throw new Error('Đăng ký đã hủy hoặc đã chốt kết quả.');
             if (fold(member.hoTen) !== fold(item.row['Họ và Tên']) ||

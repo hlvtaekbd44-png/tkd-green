@@ -5,6 +5,8 @@ import {
   collection,
   getDocs,
   runTransaction,
+  query,
+  where,
   serverTimestamp,
 } from "firebase/firestore";
 import {
@@ -139,6 +141,15 @@ export default function EditMember({
 
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      // TKD_VTF_SYNC_V1: VTF chính thức chỉ Admin cập nhật; chặn mã trùng hồ sơ.
+      // Lưu ý: tra cứu này không bảo đảm tính duy nhất tuyệt đối nếu hai Admin sửa đồng thời.
+      const nextVtf = form.maHV.trim().toUpperCase();
+      if (isAdmin && nextVtf && nextVtf !== String(member.maHV || "").trim().toUpperCase()) {
+        const sameVtf = await getDocs(query(collection(db, 'members'), where('maHV', '==', nextVtf)));
+        if (sameVtf.docs.some(d => d.id !== member.id)) {
+          throw new Error('Mã VTF này đã được cấp cho hội viên khác. Không thể lưu mã trùng.');
+        }
+      }
       const nextValues = {
         hoTen: form.hoTen.trim(),
         ngaySinh: form.ngaySinh,
@@ -157,7 +168,7 @@ export default function EditMember({
         // Giu nguyen giao dich chuyen diem tap cua Admin va lich su chuyen.
         await transferMemberLocation(member.id, form.diemTap, {
           ...nextValues,
-          maHV: form.maHV.trim(),
+          maHV: nextVtf,
         });
         setMessage('Đã chuyển điểm tập và cập nhật hồ sơ. Lịch sử chuyển điểm tập được ghi riêng.');
         if (onSaved) onSaved();
@@ -178,7 +189,7 @@ export default function EditMember({
         }
         // Admin được sửa mã VTF; mã nội bộ và chuyển điểm tập
         // vẫn chỉ xử lý bằng quy trình chuyển điểm tập chuyên biệt.
-        if (isAdmin && before.maHV !== form.maHV.trim()) differences.maHV = form.maHV.trim();
+        if (isAdmin && String(before.maHV || "").trim() !== nextVtf) differences.maHV = nextVtf;
         const changeKeys = Object.keys(differences);
         if (!changeKeys.length) return false;
         const updatedData = {

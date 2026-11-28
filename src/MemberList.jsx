@@ -78,6 +78,8 @@ export default function MemberList({
   const [search, setSearch] = useRetainedFilter(`tkd-green:${profile?.uid || profile?.email || 'guest'}:members:search`, "");
   const [statusFilter, setStatusFilter] = useRetainedFilter(`tkd-green:${profile?.uid || profile?.email || 'guest'}:members:statusFilter`, ALL);
   const [beltFilter, setBeltFilter] = useRetainedFilter(`tkd-green:${profile?.uid || profile?.email || 'guest'}:members:beltFilter`, ALL);
+  // TKDG_VTF_FILTER_20261128: tất cả / chưa có / đã có mã VTF.
+  const [vtfFilter, setVtfFilter] = useRetainedFilter(`tkd-green:${profile?.uid || profile?.email || 'guest'}:members:vtfFilter`, "all");
   const [viewMember, setViewMember] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [actionMenu, setActionMenu] = useState(null);
@@ -139,9 +141,10 @@ export default function MemberList({
       const text = [s.maHoiVienNoiBo, s.maHV, s.name, s.location].filter(Boolean).join(" ").toLocaleLowerCase("vi");
       return text.includes(keyword)
         && (statusFilter === ALL || memberStatus(s.status) === statusFilter)
-        && (beltFilter === ALL || String(s.belt || "Chưa cập nhật") === beltFilter);
+        && (beltFilter === ALL || String(s.belt || "Chưa cập nhật") === beltFilter)
+        && (vtfFilter === "all" || (vtfFilter === "missing" ? !String(s.maHV ?? "").trim() : Boolean(String(s.maHV ?? "").trim())));
     });
-  }, [locationStudents, search, statusFilter, beltFilter]);
+  }, [locationStudents, search, statusFilter, beltFilter, vtfFilter]);
 
   const counts = useMemo(() => ({
     total: locationStudents.length,
@@ -176,6 +179,7 @@ export default function MemberList({
     setSearch("");
     setStatusFilter(ALL);
     setBeltFilter(ALL);
+    setVtfFilter("all");
     if (locations.includes("Tất cả điểm tập")) onLocationChange?.("Tất cả điểm tập");
   };
 
@@ -228,7 +232,7 @@ export default function MemberList({
       </Box>
 
       <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "minmax(250px, 2fr) repeat(3, minmax(145px, 1fr))" }, gap: 1.5 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "minmax(240px, 2fr) repeat(4, minmax(135px, 1fr))" }, gap: 1.5 }}>
           <TextField fullWidth size="small" label="Tìm kiếm hội viên" placeholder="Họ tên, mã nội bộ, VTF ID..." value={search} onChange={(e) => setSearch(e.target.value)}
             slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchRounded fontSize="small" /></InputAdornment> } }} />
           <TextField select fullWidth size="small" label="Điểm tập" value={location} onChange={(e) => onLocationChange?.(e.target.value)} disabled={!onLocationChange}>
@@ -239,6 +243,11 @@ export default function MemberList({
           </TextField>
           <TextField select fullWidth size="small" label="Cấp đai" value={beltOptions.includes(beltFilter) ? beltFilter : ALL} onChange={(e) => setBeltFilter(e.target.value)}>
             {beltOptions.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
+          </TextField>
+          <TextField select fullWidth size="small" label="Mã VTF" value={vtfFilter} onChange={(e) => setVtfFilter(e.target.value)}>
+            <MenuItem value="all">Tất cả mã VTF</MenuItem>
+            <MenuItem value="missing">Chưa có mã VTF</MenuItem>
+            <MenuItem value="present">Đã có mã VTF</MenuItem>
           </TextField>
         </Box>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.5 }}>
